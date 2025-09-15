@@ -40,7 +40,7 @@ class _LoginPageState extends State<LoginPage> {
                 double logoSize =
                     constraints.maxWidth * 0.30; // 25% of screen width
                 double topPadding =
-                    constraints.maxHeight * 0.10; // 6% of screen height
+                    constraints.maxHeight * 0.08; // 6% of screen height
                 double textSpacing = constraints.maxHeight * 0.015;
                 double fontSize =
                     constraints.maxWidth * 0.060; // responsive text
@@ -83,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
                 width: size.width,
                 padding: EdgeInsets.symmetric(
                   horizontal: size.width * 0.05,
-                  vertical: size.height * 0.03,
+                  vertical: size.height * 0.02,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -106,7 +106,6 @@ class _LoginPageState extends State<LoginPage> {
                         color: const Color(0xFFB41214),
                       ),
                     ),
-                    SizedBox(height: size.height * 0.01),
                     Text(
                       "Login with your existing credentials.",
                       style: GoogleFonts.montserrat(
@@ -129,7 +128,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: size.height * 0.03),
+                    SizedBox(height: size.height * 0.015),
                     FractionallySizedBox(
                       widthFactor: 1,
                       child: ElevatedButton(
@@ -160,7 +159,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: size.height * 0.015),
                     Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -235,7 +233,7 @@ class _LoginPageState extends State<LoginPage> {
                 width: size.width,
                 padding: EdgeInsets.symmetric(
                   horizontal: size.width * 0.05,
-                  vertical: size.height * 0.03,
+                  vertical: size.height * 0.02,
                 ),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -258,7 +256,6 @@ class _LoginPageState extends State<LoginPage> {
                         color: const Color(0xFFB41214),
                       ),
                     ),
-                    SizedBox(height: size.height * 0.01),
                     Text(
                       "Please fill in all fields to register.",
                       style: GoogleFonts.montserrat(
@@ -266,17 +263,17 @@ class _LoginPageState extends State<LoginPage> {
                         color: Colors.black,
                       ),
                     ),
-                    SizedBox(height: size.height * 0.02),
+                    SizedBox(height: size.height * 0.007),
                     _buildTextField("First Name"),
-                    SizedBox(height: size.height * 0.01),
+                    SizedBox(height: size.height * 0.007),
                     _buildTextField("Last Name"),
-                    SizedBox(height: size.height * 0.01),
+                    SizedBox(height: size.height * 0.007),
                     _buildTextField("Username"),
-                    SizedBox(height: size.height * 0.01),
+                    SizedBox(height: size.height * 0.007),
                     _buildPasswordField("Password"),
-                    SizedBox(height: size.height * 0.01),
+                    SizedBox(height: size.height * 0.007),
                     _buildPasswordField("Confirm Password"),
-                    SizedBox(height: size.height * 0.03),
+                    SizedBox(height: size.height * 0.02),
                     FractionallySizedBox(
                       widthFactor: 1,
                       child: ElevatedButton(
@@ -286,7 +283,7 @@ class _LoginPageState extends State<LoginPage> {
                             borderRadius: BorderRadius.circular(10),
                           ),
                           padding: EdgeInsets.symmetric(
-                            vertical: size.height * 0.015,
+                            vertical: size.height * 0.015 ,
                           ),
                         ),
                         onPressed: () {},
@@ -300,7 +297,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ),
-                    SizedBox(height: size.height * 0.015),
                     Center(
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
