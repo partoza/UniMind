@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:unimind/views/temspolicy.dart';
+import 'package:unimind/views/gender.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -78,107 +78,202 @@ class _LoginPageState extends State<LoginPage> {
             left: 0,
             right: 0,
             bottom: showLogin ? 0 : -size.height,
-            child: SingleChildScrollView(
-              child: Container(
-                width: size.width,
-                padding: EdgeInsets.symmetric(
-                  horizontal: size.width * 0.05,
-                  vertical: size.height * 0.02,
+            child: Container(
+              height: size.height * 0.66,
+              width: double.infinity,
+              padding:  EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 0),
+              decoration:  BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(size.width * 0.08),
-                    topRight: Radius.circular(size.width * 0.08),
+                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Login",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFB41214),
+                    ),
                   ),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 10),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Login",
-                      style: GoogleFonts.montserrat(
-                        fontSize: size.width * 0.08,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFB41214),
+                  Text(
+                    " Login with your existing credentials.",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: "Username",
+                      floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
+                      border: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Colors.black,
+                        ), // bottom line color
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Color(0xFFB41214),
+                          width: 2,
+                        ), // thicker on focus
                       ),
                     ),
-                    Text(
-                      "Login with your existing credentials.",
-                      style: GoogleFonts.montserrat(
-                        fontSize: size.width * 0.035,
-                        color: Colors.black,
+                  ),
+                  SizedBox(height: 15),
+                  TextField(
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
+                      border: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
                       ),
-                    ),
-                    SizedBox(height: size.height * 0.02),
-                    _buildTextField("Username"),
-                    SizedBox(height: size.height * 0.02),
-                    _buildPasswordField("Password"),
-                    SizedBox(height: size.height * 0.01),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        "Forgot Password?",
-                        style: GoogleFonts.montserrat(
-                          fontSize: size.width * 0.03,
-                          color: const Color(0xFFB41214),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Color(0xFFB41214),
+                          width: 2,
                         ),
                       ),
-                    ),
-                    SizedBox(height: size.height * 0.015),
-                    FractionallySizedBox(
-                      widthFactor: 1,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFB41214),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            vertical: size.height * 0.015,
-                          ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.black54,
                         ),
                         onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const TermsScreen(),
-                            ),
-                          );
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
                         },
-                        child: Text(
-                          "Login Now",
-                          style: GoogleFonts.montserrat(
-                            fontSize: size.width * 0.04,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      "Forgot Password?",
+                      style: GoogleFonts.montserrat(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w400,
+                        color: Color(0xffb41214),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xffb41214),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const GenderSelectionPage()),
+                        );
+                      },
+                      child: Text(
+                        "Login Now",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
                         ),
                       ),
                     ),
-                    Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "Doesn’t have an account?",
+                  ),
+                  Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "Doesn’t have an account?",
+                          style: GoogleFonts.montserrat(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black54,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() => showLogin = false),
+                          child: Text(
+                            "Register Here",
                             style: GoogleFonts.montserrat(
-                              fontSize: size.width * 0.03,
-                              color: Colors.black54,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xffb41214),
                             ),
                           ),
-                          TextButton(
-                            onPressed: () => setState(() => showLogin = false),
-                            child: Text(
-                              "Register Here",
-                              style: GoogleFonts.montserrat(
-                                fontSize: size.width * 0.03,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFFB41214),
-                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Divider(color: Colors.black26, thickness: 1),
+                      ),
+                      Padding(
+                        padding: EdgeInsets.only(left: 20, right: 20, top: 0, bottom: 0),
+                        child: Text(
+                          "or Login with",
+                          style: GoogleFonts.montserrat(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
+                      const Expanded(
+                        child: Divider(color: Colors.black26, thickness: 1),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+
+                  // Google button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.grey),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () {},
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Image.asset(
+                            "assets/google icon.png", // your Google icon asset
+                            height: 20,
+                            width: 20,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            "Continue with Google",
+                            style: GoogleFonts.montserrat(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black,
                             ),
                           ),
                         ],
