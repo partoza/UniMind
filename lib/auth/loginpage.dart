@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:unimind/services/auth_service.dart';
+import 'package:unimind/views/gender.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -157,12 +157,17 @@ class _LoginPageState extends State<LoginPage> {
                     height: 46,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Color(0xffb41214),
+                        backgroundColor: const Color(0xffb41214),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const GenderSelectionPage()),
+                        );
+                      },
                       child: Text(
                         "Login Now",
                         style: GoogleFonts.montserrat(

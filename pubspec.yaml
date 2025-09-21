@@ -31,6 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   google_fonts: ^6.2.1
+  dropdown_button2: ^2.3.9
   firebase_core: ^3.6.0   
   firebase_auth: ^5.3.1   
   google_sign_in: ^6.2.1
@@ -42,7 +43,9 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_launcher_icons: "^0.14.4"
+  flutter_launcher_icons: ^0.14.4
+  flutter_lints: ^5.0.0
+
 
 flutter_launcher_icons:
   android: "launcher_icon"
@@ -68,7 +71,7 @@ flutter_launcher_icons:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -84,6 +87,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/
+    - assets/icon/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
