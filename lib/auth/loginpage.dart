@@ -20,58 +20,39 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
+          // 🔴 Fixed Background Image
           Container(
             width: double.infinity,
             height: double.infinity,
             decoration: const BoxDecoration(
               image: DecorationImage(
-                image: AssetImage("assets/bg.png"),
-                fit: BoxFit.cover,
+                image: AssetImage("assets/bg.png"), // your background image
+                fit: BoxFit.cover, // covers entire screen
               ),
             ),
           ),
 
           Align(
             alignment: Alignment.topCenter,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                // Use constraints to make sizes relative to the available space
-                double logoSize =
-                    constraints.maxWidth * 0.30; // 25% of screen width
-                double topPadding =
-                    constraints.maxHeight * 0.08; // 6% of screen height
-                double textSpacing = constraints.maxHeight * 0.015;
-                double fontSize =
-                    constraints.maxWidth * 0.060; // responsive text
-
-                return Padding(
-                  padding: EdgeInsets.only(top: topPadding),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset(
-                        "assets/Logo.png",
-                        width: logoSize,
-                        height: logoSize,
-                      ),
-                      SizedBox(height: textSpacing),
-                      Text(
-                        "Study ta GA!",
-                        style: GoogleFonts.montserrat(
-                          fontSize: fontSize,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(height: 60),
+                Image.asset("assets/Logo.png", width: 120, height: 120),
+                const SizedBox(height: 5),
+                Text(
+                  "Study ta GA!",
+                  style: GoogleFonts.montserrat(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
-                );
-              },
+                ),
+              ],
             ),
           ),
 
-          // Login Container
+          // 🔴 Login Container
           AnimatedPositioned(
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeInOut,
@@ -279,250 +260,256 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                       ),
                     ),
-                    SizedBox(height: size.height * 0.02),
-                    _buildDividerWithText(size, "or Login with"),
-                    SizedBox(height: size.height * 0.02),
-                    _buildGoogleButton(size),
-                    SizedBox(height: size.height * 0.02),
-                    Center(
-                      child: RichText(
-                        textAlign: TextAlign.center,
-                        text: TextSpan(
-                          style: GoogleFonts.montserrat(
-                            fontSize: size.width * 0.025,
-                            color: Colors.black54,
-                          ),
-                          children: const [
-                            TextSpan(text: "By signing up, you agree to our "),
-                            TextSpan(
-                              text: "Terms",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(
-                              text: ". See how we use your data in our ",
-                            ),
-                            TextSpan(
-                              text: "Privacy Policy",
-                              style: TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            TextSpan(text: "."),
-                          ],
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  Center(
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: GoogleFonts.montserrat(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.black54,
                         ),
+                        children: [
+                          const TextSpan(
+                            text: "By signing up, you agree to our ",
+                          ),
+                          TextSpan(
+                            text: "Terms",
+                            style: GoogleFonts.montserrat(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          const TextSpan(
+                            text: ". See how we use your data in our ",
+                          ),
+                          TextSpan(
+                            text: "Privacy Policy",
+                            style: GoogleFonts.montserrat(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black54,
+                            ),
+                          ),
+                          const TextSpan(text: "."),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
 
-          // Register Container
+          // 🔴 Register Container
           AnimatedPositioned(
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeInOut,
             left: 0,
             right: 0,
             bottom: showLogin ? -size.height : 0,
-            child: SingleChildScrollView(
-              child: Container(
-                width: size.width,
-                padding: EdgeInsets.symmetric(
-                  horizontal: size.width * 0.05,
-                  vertical: size.height * 0.02,
+            child: Container(
+              height: size.height * 0.68,
+              width: double.infinity,
+              padding: EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 0),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(size.width * 0.08),
-                    topRight: Radius.circular(size.width * 0.08),
+                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Register",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFB41214),
+                    ),
                   ),
-                  boxShadow: const [
-                    BoxShadow(color: Colors.black26, blurRadius: 10),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Register",
-                      style: GoogleFonts.montserrat(
-                        fontSize: size.width * 0.08,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFB41214),
+                  Text(
+                    " Please fill in all fields to register.",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: "First Name",
+                      floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
+                      border: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Colors.black,
+                        ), // bottom line color
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Color(0xFFB41214),
+                          width: 2,
+                        ), // thicker on focus
                       ),
                     ),
-                    Text(
-                      "Please fill in all fields to register.",
-                      style: GoogleFonts.montserrat(
-                        fontSize: size.width * 0.035,
-                        color: Colors.black,
+                  ),
+                  SizedBox(height: 7),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: "Last Name",
+                      floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
+                      border: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Colors.black,
+                        ), // bottom line color
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Color(0xFFB41214),
+                          width: 2,
+                        ), // thicker on focus
                       ),
                     ),
-                    SizedBox(height: size.height * 0.007),
-                    _buildTextField("First Name"),
-                    SizedBox(height: size.height * 0.007),
-                    _buildTextField("Last Name"),
-                    SizedBox(height: size.height * 0.007),
-                    _buildTextField("Username"),
-                    SizedBox(height: size.height * 0.007),
-                    _buildPasswordField("Password"),
-                    SizedBox(height: size.height * 0.007),
-                    _buildPasswordField("Confirm Password"),
-                    SizedBox(height: size.height * 0.02),
-                    FractionallySizedBox(
-                      widthFactor: 1,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFB41214),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          padding: EdgeInsets.symmetric(
-                            vertical: size.height * 0.015 ,
-                          ),
+                  ),
+                  SizedBox(height: 7),
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: "Username",
+                      floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
+                      border: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Colors.black,
+                        ), // bottom line color
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Color(0xFFB41214),
+                          width: 2,
+                        ), // thicker on focus
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 5),
+                  TextField(
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
+                      border: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Color(0xFFB41214),
+                          width: 2,
                         ),
-                        onPressed: () {},
-                        child: Text(
-                          "Register Now",
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.black54,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  TextField(
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
+                      labelText: "Confirm Password",
+                      floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
+                      border: const UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                      ),
+                      focusedBorder: const UnderlineInputBorder(
+                        borderSide: BorderSide(
+                          color: Color(0xFFB41214),
+                          width: 2,
+                        ),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: Colors.black54,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 46,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Color(0xffb41214),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () {},
+                      child: Text(
+                        "Login Now",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Center(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          "I already have an account,",
                           style: GoogleFonts.montserrat(
-                            fontSize: size.width * 0.04,
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.black54,
                           ),
                         ),
-                      ),
-                    ),
-                    Center(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            "I already have an account,",
+                        TextButton(
+                          onPressed: () => setState(() => showLogin = true),
+                          child: Text(
+                            "Back to Login",
                             style: GoogleFonts.montserrat(
-                              fontSize: size.width * 0.03,
-                              color: Colors.black54,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xffb41214),
                             ),
                           ),
-                          TextButton(
-                            onPressed: () => setState(() => showLogin = true),
-                            child: Text(
-                              "Back to Login",
-                              style: GoogleFonts.montserrat(
-                                fontSize: size.width * 0.03,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFFB41214),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  // Reusable TextField
-  Widget _buildTextField(String label) {
-    return TextField(
-      decoration: InputDecoration(
-        labelText: label,
-        floatingLabelStyle: const TextStyle(color: Color(0xFFB41214)),
-        border: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.black),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFFB41214), width: 2),
-        ),
-      ),
-    );
-  }
-
-  // Reusable Password Field
-  Widget _buildPasswordField(String label) {
-    return TextField(
-      obscureText: _obscurePassword,
-      decoration: InputDecoration(
-        labelText: label,
-        floatingLabelStyle: const TextStyle(color: Color(0xFFB41214)),
-        border: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.black),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Color(0xFFB41214), width: 2),
-        ),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscurePassword ? Icons.visibility_off : Icons.visibility,
-            color: Colors.black54,
-          ),
-          onPressed: () {
-            setState(() {
-              _obscurePassword = !_obscurePassword;
-            });
-          },
-        ),
-      ),
-    );
-  }
-
-  // Divider with text
-  Widget _buildDividerWithText(Size size, String text) {
-    return Row(
-      children: [
-        Expanded(child: Divider(color: Colors.black26, thickness: 1)),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: size.width * 0.03),
-          child: Text(
-            text,
-            style: GoogleFonts.montserrat(
-              fontSize: size.width * 0.03,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        Expanded(child: Divider(color: Colors.black26, thickness: 1)),
-      ],
-    );
-  }
-
-  // Google Button
-  Widget _buildGoogleButton(Size size) {
-    return FractionallySizedBox(
-      widthFactor: 1,
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.grey),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          padding: EdgeInsets.symmetric(vertical: size.height * 0.015),
-        ),
-        onPressed: () {},
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              "assets/google icon.png",
-              height: size.width * 0.05,
-              width: size.width * 0.05,
-            ),
-            SizedBox(width: size.width * 0.03),
-            Text(
-              "Continue with Google",
-              style: GoogleFonts.montserrat(
-                fontSize: size.width * 0.035,
-                color: Colors.black,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
