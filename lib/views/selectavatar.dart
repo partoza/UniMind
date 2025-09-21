@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unimind/views/summarypage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AvatarSelect extends StatefulWidget {
   const AvatarSelect({super.key});
@@ -276,8 +279,33 @@ class _AvatarSelectState extends State<AvatarSelect> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           minimumSize: const Size.fromHeight(50),
                         ),
-                        onPressed: _selectedAvatar < 0 ? null : () {
-                        },
+                        onPressed: _selectedAvatar < 0
+                        ? null
+                        : () async {
+                            final user = FirebaseAuth.instance.currentUser;
+
+                            if (user != null) {
+                              final selectedAvatarPath = _avatarImages[_selectedAvatar];
+
+                              await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .update({
+                                'avatarPath': selectedAvatarPath,
+                                'profileComplete': true, // mark profile finished
+                              });
+
+                              debugPrint("Saved avatar: $selectedAvatarPath");
+                            }
+
+                            // Navigate to home/dashboard page after profile setup
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProfileSummaryPage(), 
+                              ),
+                            );
+                          },
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

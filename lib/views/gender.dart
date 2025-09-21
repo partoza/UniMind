@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/collegedep.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class GenderSelectionPage extends StatefulWidget {
   const GenderSelectionPage({super.key});
@@ -221,15 +223,28 @@ class _GenderSelectionPageState extends State<GenderSelectionPage> {
                         minimumSize: Size(size.width * 0.38, 50), // 🔹 wider & taller
                       ),
                       onPressed: _selectedGender == null
-                          ? null
-                          : () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const CollegeDepSelect(),
-                                ),
-                              );
-                            },
+                      ? null
+                      : () async {
+                          final user = FirebaseAuth.instance.currentUser;
+
+                          if (user != null) {
+                            await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .update({
+                              'gender': _selectedGender,
+                            });
+
+                            debugPrint("Gender saved: $_selectedGender");
+                          }
+
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const CollegeDepSelect(),
+                            ),
+                          );
+                        },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center, // centers content
                         children: [

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/gender.dart';
+import 'package:unimind/services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -163,9 +164,8 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const GenderSelectionPage()),
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("Email/Password login not yet implemented")),
                         );
                       },
                       child: Text(
@@ -243,7 +243,12 @@ class _LoginPageState extends State<LoginPage> {
                         final user = await AuthService().signInWithGoogle();
                         if (user != null) {
                           print("Signed in as ${user.displayName}");
-                          // TODO: Navigate to home/dashboard page
+
+                          //  Navigate to GenderSelectionPage
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const GenderSelectionPage()),
+                          );
                         } else {
                           print("Sign-in failed or cancelled");
                         }

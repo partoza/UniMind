@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/program_year.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CollegeDepSelect extends StatefulWidget {
   const CollegeDepSelect({super.key});
@@ -251,14 +253,29 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           minimumSize: const Size.fromHeight(50),
                         ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const ProgramYearSelect(),
-                            ),
-                          );
-                        },
+                        onPressed: _selectedDepartment.isEmpty
+                        ? null
+                        : () async {
+                            final user = FirebaseAuth.instance.currentUser;
+
+                            if (user != null) {
+                              await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .update({
+                                'department': _selectedDepartment,
+                              });
+
+                              debugPrint("Department saved: $_selectedDepartment");
+                            }
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProgramYearSelect(),
+                              ),
+                            );
+                          },
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
