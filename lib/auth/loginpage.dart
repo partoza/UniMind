@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:unimind/services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -233,7 +234,15 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () async {
+                        final user = await AuthService().signInWithGoogle();
+                        if (user != null) {
+                          print("Signed in as ${user.displayName}");
+                          // TODO: Navigate to home/dashboard page
+                        } else {
+                          print("Sign-in failed or cancelled");
+                        }
+                      },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
