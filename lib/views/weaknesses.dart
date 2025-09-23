@@ -145,7 +145,7 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
               const SizedBox(height: 8),
 
               Container(
-                height: 250, // ✅ Responsive instead of fixed 350
+                height: 250,
                 width: size.width * 0.85,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -158,21 +158,44 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
                     spacing: 8,
                     runSpacing: 8,
                     children: selectedWeaknesses.map((weakness) {
-                      return Chip(
-                        label: Text(
-                          weakness,
-                          style: GoogleFonts.montserrat(fontSize: 12),
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFB41214),
+                          borderRadius: BorderRadius.circular(20), // Stadium-like border radius
+                          border: Border.all(
+                            color: const Color(0xFFB41214), // Same red border as selected ChoiceChip
+                            width: 1,
+                          ),
                         ),
-                        backgroundColor: const Color(0xFFB41214),
-                        labelStyle: const TextStyle(color: Colors.white),
-                        deleteIcon: const Icon(Icons.close, size: 14, color: Colors.white),
-                        onDeleted: () {
-                          setState(() {
-                            selectedWeaknesses.remove(weakness);
-                          });
-                          // Notify parent about the selection change
-                          widget.onSelect(selectedWeaknesses);
-                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              weakness,
+                              style: GoogleFonts.montserrat(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedWeaknesses.remove(weakness);
+                                });
+                                // Notify parent about the selection change
+                                widget.onSelect(selectedWeaknesses);
+                              },
+                              child: const Icon(
+                                Icons.close,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       );
                     }).toList(),
                   ),
