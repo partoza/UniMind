@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:unimind/views/strengths.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class ProgramYearSelect extends StatefulWidget {
   const ProgramYearSelect({super.key});
@@ -384,15 +386,29 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
                           minimumSize: const Size.fromHeight(55),
                         ),
                         onPressed: (_selectedProgram != null && _selectedYear != null)
-                            ? () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => const StrengthsSelect(),
-                                  ),
-                                );
-                              }
-                            : null,
+                        ? () async {
+                            final user = FirebaseAuth.instance.currentUser;
+
+                            if (user != null) {
+                              await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .update({
+                                'program': _selectedProgram,
+                                'yearLevel': _selectedYear,
+                              });
+
+                              debugPrint("Program saved: $_selectedProgram, Year: $_selectedYear");
+                            }
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const StrengthsSelect(),
+                              ),
+                            );
+                          }
+                        : null,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

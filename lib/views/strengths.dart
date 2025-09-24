@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/weaknesses.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class StrengthsSelect extends StatefulWidget {
   const StrengthsSelect({super.key});
@@ -179,7 +181,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
                           ),
                           onSelected: (_) => _toggleSkill(skill),
                         );
-                      }).toList(),
+                      }),
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0), // Adjust the value as needed
                         child: Text(
@@ -304,12 +306,29 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           minimumSize: const Size.fromHeight(50),
                         ),
-                        onPressed: _selectedSkills.isEmpty ? null : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const WeaknessesSelect()),
-                          );
-                        },
+                        onPressed: _selectedSkills.isEmpty
+                        ? null
+                        : () async {
+                            final user = FirebaseAuth.instance.currentUser;
+
+                            if (user != null) {
+                              await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .update({
+                                'strengths': _selectedSkills, 
+                              });
+
+                              debugPrint("Saved strengths: $_selectedSkills");
+                            }
+
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const WeaknessesSelect(),
+                              ),
+                            );
+                          },
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

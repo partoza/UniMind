@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/gender.dart';
+import 'package:unimind/views/homepage.dart';
+import 'package:unimind/services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -239,7 +242,36 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () async {
+                        final user = await AuthService().signInWithGoogle();
+                        if (user != null) {
+                          print("Signed in as ${user.displayName}");
+
+                          final snapshot = await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .get();
+
+                          final data = snapshot.data();
+                          final profileComplete = data?['profileComplete'] ?? false;
+
+                          if (profileComplete) {
+                            // ✅ Go straight to HomePage
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const HomePage()),
+                            );
+                          } else {
+                            // 🚧 Continue profile setup
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const GenderSelectionPage()),
+                            );
+                          }
+                        } else {
+                          print("Sign-in failed or cancelled");
+                        }
+                      },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

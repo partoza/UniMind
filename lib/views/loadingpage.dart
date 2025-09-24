@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/auth/loginpage.dart';
+
 
 // replace with your actual LoginPage widget
 class LoadingPage extends StatefulWidget {

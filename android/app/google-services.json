@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "803662410623",
+    "project_id": "unimind-9c255",
+    "storage_bucket": "unimind-9c255.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:803662410623:android:3109f641040b294735a04a",
+        "android_client_info": {
+          "package_name": "com.example.unimind"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "803662410623-jn3av37lfnij8afkghutsl2g46eaa6vr.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unimind",
+            "certificate_hash": "01a1ff7efca04a470b1d9cfad47b2207469f77b7"
+          }
+        },
+        {
+          "client_id": "803662410623-n67lto9lkkv6oe65756ps2cbaafba2h1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDt4iY2_EuCDxnVs6JuIHPnLObpJ6xKDQA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "803662410623-n67lto9lkkv6oe65756ps2cbaafba2h1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
