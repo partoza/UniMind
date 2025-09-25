@@ -3,9 +3,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/nav/custom_navbar.dart';
-import 'package:unimind/helper/map.dart';
 
 import 'package:unimind/views/follow_page.dart';
+import 'package:unimind/views/chats.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,7 +28,7 @@ class _HomePageState extends State<HomePage> {
       _HomeContent(),
       FollowPage(),   // 👈 now you can open follow page
       Center(child: Text("Discover Page")),
-      Center(child: Text("Chat Page")),
+      ChatPage(),
       Center(child: Text("Profile Page")),
     ];
   }
@@ -322,7 +322,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
         .where('toUid', isEqualTo: widget.uid)
         .where('status', isEqualTo: 'pending')
         .get();
-    
+
     final pendingB = await followRequestsRef
         .where('fromUid', isEqualTo: widget.uid)
         .where('toUid', isEqualTo: currentUid)
@@ -334,10 +334,16 @@ class _SuggestedCardState extends State<SuggestedCard> {
 
     // When accepting an incoming request
     if (isPendingReceived) {
+      final batch = FirebaseFirestore.instance.batch(); // NEW batch
       final myFollowerDoc = currentUserRef.collection('followers').doc(widget.uid);
+      final myFollowingDoc = currentUserRef.collection('following').doc(widget.uid);
+      final theirFollowerDoc = targetUserRef.collection('followers').doc(currentUid);
       final theirFollowingDoc = targetUserRef.collection('following').doc(currentUid);
-      batch.set(myFollowerDoc, {});
-      batch.set(theirFollowingDoc, {});
+
+      batch.set(myFollowerDoc, <String, dynamic>{});
+      batch.set(myFollowingDoc, <String, dynamic>{});
+      batch.set(theirFollowerDoc, <String, dynamic>{});
+      batch.set(theirFollowingDoc, <String, dynamic>{});
       await batch.commit();
       return;
     }
@@ -345,15 +351,17 @@ class _SuggestedCardState extends State<SuggestedCard> {
     // Fresh follow - check if mutual follow should happen
     final otherFollowsMeSnap = await targetUserRef.collection('following').doc(currentUid).get();
     if (otherFollowsMeSnap.exists || isFollowingMe) {
+      final batch = FirebaseFirestore.instance.batch(); // NEW batch
       final myFollowingDoc = currentUserRef.collection('following').doc(widget.uid);
       final theirFollowerDoc = targetUserRef.collection('followers').doc(currentUid);
-      batch.set(myFollowingDoc, {});
-      batch.set(theirFollowerDoc, {});
+
+      batch.set(myFollowingDoc, <String, dynamic>{});
+      batch.set(theirFollowerDoc, <String, dynamic>{});
       await batch.commit();
       return;
     }
 
-    // Otherwise create a follow request
+    // Otherwise, create a follow request
     await followRequestsRef.add({
       'fromUid': currentUid,
       'toUid': widget.uid,
@@ -369,9 +377,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
       );
     }
   } finally {
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+    if (mounted) setState(() => _isLoading = false);
   }
 }
 

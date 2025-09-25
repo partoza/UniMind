@@ -199,53 +199,58 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
                           ),
                         ),
                         onPressed: _isProcessing
-                            ? null
-                            : () async {
-                                setState(() => _isProcessing = true);
-                                try {
-                                  final currentUid = FirebaseAuth.instance.currentUser!.uid;
-                                  final fromUid = widget.uid;
+                          ? null
+                          : () async {
+                              setState(() => _isProcessing = true);
+                              try {
+                                final currentUid = FirebaseAuth.instance.currentUser!.uid;
+                                final fromUid = widget.uid;
 
-                                  final currentUserRef = FirebaseFirestore.instance.collection('users').doc(currentUid);
-                                  final fromUserRef = FirebaseFirestore.instance.collection('users').doc(fromUid);
-                                  final followRequestsRef = FirebaseFirestore.instance.collection('followRequests');
+                                final currentUserRef = FirebaseFirestore.instance.collection('users').doc(currentUid);
+                                final fromUserRef = FirebaseFirestore.instance.collection('users').doc(fromUid);
+                                final followRequestsRef = FirebaseFirestore.instance.collection('followRequests');
 
-                                  final batch = FirebaseFirestore.instance.batch();
+                                final batch = FirebaseFirestore.instance.batch();
 
-                                  // Delete any pending requests between the two users (both directions)
-                                  final pendingA = await followRequestsRef
-                                      .where('fromUid', isEqualTo: currentUid)
-                                      .where('toUid', isEqualTo: fromUid)
-                                      .where('status', isEqualTo: 'pending')
-                                      .get();
-                                  for (var d in pendingA.docs) batch.delete(d.reference);
+                                // Delete pending requests between the two users
+                                final pendingA = await followRequestsRef
+                                    .where('fromUid', isEqualTo: currentUid)
+                                    .where('toUid', isEqualTo: fromUid)
+                                    .where('status', isEqualTo: 'pending')
+                                    .get();
+                                for (var d in pendingA.docs) batch.delete(d.reference);
 
-                                  final pendingB = await followRequestsRef
-                                      .where('fromUid', isEqualTo: fromUid)
-                                      .where('toUid', isEqualTo: currentUid)
-                                      .where('status', isEqualTo: 'pending')
-                                      .get();
-                                  for (var d in pendingB.docs) batch.delete(d.reference);
+                                final pendingB = await followRequestsRef
+                                    .where('fromUid', isEqualTo: fromUid)
+                                    .where('toUid', isEqualTo: currentUid)
+                                    .where('status', isEqualTo: 'pending')
+                                    .get();
+                                for (var d in pendingB.docs) batch.delete(d.reference);
 
-                                  // Accepting: the requester should follow the current user
-                                  final myFollowerDoc = currentUserRef.collection('followers').doc(fromUid);
-                                  final theirFollowingDoc = fromUserRef.collection('following').doc(currentUid);
-                                  batch.set(myFollowerDoc, {});
-                                  batch.set(theirFollowingDoc, {});
+                                // Update BOTH followers and following for both users
+                                final myFollowingDoc = currentUserRef.collection('following').doc(fromUid);
+                                final myFollowerDoc = currentUserRef.collection('followers').doc(fromUid);
+                                final theirFollowingDoc = fromUserRef.collection('following').doc(currentUid);
+                                final theirFollowerDoc = fromUserRef.collection('followers').doc(currentUid);
 
-                                  await batch.commit();
+                                batch.set(myFollowingDoc, <String, dynamic>{});
+                                batch.set(myFollowerDoc, <String, dynamic>{});
+                                batch.set(theirFollowingDoc, <String, dynamic>{});
+                                batch.set(theirFollowerDoc, <String, dynamic>{});
 
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text("You accepted ${widget.name}'s request")),
-                                  );
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text("Error: $e")),
-                                  );
-                                } finally {
-                                  if (mounted) setState(() => _isProcessing = false);
-                                }
-                              },
+                                await batch.commit();
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("You accepted ${widget.name}'s request")),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Error: $e")),
+                                );
+                              } finally {
+                                if (mounted) setState(() => _isProcessing = false);
+                              }
+                            },
                         child: Text(
                           "Follow Back",
                           style: GoogleFonts.montserrat(
