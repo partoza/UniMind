@@ -23,10 +23,10 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
-    // Define all pages here
+    // Define all pages
     _pages = const [
       _HomeContent(),
-      FollowPage(),   // 👈 now you can open follow page
+      FollowPage(),   
       Center(child: Text("Discover Page")),
       ChatPage(),
       Center(child: Text("Profile Page")),
@@ -72,7 +72,7 @@ class _HomePageState extends State<HomePage> {
       // show correct page
       body: _pages[_currentIndex],
 
-      // use your custom nav bar
+      // use custom nav bar
       bottomNavigationBar: CustomNavBar(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -85,7 +85,7 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-/// Home-specific content
+/// Home content
 class _HomeContent extends StatelessWidget {
   const _HomeContent();
 
@@ -256,10 +256,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
         .where('status', isEqualTo: 'pending')
         .snapshots();
   }
-
-  /// Atomic, robust toggle. Deletes pending requests in both directions when needed,
-  /// writes both side documents when accepting/following back, and recreates pending request
-  /// in the correct direction when unfollowing while the other still follows you.
+  
   Future<void> _toggleFollow({
   required bool isFollowing,
   required bool isPendingSent,
@@ -275,7 +272,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
   final followRequestsRef = FirebaseFirestore.instance.collection('followRequests');
 
   try {
-    // 1) UNFOLLOW
+    //  UNFOLLOW
     if (isFollowing) {
       final batch = FirebaseFirestore.instance.batch();
       final myFollowingDoc = currentUserRef.collection('following').doc(widget.uid);
@@ -286,7 +283,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
 
       await batch.commit();
 
-      // If the other still follows me, create a pending request FROM them -> me
+      // If the other still follows, create a pending request
       final otherFollowsMe = await targetUserRef.collection('following').doc(currentUid).get();
       if (otherFollowsMe.exists) {
         await followRequestsRef.add({
@@ -334,7 +331,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
 
     // When accepting an incoming request
     if (isPendingReceived) {
-      final batch = FirebaseFirestore.instance.batch(); // NEW batch
+      final batch = FirebaseFirestore.instance.batch(); 
       final myFollowerDoc = currentUserRef.collection('followers').doc(widget.uid);
       final myFollowingDoc = currentUserRef.collection('following').doc(widget.uid);
       final theirFollowerDoc = targetUserRef.collection('followers').doc(currentUid);
@@ -351,7 +348,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
     // Fresh follow - check if mutual follow should happen
     final otherFollowsMeSnap = await targetUserRef.collection('following').doc(currentUid).get();
     if (otherFollowsMeSnap.exists || isFollowingMe) {
-      final batch = FirebaseFirestore.instance.batch(); // NEW batch
+      final batch = FirebaseFirestore.instance.batch(); 
       final myFollowingDoc = currentUserRef.collection('following').doc(widget.uid);
       final theirFollowerDoc = targetUserRef.collection('followers').doc(currentUid);
 
@@ -445,7 +442,6 @@ class _SuggestedCardState extends State<SuggestedCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Skills / Bio / Location (same layout you used)
           Padding(
             padding: const EdgeInsets.only(top: 0.0, bottom: 4.0),
             child: Text(
@@ -537,7 +533,6 @@ Widget build(BuildContext context) {
   return StreamBuilder<DocumentSnapshot>(
     stream: followingStream(),
     builder: (context, followingSnap) {
-      // Safe type handling for following status
       final isFollowing = followingSnap.hasData && 
                          followingSnap.data != null && 
                          followingSnap.data!.exists;
@@ -545,7 +540,6 @@ Widget build(BuildContext context) {
       return StreamBuilder<DocumentSnapshot>(
         stream: followerStream(),
         builder: (context, followerSnap) {
-          // Safe type handling for follower status
           final isFollowingMe = followerSnap.hasData && 
                                followerSnap.data != null && 
                                followerSnap.data!.exists;
@@ -553,7 +547,6 @@ Widget build(BuildContext context) {
           return StreamBuilder<QuerySnapshot>(
             stream: sentRequestStream(),
             builder: (context, sentSnap) {
-              // Safe type handling for sent requests
               final isPendingSent = sentSnap.hasData && 
                                    sentSnap.data != null && 
                                    sentSnap.data!.docs.isNotEmpty;
@@ -561,7 +554,6 @@ Widget build(BuildContext context) {
               return StreamBuilder<QuerySnapshot>(
                 stream: receivedRequestStream(),
                 builder: (context, receivedSnap) {
-                  // Safe type handling for received requests
                   final isPendingReceived = receivedSnap.hasData && 
                                            receivedSnap.data != null && 
                                            receivedSnap.data!.docs.isNotEmpty;

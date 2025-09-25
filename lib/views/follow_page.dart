@@ -276,7 +276,7 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
                             : () async {
                                 setState(() => _isProcessing = true);
                                 try {
-                                  // delete the specific request doc (you already have requestDocId)
+                                  // delete the specific request document
                                   await FirebaseFirestore.instance.collection('followRequests').doc(widget.requestDocId).delete();
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text("Removed follow request from ${widget.name}")),

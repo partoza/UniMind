@@ -39,7 +39,7 @@ class _MessageScreenState extends State<MessageScreen> {
   }
 
   void _initializeChatDocument() async {
-    // Ensure the chat document exists
+    // check chat document 
     await FirebaseFirestore.instance
         .collection("chats")
         .doc(chatId)
@@ -157,7 +157,7 @@ class _MessageScreenState extends State<MessageScreen> {
               .collection("chats")
               .doc(chatId)
               .collection("messages")
-              .orderBy("timestamp", descending: false) // ascending: oldest first
+              .orderBy("timestamp", descending: false) // ascending
               .snapshots(),
               builder: (context, snapshot) {
                 // Debug output
