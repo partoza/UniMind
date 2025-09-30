@@ -1,35 +1,79 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:unimind/views/profile_setup/program_year.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:unimind/views/summarypage.dart';
 
-class AvatarSelect extends StatefulWidget {
-  const AvatarSelect({super.key});
+class CollegeDepSelect extends StatefulWidget {
+  const CollegeDepSelect({super.key});
 
   @override
-  State<AvatarSelect> createState() => _AvatarSelectState();
+  State<CollegeDepSelect> createState() => _CollegeDepSelectState();
 }
 
-class _AvatarSelectState extends State<AvatarSelect> {
-  int _selectedAvatar = -1;
-  final List<String> _avatarImages = [
-    "assets/avatar1.jpg",
-    "assets/avatar2.jpg",
-    "assets/avatar3.jpg",
-    "assets/avatar4.jpg",
-    "assets/avatar5.jpg",
-  ];
+class _CollegeDepSelectState extends State<CollegeDepSelect> {
+  String _selectedDepartment = "";
 
-  void _selectAvatar(int index) {
-    setState(() {
-      _selectedAvatar = index;
-    });
-  }
+  Widget _buildDepartmentOption(String label, String imagePath, String value) {
+  final isSelected = _selectedDepartment == value;
+
+  return InkWell(
+    onTap: () {
+      setState(() {
+        _selectedDepartment = value;
+      });
+      debugPrint("$label selected");
+    },
+    borderRadius: BorderRadius.circular(10),
+    child: Container(
+      width: 320,
+      height: 55,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: isSelected ? const Color(0xFFB41214) : Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color.fromARGB(255, 221, 220, 220), width: 1),
+      ),
+      child: Row(
+        children: [
+          // 🔹 Department logo
+          Image.asset(
+            imagePath,
+            width: 36,
+            height: 36,
+            fit: BoxFit.cover,
+          ),
+          const SizedBox(width: 12),
+
+          // 🔹 Department name
+          Expanded(
+            child: Text(
+              label,
+              style: GoogleFonts.montserrat(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                // Icon color
+                color: isSelected ? Colors.white : Colors.black,
+              ),
+            ),
+          ),
+
+          // 🔹 Circle (check when selected, empty when not)
+          Icon(
+            isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+            // Icon color
+            color: isSelected ? Colors.white : Colors.black,
+            size: 20,
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size;
+    final size = MediaQuery.of(context).size; // 🔹 get screen size
 
     return Scaffold(
       body: Stack(
@@ -104,7 +148,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
 
               // Progress Bar
               Container(
-                width: size.width * 0.7,
+                width: size.width * 0.7, // 🔹 70% of screen width
                 height: 6,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF6F6F6),
@@ -113,7 +157,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    width: size.width * (290 / size.width),
+                    width: size.width * 0.15, // 🔹 15% of screen width
                     height: 6,
                     decoration: BoxDecoration(
                       color: const Color(0xFFB41214),
@@ -127,7 +171,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
 
               // Title
               Text(
-                "Choose Your Avatar",
+                "College Department",
                 style: GoogleFonts.montserrat(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -135,8 +179,9 @@ class _AvatarSelectState extends State<AvatarSelect> {
                 ),
               ),
               const SizedBox(height: 8),
+
               Text(
-                "Select an avatar that represents you",
+                "What department do you belong",
                 style: GoogleFonts.montserrat(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
@@ -144,102 +189,28 @@ class _AvatarSelectState extends State<AvatarSelect> {
                 ),
               ),
 
-              const SizedBox(height: 10),
-
-              // Selected Avatar in Center
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Placeholder or selected avatar
-                    if (_selectedAvatar >= 0)
-                      CircleAvatar(
-                        backgroundColor: Colors.grey[200],
-                        backgroundImage: AssetImage(_avatarImages[_selectedAvatar]),
-                        radius: 130,
-                      )
-                    else
-                      Container(
-                        width: 260,
-                        height: 260,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.grey[200],
-                          border: Border.all(
-                            color: const Color(0xFFB41214),
-                            width: 2,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.person,
-                          size: 100,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    
-                    const SizedBox(height: 20),
-                    
-                    Text(
-                      _selectedAvatar >= 0 ? "Your Selection" : "Select an avatar",
-                      style: GoogleFonts.montserrat(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Avatar Choices Grid (Below the selected avatar)
-              Container(
-                height: 150, // Fixed height for the grid
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5, // 5 avatars in a row
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.0,
-                  ),
-                  itemCount: _avatarImages.length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () => _selectAvatar(index),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _selectedAvatar == index
-                                ? const Color(0xFFB41214)
-                                : Colors.transparent,
-                            width: 3,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          backgroundColor: Colors.grey[200],
-                          backgroundImage: AssetImage(_avatarImages[index]),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
               const SizedBox(height: 30),
 
-              // Bottom Navigation
+              // Department Options
+              Column(
+                children: [
+                  _buildDepartmentOption("College of Computing Education", "assets/ccelogo.png", "CCE"),
+                  const SizedBox(height: 15), // 🔹 Consistent gap
+                  _buildDepartmentOption("College of Arts and Science Education", "assets/caselogo.png", "CAS"),
+                  const SizedBox(height: 15),
+                  _buildDepartmentOption("College of Engineering Education", "assets/ceelogo.png", "CEE"),
+                ],
+              ),
+
+              const Spacer(),
+
+              // 🔴 Bottom Navigation
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: size.width * 0.1, vertical: 20),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    // 🔹 Back Button
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
@@ -247,7 +218,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          padding: const EdgeInsets.symmetric(vertical: 16), // 🔹 increase height
                           minimumSize: const Size.fromHeight(50),
                         ),
                         onPressed: () => Navigator.pop(context),
@@ -268,7 +239,10 @@ class _AvatarSelectState extends State<AvatarSelect> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 30),
+
+                    const SizedBox(width: 30), // space between buttons
+
+                    // 🔹 Continue Button
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -279,30 +253,26 @@ class _AvatarSelectState extends State<AvatarSelect> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           minimumSize: const Size.fromHeight(50),
                         ),
-                        onPressed: _selectedAvatar < 0
+                        onPressed: _selectedDepartment.isEmpty
                         ? null
                         : () async {
                             final user = FirebaseAuth.instance.currentUser;
 
                             if (user != null) {
-                              final selectedAvatarPath = _avatarImages[_selectedAvatar];
-
                               await FirebaseFirestore.instance
                                   .collection('users')
                                   .doc(user.uid)
                                   .update({
-                                'avatarPath': selectedAvatarPath,
-                                'profileComplete': true, // mark profile finished
+                                'department': _selectedDepartment,
                               });
 
-                              debugPrint("Saved avatar: $selectedAvatarPath");
+                              debugPrint("Department saved: $_selectedDepartment");
                             }
 
-                            // Navigate to home/dashboard page after profile setup
-                            Navigator.pushReplacement(
+                            Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ProfileSummaryPage(), 
+                                builder: (context) => const ProgramYearSelect(),
                               ),
                             );
                           },
@@ -326,7 +296,8 @@ class _AvatarSelectState extends State<AvatarSelect> {
                   ],
                 ),
               ),
-              const SizedBox(height: 30),
+
+              const SizedBox(height: 50),
             ],
           ),
         ],

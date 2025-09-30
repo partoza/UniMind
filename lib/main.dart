@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/loadingpage.dart';
-import 'package:unimind/views/gender.dart';
-import 'package:unimind/auth/loginpage.dart';
-import 'package:unimind/views/homepage.dart';
+import 'package:unimind/views/profile_setup/gender.dart';
+import 'package:unimind/views/auth/loginpage.dart';
+import 'package:unimind/views/home/homepage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> main() async {

@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // add this import (adjust path if your file is elsewhere)
-import 'package:unimind/views/homepage.dart';
+import 'package:unimind/views/home/homepage.dart';
 
 class ProfileSummaryPage extends StatelessWidget {
   const ProfileSummaryPage({super.key});

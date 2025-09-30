@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:unimind/views/weaknesses.dart';
+import 'package:unimind/views/profile_setup/selectavatar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class StrengthsSelect extends StatefulWidget {
-  const StrengthsSelect({super.key});
+class WeaknessesSelect extends StatefulWidget {
+  const WeaknessesSelect({super.key});
 
   @override
-  State<StrengthsSelect> createState() => _StrengthsSelectState();
+  State<WeaknessesSelect> createState() => _WeaknessesSelectState();
 }
 
-class _StrengthsSelectState extends State<StrengthsSelect> {
+class _WeaknessesSelectState extends State<WeaknessesSelect> {
   final List<String> _skills = [
     "Coding",
     "UI/UX Design",
@@ -118,7 +118,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    width: size.width * (186.40 / size.width), 
+                    width: size.width * (233 / size.width), 
                     height: 6,
                     decoration: BoxDecoration(
                       color: const Color(0xFFB41214),
@@ -132,7 +132,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
 
               // 🔹 Title
               Text(
-                "Strengths",
+                "Weaknesses",
                 style: GoogleFonts.montserrat(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -141,7 +141,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
               ),
               const SizedBox(height: 8),
               Text(
-                "Things you excel at",
+                "Areas you want to improve",
                 style: GoogleFonts.montserrat(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
@@ -208,7 +208,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "My Top Skills :",
+                        "Things you’d like to get better at:",
                         style: GoogleFonts.montserrat(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -257,8 +257,6 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
                   ),
                 ),
               ),
-
-
 
               const Spacer(),
 
@@ -316,19 +314,20 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
                                   .collection('users')
                                   .doc(user.uid)
                                   .update({
-                                'strengths': _selectedSkills, 
+                                'weaknesses': _selectedSkills, // 🔹 save array of strings
                               });
 
-                              debugPrint("Saved strengths: $_selectedSkills");
+                              debugPrint("Saved weaknesses: $_selectedSkills");
                             }
 
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const WeaknessesSelect(),
+                                builder: (context) => const AvatarSelect(),
                               ),
                             );
                           },
+
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

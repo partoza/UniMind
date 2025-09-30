@@ -1,84 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:unimind/views/program_year.dart';
+import 'package:unimind/views/profile_setup/weaknesses.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class CollegeDepSelect extends StatefulWidget {
-  const CollegeDepSelect({super.key});
+class StrengthsSelect extends StatefulWidget {
+  const StrengthsSelect({super.key});
 
   @override
-  State<CollegeDepSelect> createState() => _CollegeDepSelectState();
+  State<StrengthsSelect> createState() => _StrengthsSelectState();
 }
 
-class _CollegeDepSelectState extends State<CollegeDepSelect> {
-  String _selectedDepartment = "";
+class _StrengthsSelectState extends State<StrengthsSelect> {
+  final List<String> _skills = [
+    "Coding",
+    "UI/UX Design",
+    "Research Writing",
+    "Video Editing",
+    "Math",
+  ];
 
-  Widget _buildDepartmentOption(String label, String imagePath, String value) {
-  final isSelected = _selectedDepartment == value;
+  final List<String> _selectedSkills = [];
 
-  return InkWell(
-    onTap: () {
-      setState(() {
-        _selectedDepartment = value;
-      });
-      debugPrint("$label selected");
-    },
-    borderRadius: BorderRadius.circular(10),
-    child: Container(
-      width: 320,
-      height: 55,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFB41214) : Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color.fromARGB(255, 221, 220, 220), width: 1),
-      ),
-      child: Row(
-        children: [
-          // 🔹 Department logo
-          Image.asset(
-            imagePath,
-            width: 36,
-            height: 36,
-            fit: BoxFit.cover,
-          ),
-          const SizedBox(width: 12),
-
-          // 🔹 Department name
-          Expanded(
-            child: Text(
-              label,
-              style: GoogleFonts.montserrat(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                // Icon color
-                color: isSelected ? Colors.white : Colors.black,
-              ),
-            ),
-          ),
-
-          // 🔹 Circle (check when selected, empty when not)
-          Icon(
-            isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-            // Icon color
-            color: isSelected ? Colors.white : Colors.black,
-            size: 20,
-          ),
-        ],
-      ),
-    ),
-  );
-}
+  void _toggleSkill(String skill) {
+    setState(() {
+      if (_selectedSkills.contains(skill)) {
+        _selectedSkills.remove(skill);
+      } else {
+        _selectedSkills.add(skill);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.of(context).size; // 🔹 get screen size
+    final size = MediaQuery.of(context).size;
 
     return Scaffold(
       body: Stack(
         children: [
-          // Background Image
+          // 🔹 Background Image
           Positioned.fill(
             child: Image.asset(
               "assets/background1.jpg",
@@ -88,7 +49,7 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
 
           Column(
             children: [
-              // App Bar
+              // 🔹 App Bar
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(24, 10, 10, 10),
@@ -146,9 +107,9 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
 
               const SizedBox(height: 40),
 
-              // Progress Bar
+              // 🔹 Progress Bar
               Container(
-                width: size.width * 0.7, // 🔹 70% of screen width
+                width: size.width * 0.7,
                 height: 6,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF6F6F6),
@@ -157,7 +118,7 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    width: size.width * 0.15, // 🔹 15% of screen width
+                    width: size.width * (186.40 / size.width), 
                     height: 6,
                     decoration: BoxDecoration(
                       color: const Color(0xFFB41214),
@@ -169,9 +130,9 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
 
               const SizedBox(height: 40),
 
-              // Title
+              // 🔹 Title
               Text(
-                "College Department",
+                "Strengths",
                 style: GoogleFonts.montserrat(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -179,9 +140,8 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                 ),
               ),
               const SizedBox(height: 8),
-
               Text(
-                "What department do you belong",
+                "Things you excel at",
                 style: GoogleFonts.montserrat(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
@@ -191,26 +151,122 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
 
               const SizedBox(height: 30),
 
-              // Department Options
-              Column(
-                children: [
-                  _buildDepartmentOption("College of Computing Education", "assets/ccelogo.png", "CCE"),
-                  const SizedBox(height: 15), // 🔹 Consistent gap
-                  _buildDepartmentOption("College of Arts and Science Education", "assets/caselogo.png", "CAS"),
-                  const SizedBox(height: 15),
-                  _buildDepartmentOption("College of Engineering Education", "assets/ceelogo.png", "CEE"),
-                ],
+              // 🔹 Skills List (centered, 75% width)
+              Center(
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.85, // 75% width
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      ..._skills.map((skill) {
+                        final isSelected = _selectedSkills.contains(skill);
+                        return ChoiceChip(
+                          label: Text(
+                            skill,
+                            style: GoogleFonts.montserrat(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: isSelected ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          selected: isSelected,
+                          showCheckmark: false, // 🔹 remove check icon
+                          selectedColor: const Color(0xFFB41214),
+                          backgroundColor: Colors.white,
+                          shape: StadiumBorder(
+                            side: BorderSide(
+                              color: isSelected ? const Color(0xFFB41214) : Colors.black,
+                            ),
+                          ),
+                          onSelected: (_) => _toggleSkill(skill),
+                        );
+                      }),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0), // Adjust the value as needed
+                        child: Text(
+                          "See more …",
+                          style: GoogleFonts.montserrat(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: const Color(0xFFB41214),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+
+              const SizedBox(height: 30),
+
+              // 🔹 Selected Skills Box (centered, 75% width, fixed height)
+              Center(
+                child: SizedBox(
+                  width: MediaQuery.of(context).size.width * 0.85, // 75% width
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "My Top Skills :",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 250, // 🔹 fixed height
+                        width: MediaQuery.of(context).size.width * 0.85,
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color.fromARGB(255, 221, 220, 220)),
+                        ),
+                        child: SingleChildScrollView( // 🔹 scroll inside if overflow
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: _selectedSkills.map((skill) {
+                              return Chip(
+                                label: Text(
+                                  skill, 
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 12, // Smaller font size
+                                  ),
+                                ),
+                                backgroundColor: const Color(0xFFB41214),
+                                shape: StadiumBorder(),
+                                labelStyle: const TextStyle(color: Colors.white),
+                                deleteIcon: const Icon(Icons.close, size: 14, color: Colors.white), // Smaller icon
+                                onDeleted: () {
+                                  setState(() {
+                                    _selectedSkills.remove(skill);
+                                  });
+                                },
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), // Reduce padding
+                                visualDensity: VisualDensity.compact, // Makes the chip more compact
+                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, // Reduces touch target size
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+
 
               const Spacer(),
 
-              // 🔴 Bottom Navigation
+              // 🔹 Bottom Navigation
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: size.width * 0.1, vertical: 20),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // 🔹 Back Button
                     Expanded(
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
@@ -218,7 +274,7 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 16), // 🔹 increase height
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           minimumSize: const Size.fromHeight(50),
                         ),
                         onPressed: () => Navigator.pop(context),
@@ -239,10 +295,7 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                         ),
                       ),
                     ),
-
-                    const SizedBox(width: 30), // space between buttons
-
-                    // 🔹 Continue Button
+                    const SizedBox(width: 30),
                     Expanded(
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
@@ -253,7 +306,7 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           minimumSize: const Size.fromHeight(50),
                         ),
-                        onPressed: _selectedDepartment.isEmpty
+                        onPressed: _selectedSkills.isEmpty
                         ? null
                         : () async {
                             final user = FirebaseAuth.instance.currentUser;
@@ -263,16 +316,16 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                                   .collection('users')
                                   .doc(user.uid)
                                   .update({
-                                'department': _selectedDepartment,
+                                'strengths': _selectedSkills, 
                               });
 
-                              debugPrint("Department saved: $_selectedDepartment");
+                              debugPrint("Saved strengths: $_selectedSkills");
                             }
 
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const ProgramYearSelect(),
+                                builder: (context) => const WeaknessesSelect(),
                               ),
                             );
                           },
@@ -296,7 +349,6 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 50),
             ],
           ),

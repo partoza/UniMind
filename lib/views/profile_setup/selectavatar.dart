@@ -1,34 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:unimind/views/selectavatar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:unimind/views/profile_setup/summarypage.dart';
 
-class WeaknessesSelect extends StatefulWidget {
-  const WeaknessesSelect({super.key});
+class AvatarSelect extends StatefulWidget {
+  const AvatarSelect({super.key});
 
   @override
-  State<WeaknessesSelect> createState() => _WeaknessesSelectState();
+  State<AvatarSelect> createState() => _AvatarSelectState();
 }
 
-class _WeaknessesSelectState extends State<WeaknessesSelect> {
-  final List<String> _skills = [
-    "Coding",
-    "UI/UX Design",
-    "Research Writing",
-    "Video Editing",
-    "Math",
+class _AvatarSelectState extends State<AvatarSelect> {
+  int _selectedAvatar = -1;
+  final List<String> _avatarImages = [
+    "assets/avatar1.jpg",
+    "assets/avatar2.jpg",
+    "assets/avatar3.jpg",
+    "assets/avatar4.jpg",
+    "assets/avatar5.jpg",
   ];
 
-  final List<String> _selectedSkills = [];
-
-  void _toggleSkill(String skill) {
+  void _selectAvatar(int index) {
     setState(() {
-      if (_selectedSkills.contains(skill)) {
-        _selectedSkills.remove(skill);
-      } else {
-        _selectedSkills.add(skill);
-      }
+      _selectedAvatar = index;
     });
   }
 
@@ -39,7 +34,7 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
     return Scaffold(
       body: Stack(
         children: [
-          // 🔹 Background Image
+          // Background Image
           Positioned.fill(
             child: Image.asset(
               "assets/background1.jpg",
@@ -49,7 +44,7 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
 
           Column(
             children: [
-              // 🔹 App Bar
+              // App Bar
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(24, 10, 10, 10),
@@ -107,7 +102,7 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
 
               const SizedBox(height: 40),
 
-              // 🔹 Progress Bar
+              // Progress Bar
               Container(
                 width: size.width * 0.7,
                 height: 6,
@@ -118,7 +113,7 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Container(
-                    width: size.width * (233 / size.width), 
+                    width: size.width * (290 / size.width),
                     height: 6,
                     decoration: BoxDecoration(
                       color: const Color(0xFFB41214),
@@ -130,9 +125,9 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
 
               const SizedBox(height: 40),
 
-              // 🔹 Title
+              // Title
               Text(
-                "Weaknesses",
+                "Choose Your Avatar",
                 style: GoogleFonts.montserrat(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
@@ -141,7 +136,7 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
               ),
               const SizedBox(height: 8),
               Text(
-                "Areas you want to improve",
+                "Select an avatar that represents you",
                 style: GoogleFonts.montserrat(
                   fontSize: 12,
                   fontWeight: FontWeight.w400,
@@ -149,118 +144,98 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
                 ),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 10),
 
-              // 🔹 Skills List (centered, 75% width)
-              Center(
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.85, // 75% width
-                  child: Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      ..._skills.map((skill) {
-                        final isSelected = _selectedSkills.contains(skill);
-                        return ChoiceChip(
-                          label: Text(
-                            skill,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: isSelected ? Colors.white : Colors.black,
-                            ),
-                          ),
-                          selected: isSelected,
-                          showCheckmark: false, // 🔹 remove check icon
-                          selectedColor: const Color(0xFFB41214),
-                          backgroundColor: Colors.white,
-                          shape: StadiumBorder(
-                            side: BorderSide(
-                              color: isSelected ? const Color(0xFFB41214) : Colors.black,
-                            ),
-                          ),
-                          onSelected: (_) => _toggleSkill(skill),
-                        );
-                      }),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8.0), // Adjust the value as needed
-                        child: Text(
-                          "See more …",
-                          style: GoogleFonts.montserrat(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: const Color(0xFFB41214),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // 🔹 Selected Skills Box (centered, 75% width, fixed height)
-              Center(
-                child: SizedBox(
-                  width: MediaQuery.of(context).size.width * 0.85, // 75% width
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Things you’d like to get better at:",
-                        style: GoogleFonts.montserrat(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
+              // Selected Avatar in Center
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Placeholder or selected avatar
+                    if (_selectedAvatar >= 0)
+                      CircleAvatar(
+                        backgroundColor: Colors.grey[200],
+                        backgroundImage: AssetImage(_avatarImages[_selectedAvatar]),
+                        radius: 130,
+                      )
+                    else
                       Container(
-                        height: 250, // 🔹 fixed height
-                        width: MediaQuery.of(context).size.width * 0.85,
-                        padding: const EdgeInsets.all(12),
+                        width: 260,
+                        height: 260,
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color.fromARGB(255, 221, 220, 220)),
-                        ),
-                        child: SingleChildScrollView( // 🔹 scroll inside if overflow
-                          child: Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: _selectedSkills.map((skill) {
-                              return Chip(
-                                label: Text(
-                                  skill, 
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 12, // Smaller font size
-                                  ),
-                                ),
-                                backgroundColor: const Color(0xFFB41214),
-                                shape: StadiumBorder(),
-                                labelStyle: const TextStyle(color: Colors.white),
-                                deleteIcon: const Icon(Icons.close, size: 14, color: Colors.white), // Smaller icon
-                                onDeleted: () {
-                                  setState(() {
-                                    _selectedSkills.remove(skill);
-                                  });
-                                },
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), // Reduce padding
-                                visualDensity: VisualDensity.compact, // Makes the chip more compact
-                                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, // Reduces touch target size
-                              );
-                            }).toList(),
+                          shape: BoxShape.circle,
+                          color: Colors.grey[200],
+                          border: Border.all(
+                            color: const Color(0xFFB41214),
+                            width: 2,
                           ),
                         ),
+                        child: Icon(
+                          Icons.person,
+                          size: 100,
+                          color: Colors.grey[600],
+                        ),
                       ),
-                    ],
-                  ),
+                    
+                    const SizedBox(height: 20),
+                    
+                    Text(
+                      _selectedAvatar >= 0 ? "Your Selection" : "Select an avatar",
+                      style: GoogleFonts.montserrat(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
-              const Spacer(),
+              // Avatar Choices Grid (Below the selected avatar)
+              Container(
+                height: 150, // Fixed height for the grid
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 5, // 5 avatars in a row
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: 1.0,
+                  ),
+                  itemCount: _avatarImages.length,
+                  itemBuilder: (context, index) {
+                    return GestureDetector(
+                      onTap: () => _selectAvatar(index),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: _selectedAvatar == index
+                                ? const Color(0xFFB41214)
+                                : Colors.transparent,
+                            width: 3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 5,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: CircleAvatar(
+                          backgroundColor: Colors.grey[200],
+                          backgroundImage: AssetImage(_avatarImages[index]),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
 
-              // 🔹 Bottom Navigation
+              const SizedBox(height: 30),
+
+              // Bottom Navigation
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: size.width * 0.1, vertical: 20),
                 child: Row(
@@ -304,30 +279,33 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           minimumSize: const Size.fromHeight(50),
                         ),
-                        onPressed: _selectedSkills.isEmpty
+                        onPressed: _selectedAvatar < 0
                         ? null
                         : () async {
                             final user = FirebaseAuth.instance.currentUser;
 
                             if (user != null) {
+                              final selectedAvatarPath = _avatarImages[_selectedAvatar];
+
                               await FirebaseFirestore.instance
                                   .collection('users')
                                   .doc(user.uid)
                                   .update({
-                                'weaknesses': _selectedSkills, // 🔹 save array of strings
+                                'avatarPath': selectedAvatarPath,
+                                'profileComplete': true, // mark profile finished
                               });
 
-                              debugPrint("Saved weaknesses: $_selectedSkills");
+                              debugPrint("Saved avatar: $selectedAvatarPath");
                             }
 
-                            Navigator.push(
+                            // Navigate to home/dashboard page after profile setup
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => const AvatarSelect(),
+                                builder: (context) => const ProfileSummaryPage(), 
                               ),
                             );
                           },
-
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -348,7 +326,7 @@ class _WeaknessesSelectState extends State<WeaknessesSelect> {
                   ],
                 ),
               ),
-              const SizedBox(height: 50),
+              const SizedBox(height: 30),
             ],
           ),
         ],

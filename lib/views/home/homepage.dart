@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:unimind/nav/custom_navbar.dart';
+import 'package:unimind/views/nav/custom_navbar.dart';
 
-import 'package:unimind/views/follow_page.dart';
-import 'package:unimind/views/chats.dart';
+import 'package:unimind/views/follow/follow_page.dart';
+import 'package:unimind/views/chats/chats.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
