@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/profile_setup/gender.dart';
-import 'package:unimind/views/home/homepage.dart';
+import 'package:unimind/views/home/home_page.dart';
 import 'package:unimind/services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 

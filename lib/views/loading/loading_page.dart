@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:unimind/views/auth/loginpage.dart';
+import 'package:unimind/views/auth/login_page.dart';
 
 
 // replace with your actual LoginPage widget
