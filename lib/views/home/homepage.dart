@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/nav/custom_navbar.dart';
 
-import 'package:unimind/views/follow/follow_page.dart';
+import 'package:unimind/views/follow_request/follow_page.dart';
 import 'package:unimind/views/chats/chats.dart';
 
 class HomePage extends StatefulWidget {

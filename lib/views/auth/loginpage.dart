@@ -23,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // 🔴 Fixed Background Image
+          // Fixed Background Image
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -55,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          // 🔴 Login Container
+          // Login Container
           AnimatedPositioned(
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeInOut,
@@ -338,7 +338,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          // 🔴 Register Container
+          // Register Container
           AnimatedPositioned(
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeInOut,
