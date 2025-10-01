@@ -20,11 +20,9 @@ class MyApp extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
-      // 🔴 No one logged in yet → go to LoginPage
       return const LoginPage();
     }
 
-    // 🔴 Someone is logged in → check Firestore profile
     final snapshot = await FirebaseFirestore.instance
         .collection("users")
         .doc(user.uid)
@@ -36,7 +34,6 @@ class MyApp extends StatelessWidget {
     if (profileComplete) {
       return const HomePage();
     } else {
-      // 🚧 account setup starts with gender selection
       return const GenderSelectionPage();
     }
   }

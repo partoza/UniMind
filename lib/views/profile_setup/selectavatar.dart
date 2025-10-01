@@ -14,7 +14,7 @@ class AvatarSelect extends StatefulWidget {
 class _AvatarSelectState extends State<AvatarSelect> {
   int _selectedAvatar = -1;
   final List<String> _avatarImages = [
-    "assets/avatar1.jpg",
+    "assets/avatar1.jpg",x
     "assets/avatar2.jpg",
     "assets/avatar3.jpg",
     "assets/avatar4.jpg",

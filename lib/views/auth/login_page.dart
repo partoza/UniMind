@@ -101,13 +101,13 @@ class _LoginPageState extends State<LoginPage> {
                       border: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Colors.black,
-                        ), // bottom line color
+                        ), 
                       ),
                       focusedBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), // thicker on focus
+                        ), 
                       ),
                     ),
                   ),
@@ -256,13 +256,13 @@ class _LoginPageState extends State<LoginPage> {
                           final profileComplete = data?['profileComplete'] ?? false;
 
                           if (profileComplete) {
-                            // ✅ Go straight to HomePage
+                            // If profile is complete
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(builder: (context) => const HomePage()),
                             );
                           } else {
-                            // 🚧 Continue profile setup
+                            // If profile is not complete
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(builder: (context) => const GenderSelectionPage()),
@@ -276,7 +276,7 @@ class _LoginPageState extends State<LoginPage> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Image.asset(
-                            "assets/google icon.png", // your Google icon asset
+                            "assets/google icon.png",
                             height: 20,
                             width: 20,
                           ),
@@ -390,7 +390,7 @@ class _LoginPageState extends State<LoginPage> {
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), // thicker on focus
+                        ), 
                       ),
                     ),
                   ),
@@ -402,13 +402,13 @@ class _LoginPageState extends State<LoginPage> {
                       border: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Colors.black,
-                        ), // bottom line color
+                        ),
                       ),
                       focusedBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), // thicker on focus
+                        ),
                       ),
                     ),
                   ),
@@ -420,13 +420,13 @@ class _LoginPageState extends State<LoginPage> {
                       border: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Colors.black,
-                        ), // bottom line color
+                        ),
                       ),
                       focusedBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), // thicker on focus
+                        ), 
                       ),
                     ),
                   ),
