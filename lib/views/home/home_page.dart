@@ -27,7 +27,7 @@ class _HomePageState extends State<HomePage> {
     // Define all pages
     _pages = const [
       _HomeContent(),
-      FollowPage(),   
+      FollowPage(),
       Center(child: Text("Discover Page")),
       ChatPage(),
       ProfilePage(),
@@ -44,23 +44,57 @@ class _HomePageState extends State<HomePage> {
         title: Row(
           children: [
             Image.asset(
-              "assets/UniMind Logo.png",
-              width: 32,
-              height: 32,
+              "assets/icon/logoIconMaroon.png",
+              width: 40,
+              height: 40,
             ),
             const SizedBox(width: 8),
-            Text(
-              "UniMind",
-              style: GoogleFonts.montserrat(
-                color: const Color(0xFFB41214),
-                fontWeight: FontWeight.w700,
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: "U",
+                    style: GoogleFonts.montserrat(
+                      color: const Color(0xFFB41214),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextSpan(
+                    text: "ni",
+                    style: GoogleFonts.montserrat(
+                      color: Colors.black,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextSpan(
+                    text: "M",
+                    style: GoogleFonts.montserrat(
+                      color: const Color(0xFFB41214),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  TextSpan(
+                    text: "ind",
+                    style: GoogleFonts.montserrat(
+                      color: Colors.black,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, color: Colors.black87),
+            icon: const Icon(
+              Icons.notifications_outlined,
+              color: Colors.black87,
+            ),
             onPressed: () {},
           ),
           IconButton(
@@ -141,22 +175,32 @@ class _HomeContent extends StatelessWidget {
               }
 
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 itemCount: otherDocs.length,
                 itemBuilder: (context, i) {
-                  final data = otherDocs[i].data() as Map<String, dynamic>? ?? {};
+                  final data =
+                      otherDocs[i].data() as Map<String, dynamic>? ?? {};
                   final docUid = data['uid'] as String? ?? otherDocs[i].id;
-                  final displayName = data['displayName'] as String? ?? "Unknown";
+                  final displayName =
+                      data['displayName'] as String? ?? "Unknown";
                   final yearLevel = data['yearLevel'] as String? ?? "";
                   final program = data['program'] as String? ?? "";
                   final nameAndCourse =
                       "$yearLevel${program.isNotEmpty ? ', $program' : ''}";
-                  final avatarPath = (data['avatarPath'] ?? data['avatar'] ?? '') as String;
+                  final avatarPath =
+                      (data['avatarPath'] ?? data['avatar'] ?? '') as String;
                   final strengths = (data['strengths'] is List)
-                      ? List<String>.from((data['strengths'] as List).map((e) => e.toString()))
+                      ? List<String>.from(
+                          (data['strengths'] as List).map((e) => e.toString()),
+                        )
                       : <String>[];
                   final weaknesses = (data['weaknesses'] is List)
-                      ? List<String>.from((data['weaknesses'] as List).map((e) => e.toString()))
+                      ? List<String>.from(
+                          (data['weaknesses'] as List).map((e) => e.toString()),
+                        )
                       : <String>[];
                   final bio = data['bio'] as String? ?? "";
                   final location = data['location'] as String? ?? "Campus";
@@ -257,127 +301,154 @@ class _SuggestedCardState extends State<SuggestedCard> {
         .where('status', isEqualTo: 'pending')
         .snapshots();
   }
-  
+
   Future<void> _toggleFollow({
-  required bool isFollowing,
-  required bool isPendingSent,
-  required bool isPendingReceived,
-  required bool isFollowingMe,
-}) async {
-  if (_isLoading) return; // Prevent multiple taps
-  
-  setState(() => _isLoading = true);
+    required bool isFollowing,
+    required bool isPendingSent,
+    required bool isPendingReceived,
+    required bool isFollowingMe,
+  }) async {
+    if (_isLoading) return; // Prevent multiple taps
 
-  final currentUserRef = FirebaseFirestore.instance.collection('users').doc(currentUid);
-  final targetUserRef = FirebaseFirestore.instance.collection('users').doc(widget.uid);
-  final followRequestsRef = FirebaseFirestore.instance.collection('followRequests');
+    setState(() => _isLoading = true);
 
-  try {
-    //  UNFOLLOW
-    if (isFollowing) {
-      final batch = FirebaseFirestore.instance.batch();
-      final myFollowingDoc = currentUserRef.collection('following').doc(widget.uid);
-      final theirFollowerDoc = targetUserRef.collection('followers').doc(currentUid);
+    final currentUserRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUid);
+    final targetUserRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.uid);
+    final followRequestsRef = FirebaseFirestore.instance.collection(
+      'followRequests',
+    );
 
-      batch.delete(myFollowingDoc);
-      batch.delete(theirFollowerDoc);
+    try {
+      //  UNFOLLOW
+      if (isFollowing) {
+        final batch = FirebaseFirestore.instance.batch();
+        final myFollowingDoc = currentUserRef
+            .collection('following')
+            .doc(widget.uid);
+        final theirFollowerDoc = targetUserRef
+            .collection('followers')
+            .doc(currentUid);
 
-      await batch.commit();
+        batch.delete(myFollowingDoc);
+        batch.delete(theirFollowerDoc);
 
-      // If the other still follows, create a pending request
-      final otherFollowsMe = await targetUserRef.collection('following').doc(currentUid).get();
-      if (otherFollowsMe.exists) {
-        await followRequestsRef.add({
-          'fromUid': widget.uid,
-          'toUid': currentUid,
-          'status': 'pending',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        await batch.commit();
+
+        // If the other still follows, create a pending request
+        final otherFollowsMe = await targetUserRef
+            .collection('following')
+            .doc(currentUid)
+            .get();
+        if (otherFollowsMe.exists) {
+          await followRequestsRef.add({
+            'fromUid': widget.uid,
+            'toUid': currentUid,
+            'status': 'pending',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+        }
+        return;
       }
-      return;
-    }
 
-    // 2) CANCEL SENT REQUEST
-    if (isPendingSent) {
-      final sentQuery = await followRequestsRef
+      // 2) CANCEL SENT REQUEST
+      if (isPendingSent) {
+        final sentQuery = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUid)
+            .where('toUid', isEqualTo: widget.uid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        final batch = FirebaseFirestore.instance.batch();
+        for (var d in sentQuery.docs) batch.delete(d.reference);
+        await batch.commit();
+        return;
+      }
+
+      // 3) FOLLOW OR ACCEPT INCOMING REQUEST
+      final batch = FirebaseFirestore.instance.batch();
+
+      // Delete pending requests in both directions
+      final pendingA = await followRequestsRef
           .where('fromUid', isEqualTo: currentUid)
           .where('toUid', isEqualTo: widget.uid)
           .where('status', isEqualTo: 'pending')
           .get();
-      
-      final batch = FirebaseFirestore.instance.batch();
-      for (var d in sentQuery.docs) batch.delete(d.reference);
-      await batch.commit();
-      return;
+
+      final pendingB = await followRequestsRef
+          .where('fromUid', isEqualTo: widget.uid)
+          .where('toUid', isEqualTo: currentUid)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      for (var d in pendingA.docs) batch.delete(d.reference);
+      for (var d in pendingB.docs) batch.delete(d.reference);
+
+      // When accepting an incoming request
+      if (isPendingReceived) {
+        final batch = FirebaseFirestore.instance.batch();
+        final myFollowerDoc = currentUserRef
+            .collection('followers')
+            .doc(widget.uid);
+        final myFollowingDoc = currentUserRef
+            .collection('following')
+            .doc(widget.uid);
+        final theirFollowerDoc = targetUserRef
+            .collection('followers')
+            .doc(currentUid);
+        final theirFollowingDoc = targetUserRef
+            .collection('following')
+            .doc(currentUid);
+
+        batch.set(myFollowerDoc, <String, dynamic>{});
+        batch.set(myFollowingDoc, <String, dynamic>{});
+        batch.set(theirFollowerDoc, <String, dynamic>{});
+        batch.set(theirFollowingDoc, <String, dynamic>{});
+        await batch.commit();
+        return;
+      }
+
+      // Fresh follow - check if mutual follow should happen
+      final otherFollowsMeSnap = await targetUserRef
+          .collection('following')
+          .doc(currentUid)
+          .get();
+      if (otherFollowsMeSnap.exists || isFollowingMe) {
+        final batch = FirebaseFirestore.instance.batch();
+        final myFollowingDoc = currentUserRef
+            .collection('following')
+            .doc(widget.uid);
+        final theirFollowerDoc = targetUserRef
+            .collection('followers')
+            .doc(currentUid);
+
+        batch.set(myFollowingDoc, <String, dynamic>{});
+        batch.set(theirFollowerDoc, <String, dynamic>{});
+        await batch.commit();
+        return;
+      }
+
+      // Otherwise, create a follow request
+      await followRequestsRef.add({
+        'fromUid': currentUid,
+        'toUid': widget.uid,
+        'status': 'pending',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      debugPrint('Error in _toggleFollow: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-
-    // 3) FOLLOW OR ACCEPT INCOMING REQUEST
-    final batch = FirebaseFirestore.instance.batch();
-
-    // Delete pending requests in both directions
-    final pendingA = await followRequestsRef
-        .where('fromUid', isEqualTo: currentUid)
-        .where('toUid', isEqualTo: widget.uid)
-        .where('status', isEqualTo: 'pending')
-        .get();
-
-    final pendingB = await followRequestsRef
-        .where('fromUid', isEqualTo: widget.uid)
-        .where('toUid', isEqualTo: currentUid)
-        .where('status', isEqualTo: 'pending')
-        .get();
-
-    for (var d in pendingA.docs) batch.delete(d.reference);
-    for (var d in pendingB.docs) batch.delete(d.reference);
-
-    // When accepting an incoming request
-    if (isPendingReceived) {
-      final batch = FirebaseFirestore.instance.batch(); 
-      final myFollowerDoc = currentUserRef.collection('followers').doc(widget.uid);
-      final myFollowingDoc = currentUserRef.collection('following').doc(widget.uid);
-      final theirFollowerDoc = targetUserRef.collection('followers').doc(currentUid);
-      final theirFollowingDoc = targetUserRef.collection('following').doc(currentUid);
-
-      batch.set(myFollowerDoc, <String, dynamic>{});
-      batch.set(myFollowingDoc, <String, dynamic>{});
-      batch.set(theirFollowerDoc, <String, dynamic>{});
-      batch.set(theirFollowingDoc, <String, dynamic>{});
-      await batch.commit();
-      return;
-    }
-
-    // Fresh follow - check if mutual follow should happen
-    final otherFollowsMeSnap = await targetUserRef.collection('following').doc(currentUid).get();
-    if (otherFollowsMeSnap.exists || isFollowingMe) {
-      final batch = FirebaseFirestore.instance.batch(); 
-      final myFollowingDoc = currentUserRef.collection('following').doc(widget.uid);
-      final theirFollowerDoc = targetUserRef.collection('followers').doc(currentUid);
-
-      batch.set(myFollowingDoc, <String, dynamic>{});
-      batch.set(theirFollowerDoc, <String, dynamic>{});
-      await batch.commit();
-      return;
-    }
-
-    // Otherwise, create a follow request
-    await followRequestsRef.add({
-      'fromUid': currentUid,
-      'toUid': widget.uid,
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-
-  } catch (e) {
-    debugPrint('Error in _toggleFollow: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${e.toString()}")),
-      );
-    }
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
 
   Widget _buildChip(String label, bool isGood, double textScale) {
     return Chip(
@@ -398,7 +469,11 @@ class _SuggestedCardState extends State<SuggestedCard> {
 
   Widget _buildImage(String path, double screenWidth) {
     if (path.isEmpty) {
-      return Container(color: Colors.grey[300], width: double.infinity, height: double.infinity);
+      return Container(
+        color: Colors.grey[300],
+        width: double.infinity,
+        height: double.infinity,
+      );
     }
     if (path.startsWith('http')) {
       return Image.network(
@@ -456,7 +531,9 @@ class _SuggestedCardState extends State<SuggestedCard> {
           Wrap(
             spacing: 6,
             runSpacing: 4,
-            children: widget.goodIn.map((skill) => _buildChip(skill, true, textScale)).toList(),
+            children: widget.goodIn
+                .map((skill) => _buildChip(skill, true, textScale))
+                .toList(),
           ),
           const SizedBox(height: 8),
           Padding(
@@ -472,7 +549,9 @@ class _SuggestedCardState extends State<SuggestedCard> {
           Wrap(
             spacing: 5,
             runSpacing: 4,
-            children: widget.needImprovements.map((skill) => _buildChip(skill, false, textScale)).toList(),
+            children: widget.needImprovements
+                .map((skill) => _buildChip(skill, false, textScale))
+                .toList(),
           ),
           const SizedBox(height: 8),
           Text(
@@ -490,34 +569,46 @@ class _SuggestedCardState extends State<SuggestedCard> {
               color: const Color(0xFFF6F6F6),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(widget.bio, style: GoogleFonts.montserrat(fontSize: 11 * textScale)),
+            child: Text(
+              widget.bio,
+              style: GoogleFonts.montserrat(fontSize: 11 * textScale),
+            ),
           ),
           const SizedBox(height: 10),
           Text(
             "Meet me at ${widget.location} 🏫",
-            style: GoogleFonts.montserrat(fontSize: 10 * textScale, color: Colors.grey[700]),
+            style: GoogleFonts.montserrat(
+              fontSize: 10 * textScale,
+              color: Colors.grey[700],
+            ),
           ),
           const SizedBox(height: 8),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: isFollowing || isPendingSent || isPendingReceived ? Colors.grey.shade300 : const Color(0xFFB41214),
+              backgroundColor: isFollowing || isPendingSent || isPendingReceived
+                  ? Colors.grey.shade300
+                  : const Color(0xFFB41214),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
             ),
             onPressed: _isLoading
                 ? null
                 : () => _toggleFollow(
-                      isFollowing: isFollowing,
-                      isPendingSent: isPendingSent,
-                      isPendingReceived: isPendingReceived,
-                      isFollowingMe: isFollowingMe,
-                    ),
+                    isFollowing: isFollowing,
+                    isPendingSent: isPendingSent,
+                    isPendingReceived: isPendingReceived,
+                    isFollowingMe: isFollowingMe,
+                  ),
             child: Text(
               buttonLabel,
               style: GoogleFonts.montserrat(
                 fontSize: 12 * textScale,
                 fontWeight: FontWeight.w600,
-                color: isFollowing || isPendingSent || isPendingReceived ? Colors.black : Colors.white,
+                color: isFollowing || isPendingSent || isPendingReceived
+                    ? Colors.black
+                    : Colors.white,
               ),
             ),
           ),
@@ -527,178 +618,182 @@ class _SuggestedCardState extends State<SuggestedCard> {
   }
 
   @override
-Widget build(BuildContext context) {
-  final screenWidth = MediaQuery.of(context).size.width;
-  final textScale = MediaQuery.of(context).textScaleFactor;
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final textScale = MediaQuery.of(context).textScaleFactor;
 
-  return StreamBuilder<DocumentSnapshot>(
-    stream: followingStream(),
-    builder: (context, followingSnap) {
-      final isFollowing = followingSnap.hasData && 
-                         followingSnap.data != null && 
-                         followingSnap.data!.exists;
+    return StreamBuilder<DocumentSnapshot>(
+      stream: followingStream(),
+      builder: (context, followingSnap) {
+        final isFollowing =
+            followingSnap.hasData &&
+            followingSnap.data != null &&
+            followingSnap.data!.exists;
 
-      return StreamBuilder<DocumentSnapshot>(
-        stream: followerStream(),
-        builder: (context, followerSnap) {
-          final isFollowingMe = followerSnap.hasData && 
-                               followerSnap.data != null && 
-                               followerSnap.data!.exists;
+        return StreamBuilder<DocumentSnapshot>(
+          stream: followerStream(),
+          builder: (context, followerSnap) {
+            final isFollowingMe =
+                followerSnap.hasData &&
+                followerSnap.data != null &&
+                followerSnap.data!.exists;
 
-          return StreamBuilder<QuerySnapshot>(
-            stream: sentRequestStream(),
-            builder: (context, sentSnap) {
-              final isPendingSent = sentSnap.hasData && 
-                                   sentSnap.data != null && 
-                                   sentSnap.data!.docs.isNotEmpty;
+            return StreamBuilder<QuerySnapshot>(
+              stream: sentRequestStream(),
+              builder: (context, sentSnap) {
+                final isPendingSent =
+                    sentSnap.hasData &&
+                    sentSnap.data != null &&
+                    sentSnap.data!.docs.isNotEmpty;
 
-              return StreamBuilder<QuerySnapshot>(
-                stream: receivedRequestStream(),
-                builder: (context, receivedSnap) {
-                  final isPendingReceived = receivedSnap.hasData && 
-                                           receivedSnap.data != null && 
-                                           receivedSnap.data!.docs.isNotEmpty;
+                return StreamBuilder<QuerySnapshot>(
+                  stream: receivedRequestStream(),
+                  builder: (context, receivedSnap) {
+                    final isPendingReceived =
+                        receivedSnap.hasData &&
+                        receivedSnap.data != null &&
+                        receivedSnap.data!.docs.isNotEmpty;
 
-                  final buttonLabel = getButtonLabel(
-                    isFollowing: isFollowing,
-                    isPendingSent: isPendingSent,
-                    isPendingReceived: isPendingReceived,
-                  );
+                    final buttonLabel = getButtonLabel(
+                      isFollowing: isFollowing,
+                      isPendingSent: isPendingSent,
+                      isPendingReceived: isPendingReceived,
+                    );
 
-                  return _buildCardContent(
-                    context,
-                    screenWidth,
-                    textScale,
-                    isFollowing,
-                    isPendingSent,
-                    isPendingReceived,
-                    isFollowingMe,
-                    buttonLabel,
-                  );
-                },
-              );
-            },
-          );
-        },
-      );
-    },
-  );
-}
+                    return _buildCardContent(
+                      context,
+                      screenWidth,
+                      textScale,
+                      isFollowing,
+                      isPendingSent,
+                      isPendingReceived,
+                      isFollowingMe,
+                      buttonLabel,
+                    );
+                  },
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 
-Widget _buildCardContent(
-  BuildContext context,
-  double screenWidth,
-  double textScale,
-  bool isFollowing,
-  bool isPendingSent,
-  bool isPendingReceived,
-  bool isFollowingMe,
-  String buttonLabel,
-) {
-  return Container(
-    margin: const EdgeInsets.symmetric(vertical: 10),
-    child: Stack(
-      children: [
-        ConstrainedBox(
-          constraints: BoxConstraints(minHeight: screenWidth * 0.50),
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 6,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Left: Profile Image
-                Container(
-                  width: screenWidth * 0.38,
-                  height: screenWidth * 0.65,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8),
-                    color: Colors.grey[200],
-                  ),
-                  child: Stack(
-                    alignment: Alignment.bottomLeft,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: _buildImage(widget.imagePath, screenWidth),
-                      ),
-                      Container(
-                        height: screenWidth * 0.65,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          gradient: LinearGradient(
-                            colors: [
-                              Colors.black.withOpacity(0.6),
-                              Colors.transparent,
-                            ],
-                            begin: Alignment.bottomCenter,
-                            end: Alignment.topCenter,
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Text(
-                          "${widget.name}\n${widget.yearCourse}",
-                          style: GoogleFonts.montserrat(
-                            color: Colors.white,
-                            fontSize: 12 * textScale,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Right: Info + Follow button
-                Expanded(
-                  child: _buildInfoColumn(
-                    textScale,
-                    screenWidth,
-                    isFollowing,
-                    isPendingSent,
-                    isPendingReceived,
-                    isFollowingMe,
-                    buttonLabel,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        // Badge
-        Positioned(
-          top: 0,
-          right: 0,
-          child: ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topRight: Radius.circular(12),
-              bottomLeft: Radius.circular(12),
-            ),
+  Widget _buildCardContent(
+    BuildContext context,
+    double screenWidth,
+    double textScale,
+    bool isFollowing,
+    bool isPendingSent,
+    bool isPendingReceived,
+    bool isFollowingMe,
+    String buttonLabel,
+  ) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      child: Stack(
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(minHeight: screenWidth * 0.50),
             child: Container(
-              padding: const EdgeInsets.all(6),
-              color: Colors.yellow,
-              child: Icon(
-                Icons.emoji_events,
-                size: screenWidth * 0.06,
-                color: Colors.black,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 6,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left: Profile Image
+                  Container(
+                    width: screenWidth * 0.38,
+                    height: screenWidth * 0.65,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey[200],
+                    ),
+                    child: Stack(
+                      alignment: Alignment.bottomLeft,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _buildImage(widget.imagePath, screenWidth),
+                        ),
+                        Container(
+                          height: screenWidth * 0.65,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.black.withOpacity(0.6),
+                                Colors.transparent,
+                              ],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(10.0),
+                          child: Text(
+                            "${widget.name}\n${widget.yearCourse}",
+                            style: GoogleFonts.montserrat(
+                              color: Colors.white,
+                              fontSize: 12 * textScale,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // Right: Info + Follow button
+                  Expanded(
+                    child: _buildInfoColumn(
+                      textScale,
+                      screenWidth,
+                      isFollowing,
+                      isPendingSent,
+                      isPendingReceived,
+                      isFollowingMe,
+                      buttonLabel,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+          // Badge
+          Positioned(
+            top: 0,
+            right: 0,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(12),
+                bottomLeft: Radius.circular(12),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                color: Colors.yellow,
+                child: Icon(
+                  Icons.emoji_events,
+                  size: screenWidth * 0.06,
+                  color: Colors.black,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

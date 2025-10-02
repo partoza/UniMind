@@ -42,7 +42,7 @@ class _LoadingPageState extends State<LoadingPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              "assets/UniMind Logo.png",
+              "assets/icon/logowithText.png",
               width: 480,
               height: 360,
             ),

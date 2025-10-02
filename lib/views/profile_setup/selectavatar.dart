@@ -56,7 +56,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
                 ),
                 child: Row(
                   children: [
-                    Image.asset("assets/UniMind Logo.png", width: 60, height: 60),
+                    Image.asset("assets/icon/logoIconMaroon.png", width: 60, height: 60),
                     const SizedBox(width: 8),
                     RichText(
                       text: TextSpan(
