@@ -61,7 +61,7 @@ class ProfilePage extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                "3rd Year, BSIT",
+                                "3rd Year Student",
                                 style: GoogleFonts.montserrat(
                                   fontSize: 14,
                                   color: Colors.white,
@@ -73,8 +73,7 @@ class ProfilePage extends StatelessWidget {
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>
-                                         EditProfilePage(),
+                                      builder: (context) => EditProfilePage(),
                                     ),
                                   );
                                 },
@@ -108,47 +107,71 @@ class ProfilePage extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 15),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 25),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  /// Gender & Building
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _labeledInfo("Gender", Icons.male, "Male"),
-                      _labeledInfo("Building", Icons.apartment, "PS Building"),
-                    ],
-                  ),
+                  _buildQuickInfoSection(),
 
-                  const SizedBox(height: 15),
+                  const SizedBox(height: 2),
 
-                  /// College Department
+                  /// College Department with Modern Card
                   _sectionTitle("College Department"),
+                  const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(20),
                       gradient: const LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                         colors: [
                           Color.fromARGB(255, 227, 224, 41),
                           Color(0xfff7f9e8),
                         ],
-                      ), // light yellow background
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 15,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
                     ),
                     child: Row(
                       children: [
-                        Image.asset("assets/ccelogo.png", height: 40),
-                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Image.asset("assets/ccelogo.png", height: 36),
+                        ),
+                        const SizedBox(width: 16),
                         Expanded(
-                          child: Text(
-                            "College of Computing Education",
-                            style: GoogleFonts.montserrat(fontSize: 15),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "College of Computing Education",
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey[800],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "BS Information Technology",
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 14,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -164,22 +187,38 @@ class ProfilePage extends StatelessWidget {
                   const SizedBox(height: 15),
 
                   /// Top Skills
-                  _sectionTitle("Top Skills"),
-                  _chipCard([
-                    _skillChip("Coding"),
-                    _skillChip("UI/UX Design"),
-                    _skillChip("Graphic Design"),
-                  ]),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _sectionTitle("Top Skills"),
+                            const SizedBox(height: 8),
+                            _buildSkillsChips([
+                              "Coding",
+                              "UI/UX Design",
+                              "Graphic Design",
+                              "Flutter",
+                              "Problem Solving",
+                            ]),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
 
                   const SizedBox(height: 15),
 
                   /// Things I'd like to get better
-                  _sectionTitle("Things I’d like to get better"),
-                  _chipCard([
-                    _skillChip("Coding"),
-                    _skillChip("UI/UX Design"),
-                    _skillChip("Graphic Design"),
-                  ]),
+                  _sectionTitle("Areas for Improvement"),
+                  const SizedBox(height: 8),
+                  _buildSkillsChips([
+                    "Advanced Algorithms",
+                    "Machine Learning",
+                    "Backend Development",
+                    "Team Leadership",
+                  ], isImprovement: true),
 
                   const SizedBox(height: 40),
                 ],
@@ -206,34 +245,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  /// Info Item with Label (Gender, Building)
-  Widget _labeledInfo(String label, IconData icon, String text) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: GoogleFonts.montserrat(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.grey[700],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Icon(icon, color: Colors.black, size: 18),
-            const SizedBox(width: 6),
-            Text(
-              text,
-              style: GoogleFonts.montserrat(fontSize: 14, color: Colors.black),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   /// Card with plain text
   Widget _infoCard(String text) {
     return Container(
@@ -247,32 +258,98 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  /// Card with chips
-  Widget _chipCard(List<Widget> chips) {
+  Widget _buildQuickInfoSection() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.black12),
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.grey[50],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Wrap(spacing: 8, runSpacing: 8, children: chips),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildQuickInfoItem("Gender", "Male", Icons.male),
+          _buildQuickInfoItem("Building", "PS Building", Icons.apartment),
+        ],
+      ),
     );
   }
 
-  /// Skill Chip (red style)
-  Widget _skillChip(String text) {
-    return Chip(
-      label: Text(
-        text,
-        style: GoogleFonts.montserrat(
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-          color: Colors.white,
+  Widget _buildQuickInfoItem(String title, String value, IconData icon) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: const Color(0xFFB41214).withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 20, color: const Color(0xFFB41214)),
         ),
-      ),
-      backgroundColor: const Color(0xFFB41214), // dark red
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: GoogleFonts.montserrat(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey[800],
+          ),
+        ),
+        Text(
+          title,
+          style: GoogleFonts.montserrat(fontSize: 12, color: Colors.grey[500]),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkillsChips(List<String> skills, {bool isImprovement = false}) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: skills.map((skill) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: isImprovement
+                ? const LinearGradient(colors: [Colors.grey, Color(0xFF9E9E9E)])
+                : const LinearGradient(
+                    colors: [Color(0xFFB41214), Color(0xFFD32F2F)],
+                  ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isImprovement)
+                const Icon(Icons.arrow_upward, size: 12, color: Colors.white),
+              const SizedBox(width: 4),
+              Text(
+                skill,
+                style: GoogleFonts.montserrat(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 }

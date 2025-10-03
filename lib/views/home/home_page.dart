@@ -3,14 +3,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/nav/custom_navbar.dart';
-
 import 'package:unimind/views/follow_request/follow_page.dart';
 import 'package:unimind/views/chats/chats_page.dart';
 import 'package:unimind/views/profile/profile_page.dart';
+import 'package:unimind/views/discover/discover_page.dart';
+import 'package:unimind/views/profile/qr_scanner_page.dart';
+import 'package:unimind/views/home/filter_page.dart';
+
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
 
+  const HomePage({super.key});
+  
   @override
   State<HomePage> createState() => _HomePageState();
 }
@@ -25,12 +29,12 @@ class _HomePageState extends State<HomePage> {
     super.initState();
 
     // Define all pages
-    _pages = const [
-      _HomeContent(),
-      FollowPage(),
-      Center(child: Text("Discover Page")),
-      ChatPage(),
-      ProfilePage(),
+    _pages = [
+      const _HomeContent(),
+      const FollowPage(),
+      DiscoverPage(onQRDetected: () { print("object"); }, onUploadImage: () { print("object"); },),
+      const ChatPage(),
+      const ProfilePage(),
     ];
   }
 
@@ -89,18 +93,9 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
+        // Right-side action changes depending on the selected page
         actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_outlined,
-              color: Colors.black87,
-            ),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.menu, color: Colors.black87),
-            onPressed: () {},
-          ),
+          _actionForCurrentPage(context),
         ],
       ),
 
@@ -117,6 +112,52 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     );
+  }
+
+  /// Returns the appropriate action widget for the current page index.
+  Widget _actionForCurrentPage(BuildContext context) {
+    // 0: Home, 1: Follow, 2: Discover, 3: Chat, 4: Profile
+    switch (_currentIndex) {
+      case 0: // Home - filter button
+        return IconButton(
+          icon: const Icon(Icons.filter_list, color: Colors.black, size: 30,),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const FilterPage()),
+            );
+          },
+        );
+      case 1: // Follow - no icon
+      case 3: // Chat - no icon
+        return const SizedBox.shrink();
+      case 2: // Discover - QR icon (source: discover)
+        return IconButton(
+          icon: const Icon(Icons.qr_code, color: Colors.black, size: 30,),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const QrScannerPage(source: 'discover'),
+              ),
+            );
+          },
+        );
+      case 4: // Profile - QR icon (source: profile)
+        return IconButton(
+          icon: const Icon(Icons.qr_code, color: Colors.black, size: 30,),
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const QrScannerPage(source: 'profile'),
+              ),
+            );
+          },
+        );
+      default:
+        return const SizedBox.shrink();
+    }
   }
 }
 
