@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:unimind/auth/loginpage.dart';
+import 'package:unimind/views/auth/login_page.dart';
+
 
 // replace with your actual LoginPage widget
 class LoadingPage extends StatefulWidget {
@@ -42,7 +42,7 @@ class _LoadingPageState extends State<LoadingPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Image.asset(
-              "assets/UniMind Logo.png",
+              "assets/icon/logowithText.png",
               width: 480,
               height: 360,
             ),

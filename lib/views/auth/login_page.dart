@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:unimind/views/gender.dart';
+import 'package:unimind/views/profile_setup/gender.dart';
+import 'package:unimind/views/home/home_page.dart';
+import 'package:unimind/services/auth_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -20,7 +23,7 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       body: Stack(
         children: [
-          // 🔴 Fixed Background Image
+          // Fixed Background Image
           Container(
             width: double.infinity,
             height: double.infinity,
@@ -38,7 +41,7 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(height: 60),
-                Image.asset("assets/Logo.png", width: 120, height: 120),
+                Image.asset("assets/icon/logoIconWhite.png", width: 120, height: 120),
                 const SizedBox(height: 5),
                 Text(
                   "Study ta GA!",
@@ -52,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          // 🔴 Login Container
+          // Login Container
           AnimatedPositioned(
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeInOut,
@@ -98,13 +101,13 @@ class _LoginPageState extends State<LoginPage> {
                       border: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Colors.black,
-                        ), // bottom line color
+                        ), 
                       ),
                       focusedBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), // thicker on focus
+                        ), 
                       ),
                     ),
                   ),
@@ -239,12 +242,41 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () {},
+                      onPressed: () async {
+                        final user = await AuthService().signInWithGoogle();
+                        if (user != null) {
+                          print("Signed in as ${user.displayName}");
+
+                          final snapshot = await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .get();
+
+                          final data = snapshot.data();
+                          final profileComplete = data?['profileComplete'] ?? false;
+
+                          if (profileComplete) {
+                            // If profile is complete
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const HomePage()),
+                            );
+                          } else {
+                            // If profile is not complete
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => const GenderSelectionPage()),
+                            );
+                          }
+                        } else {
+                          print("Sign-in failed or cancelled");
+                        }
+                      },
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Image.asset(
-                            "assets/google icon.png", // your Google icon asset
+                            "assets/google icon.png",
                             height: 20,
                             width: 20,
                           ),
@@ -306,7 +338,7 @@ class _LoginPageState extends State<LoginPage> {
             ),
           ),
 
-          // 🔴 Register Container
+          // Register Container
           AnimatedPositioned(
             duration: const Duration(milliseconds: 500),
             curve: Curves.easeInOut,
@@ -358,7 +390,7 @@ class _LoginPageState extends State<LoginPage> {
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), // thicker on focus
+                        ), 
                       ),
                     ),
                   ),
@@ -370,13 +402,13 @@ class _LoginPageState extends State<LoginPage> {
                       border: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Colors.black,
-                        ), // bottom line color
+                        ),
                       ),
                       focusedBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), // thicker on focus
+                        ),
                       ),
                     ),
                   ),
@@ -388,13 +420,13 @@ class _LoginPageState extends State<LoginPage> {
                       border: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Colors.black,
-                        ), // bottom line color
+                        ),
                       ),
                       focusedBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), // thicker on focus
+                        ), 
                       ),
                     ),
                   ),
