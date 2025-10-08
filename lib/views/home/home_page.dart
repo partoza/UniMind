@@ -249,7 +249,7 @@ class _HomeContent extends StatelessWidget {
             final docUid = data['uid'] as String? ?? otherDocs[docIndex].id;
             final displayName =
                 data['displayName'] as String? ?? "Unknown";
-            final yearLevel = data['yearLevel'] as String? ?? "";
+            final yearLevel = data['yearLevel']?.toString() ?? "";
             final program = data['program'] as String? ?? "";
             final department = data['department'] as String? ?? "";
             final abbreviatedProgram = _abbreviateProgram(program);
@@ -865,13 +865,23 @@ class _SuggestedCardState extends State<SuggestedCard> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(
-                              "Meet me at ${widget.location} 🏫",
-                              style: GoogleFonts.montserrat(
-                                fontSize: 12 * textScale,
-                                color: Colors.grey[600],
-                                fontWeight: FontWeight.w500,
-                              ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on,
+                                  size: 14,
+                                  color: Colors.grey[600],
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "Meet me at ${widget.location}",
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 12 * textScale,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           const SizedBox(width: 12),

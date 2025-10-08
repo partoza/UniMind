@@ -1,336 +1,281 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:unimind/views/profile_setup/summarypage.dart';
+import 'package:image_picker/image_picker.dart' as img_picker;
+import 'dart:io';
 
 class AvatarSelect extends StatefulWidget {
-  const AvatarSelect({super.key});
+  const AvatarSelect({super.key, required this.onSelect});
+
+  final ValueChanged<File?> onSelect;
 
   @override
   State<AvatarSelect> createState() => _AvatarSelectState();
 }
 
 class _AvatarSelectState extends State<AvatarSelect> {
-  int _selectedAvatar = -1;
-  final List<String> _avatarImages = [
-    "assets/avatar1.jpg",
-    "assets/avatar2.jpg",
-    "assets/avatar3.jpg",
-    "assets/avatar4.jpg",
-    "assets/avatar5.jpg",
-  ];
+  int _selectedAvatar = 0; // Changed from -1 to 0 (auto-select default avatar)
+  File? _uploadedImage;
+  final img_picker.ImagePicker _picker = img_picker.ImagePicker();
+  
+  // Use existing avatar asset
+  final String _defaultAvatar = "assets/avatar1.jpg"; // Use existing avatar
 
-  void _selectAvatar(int index) {
-    setState(() {
-      _selectedAvatar = index;
+  @override
+  void initState() {
+    super.initState();
+    // Notify parent that default avatar is selected initially
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.onSelect(File(_defaultAvatar)); // Notify parent with default avatar
     });
   }
+
+  void _selectDefaultAvatar() {
+    setState(() {
+      _selectedAvatar = 0; // 0 for default avatar
+      _uploadedImage = null; // Clear uploaded image when selecting default
+    });
+    // Notify parent about the selection
+    widget.onSelect(File(_defaultAvatar));
+  }
+
+  Future<void> _uploadImage() async {
+    try {
+      final img_picker.XFile? image = await _picker.pickImage(
+        source: img_picker.ImageSource.gallery,
+        maxWidth: 500,
+        maxHeight: 500,
+        imageQuality: 80,
+      );
+      
+      if (image != null) {
+        setState(() {
+          _uploadedImage = File(image.path);
+          _selectedAvatar = -1; // Clear predefined selection when uploading
+        });
+        // Notify parent about the uploaded image
+        widget.onSelect(_uploadedImage);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking image: $e')),
+        );
+      }
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    final isSmallScreen = size.height < 700;
+    final isVerySmallScreen = size.height < 600;
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          // Background Image
-          Positioned.fill(
-            child: Image.asset(
-              "assets/background1.jpg",
-              fit: BoxFit.cover,
-            ),
+    return SingleChildScrollView(
+          padding: EdgeInsets.symmetric(
+            horizontal: size.width * 0.05, // Reduced padding for small screens
+            vertical: isSmallScreen ? 10 : 20,
           ),
-
-          Column(
-            children: [
-              // App Bar
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 10, 10, 10),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    bottom: BorderSide(color: Color(0xFFB41214), width: 1),
-                  ),
-                ),
-                child: Row(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight: size.height - MediaQuery.of(context).padding.top - MediaQuery.of(context).padding.bottom,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                // Title Section
+                Column(
                   children: [
-                    Image.asset("assets/icon/logoIconMaroon.png", width: 60, height: 60),
-                    const SizedBox(width: 8),
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: "U",
-                            style: GoogleFonts.montserrat(
-                              color: const Color(0xFFB41214),
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          TextSpan(
-                            text: "ni",
-                            style: GoogleFonts.montserrat(
-                              color: Colors.black,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          TextSpan(
-                            text: "M",
-                            style: GoogleFonts.montserrat(
-                              color: const Color(0xFFB41214),
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          TextSpan(
-                            text: "ind",
-                            style: GoogleFonts.montserrat(
-                              color: Colors.black,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                    Text(
+                      "Add Profile Picture",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.montserrat(
+                        fontSize: isVerySmallScreen ? 18 : 20,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFB41214),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: size.width * 0.05),
+                      child: Text(
+                        "Choose the default avatar or upload your own image",
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.montserrat(
+                          fontSize: isVerySmallScreen ? 11 : 12,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.black,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
 
-              const SizedBox(height: 40),
-
-              // Progress Bar
-              Container(
-                width: size.width * 0.7,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF6F6F6),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    width: size.width * (290 / size.width),
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFB41214),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 40),
-
-              // Title
-              Text(
-                "Choose Your Avatar",
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFB41214),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Select an avatar that represents you",
-                style: GoogleFonts.montserrat(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // Selected Avatar in Center
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                // Selected Avatar Section
+                Column(
                   children: [
-                    // Placeholder or selected avatar
-                    if (_selectedAvatar >= 0)
-                      CircleAvatar(
-                        backgroundColor: Colors.grey[200],
-                        backgroundImage: AssetImage(_avatarImages[_selectedAvatar]),
-                        radius: 130,
-                      )
-                    else
-                      Container(
-                        width: 260,
-                        height: 260,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.grey[200],
-                          border: Border.all(
-                            color: const Color(0xFFB41214),
-                            width: 2,
-                          ),
-                        ),
-                        child: Icon(
-                          Icons.person,
-                          size: 100,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    
-                    const SizedBox(height: 20),
-                    
+                    SizedBox(height: isSmallScreen ? 20 : 30),
+                    _buildResponsiveSelectedAvatar(size),
+                    const SizedBox(height: 15),
                     Text(
-                      _selectedAvatar >= 0 ? "Your Selection" : "Select an avatar",
+                      _uploadedImage != null 
+                        ? "Your Uploaded Image" 
+                        : _selectedAvatar == 0 
+                          ? "Default Program Avatar" 
+                          : "No Image Selected",
                       style: GoogleFonts.montserrat(
-                        fontSize: 16,
+                        fontSize: isVerySmallScreen ? 14 : 16,
                         fontWeight: FontWeight.w500,
                         color: Colors.black,
                       ),
                     ),
                   ],
                 ),
-              ),
 
-              // Avatar Choices Grid (Below the selected avatar)
-              Container(
-                height: 150, // Fixed height for the grid
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: GridView.builder(
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 5, // 5 avatars in a row
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.0,
-                  ),
-                  itemCount: _avatarImages.length,
-                  itemBuilder: (context, index) {
-                    return GestureDetector(
-                      onTap: () => _selectAvatar(index),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: _selectedAvatar == index
-                                ? const Color(0xFFB41214)
-                                : Colors.transparent,
-                            width: 3,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: CircleAvatar(
-                          backgroundColor: Colors.grey[200],
-                          backgroundImage: AssetImage(_avatarImages[index]),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 30),
-
-              // Bottom Navigation
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: size.width * 0.1, vertical: 20),
-                child: Row(
+                // Upload Button Section
+                Column(
                   children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Color(0xFFB41214)),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                    SizedBox(height: isSmallScreen ? 20 : 30),
+                    SizedBox(
+                      width: double.infinity,
+                      height: isSmallScreen ? 45 : 50,
+                      child: ElevatedButton.icon(
+                        onPressed: _uploadImage,
+                        icon: Icon(
+                          Icons.photo, 
+                          color: Colors.white,
+                          size: isSmallScreen ? 18 : 20,
+                        ),
+                        label: Text(
+                          "Upload Your Own Image",
+                          style: GoogleFonts.montserrat(
+                            fontSize: isVerySmallScreen ? 12 : 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white,
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          minimumSize: const Size.fromHeight(50),
                         ),
-                        onPressed: () => Navigator.pop(context),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.arrow_back, size: 18, color: Color(0xFFB41214)),
-                            const SizedBox(width: 6),
-                            Text(
-                              "Back",
-                              style: GoogleFonts.montserrat(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFFB41214),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 30),
-                    Expanded(
-                      child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFB41214),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(10),
                           ),
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          minimumSize: const Size.fromHeight(50),
-                        ),
-                        onPressed: _selectedAvatar < 0
-                        ? null
-                        : () async {
-                            final user = FirebaseAuth.instance.currentUser;
-
-                            if (user != null) {
-                              final selectedAvatarPath = _avatarImages[_selectedAvatar];
-
-                              await FirebaseFirestore.instance
-                                  .collection('users')
-                                  .doc(user.uid)
-                                  .update({
-                                'avatarPath': selectedAvatarPath,
-                                'profileComplete': true, // mark profile finished
-                              });
-
-                              debugPrint("Saved avatar: $selectedAvatarPath");
-                            }
-
-                            // Navigate to home/dashboard page after profile setup
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ProfileSummaryPage(), 
-                              ),
-                            );
-                          },
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Continue",
-                              style: GoogleFonts.montserrat(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Icon(Icons.arrow_forward, size: 18, color: Colors.white),
-                          ],
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 30),
-            ],
+
+                // Divider Section
+                Column(
+                  children: [
+                    SizedBox(height: isSmallScreen ? 15 : 20),
+                    Row(
+                      children: [
+                        const Expanded(child: Divider(color: Colors.grey)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 15),
+                          child: Text(
+                            "OR",
+                            style: GoogleFonts.montserrat(
+                              fontSize: isVerySmallScreen ? 10 : 12,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                        const Expanded(child: Divider(color: Colors.grey)),
+                      ],
+                    ),
+                  ],
+                ),
+
+                // Default Avatar Section
+                Column(
+                  children: [
+                    SizedBox(height: isSmallScreen ? 15 : 20),
+                    Center(
+                      child: GestureDetector(
+                        onTap: _selectDefaultAvatar,
+                        child: Container(
+                          width: isSmallScreen ? 80 : 100,
+                          height: isSmallScreen ? 80 : 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: _selectedAvatar == 0
+                                  ? const Color(0xFFB41214)
+                                  : Colors.grey[400]!,
+                              width: 3,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 5,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                            image: DecorationImage(
+                              image: AssetImage(_defaultAvatar),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Use Default Avatar",
+                      style: GoogleFonts.montserrat(
+                        fontSize: isVerySmallScreen ? 10 : 12,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+
+                SizedBox(height: isSmallScreen ? 20 : 30),
+              ],
+            ),
           ),
-        ],
-      ),
     );
+  }
+
+  Widget _buildResponsiveSelectedAvatar(Size size) {
+    final isSmallScreen = size.height < 700;
+    final isVerySmallScreen = size.height < 600;
+    final avatarRadius = isVerySmallScreen ? 100.0 : (isSmallScreen ? 110.0 : 130.0);
+
+    if (_uploadedImage != null) {
+      return CircleAvatar(
+        backgroundColor: Colors.grey[200],
+        backgroundImage: FileImage(_uploadedImage!),
+        radius: avatarRadius,
+      );
+    } else if (_selectedAvatar == 0) {
+      return CircleAvatar(
+        backgroundColor: Colors.grey[200],
+        backgroundImage: AssetImage(_defaultAvatar),
+        radius: avatarRadius,
+      );
+    } else {
+      return Container(
+        width: avatarRadius * 2,
+        height: avatarRadius * 2,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.grey[200],
+          border: Border.all(
+            color: const Color(0xFFB41214),
+            width: 2,
+          ),
+        ),
+        child: Icon(
+          Icons.person,
+          size: isVerySmallScreen ? 60 : (isSmallScreen ? 80 : 100),
+          color: Colors.grey[600],
+        ),
+      );
+    }
   }
 }

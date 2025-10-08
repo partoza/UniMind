@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:unimind/views/profile_setup/gender.dart';
+import 'package:unimind/views/profile_setup/selectionpage.dart';
 import 'package:unimind/views/home/home_page.dart';
 import 'package:unimind/services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -168,7 +168,7 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => const GenderSelectionPage()),
+                          MaterialPageRoute(builder: (context) => const SelectionPage()),
                         );
                       },
                       child: Text(
@@ -265,7 +265,7 @@ class _LoginPageState extends State<LoginPage> {
                             // If profile is not complete
                             Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (context) => const GenderSelectionPage()),
+                              MaterialPageRoute(builder: (context) => const SelectionPage()),
                             );
                           }
                         } else {
