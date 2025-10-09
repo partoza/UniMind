@@ -9,6 +9,7 @@ import 'package:unimind/views/profile/profile_page.dart';
 import 'package:unimind/views/discover/discover_page.dart';
 import 'package:unimind/views/profile/qr_scanner_page.dart';
 import 'package:unimind/views/home/filter_page.dart';
+import 'package:unimind/widgets/loading_widget.dart';
 
 
 class HomePage extends StatefulWidget {
@@ -21,6 +22,10 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
+  bool _isNavigating = false;
+  String _loadingMessage = "";
+  int _targetIndex = 0;
+  bool _isInitialLoading = true;
 
   late final List<Widget> _pages;
 
@@ -36,6 +41,60 @@ class _HomePageState extends State<HomePage> {
       const ChatPage(),
       const ProfilePage(),
     ];
+
+    // Add initial loading delay
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = false;
+        });
+      }
+    });
+  }
+
+  void _handleTabNavigation(int index) {
+    if (_isNavigating) return;
+    
+    setState(() {
+      _isNavigating = true;
+      _targetIndex = index;
+      _loadingMessage = _getLoadingMessage(index);
+    });
+
+    // Skip delay for discover and follow pages - show immediately
+    if (index == 1 || index == 2) {
+      setState(() {
+        _currentIndex = index;
+        _isNavigating = false;
+      });
+    } else {
+      // Simulate loading time for other pages
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) {
+          setState(() {
+            _currentIndex = index;
+            _isNavigating = false;
+          });
+        }
+      });
+    }
+  }
+
+  String _getLoadingMessage(int index) {
+    switch (index) {
+      case 0:
+        return "Loading home...";
+      case 1:
+        return "Loading follow requests...";
+      case 2:
+        return "Loading discover...";
+      case 3:
+        return "Loading messages...";
+      case 4:
+        return "Loading profile...";
+      default:
+        return "Loading...";
+    }
   }
 
   @override
@@ -99,19 +158,620 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
 
-      // show correct page
-      body: _pages[_currentIndex],
+      // show correct page with loading overlay
+      body: Stack(
+        children: [
+          _pages[_currentIndex],
+          if (_isNavigating) _buildLoadingState(),
+          if (_isInitialLoading) _buildInitialLoadingState(),
+        ],
+      ),
 
       // use custom nav bar
       bottomNavigationBar: CustomNavBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        currentIndex: _isNavigating ? _targetIndex : _currentIndex,
+        isLoading: _isNavigating,
+        onTap: _handleTabNavigation,
       ),
     );
+  }
+
+  Widget _buildLoadingState() {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.white,
+        child: _getSkeletonForTab(_targetIndex),
+      ),
+    );
+  }
+
+  Widget _buildInitialLoadingState() {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.white,
+        child: _getSkeletonForTab(0), // Show home skeleton for initial load
+      ),
+    );
+  }
+
+  Widget _getSkeletonForTab(int tabIndex) {
+    final textScale = MediaQuery.of(context).textScaleFactor;
+    
+    switch (tabIndex) {
+      case 0: // Home - study partner cards with header
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          itemCount: 4, // +1 for header
+          itemBuilder: (context, i) {
+            // First item is the header
+            if (i == 0) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    "Suggested for you",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18 * textScale,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+              );
+            }
+            // Skeleton cards
+            return const SkeletonHomeCard();
+          },
+        );
+      case 1: // Follow - no loading state, show immediately like discover
+        return const SizedBox.shrink();
+      case 2: // Discover - no loading state, show immediately
+        return const SizedBox.shrink();
+      case 3: // Chat - with visible headers and skeleton chat list only
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header - visible immediately
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Messages",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFFB41214),
+                          height: 1.1,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Chat with your connections",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Search Bar - matches actual chat page
+                  Container(
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8F8F8),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 16),
+                        Icon(
+                          Icons.search,
+                          color: const Color(0xFF6B7280).withOpacity(0.7),
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            decoration: InputDecoration(
+                              hintText: "Search a GA...",
+                              hintStyle: GoogleFonts.montserrat(
+                                color: const Color(0xFF6B7280).withOpacity(0.7),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              border: InputBorder.none,
+                            ),
+                            style: GoogleFonts.montserrat(
+                              fontSize: 14,
+                              color: const Color(0xFF2D2D2D),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Connections - skeleton loading
+                  SizedBox(
+                    height: 80,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: 5,
+                      itemBuilder: (context, index) {
+                        return Container(
+                          width: 70,
+                          margin: const EdgeInsets.only(right: 16),
+                          child: Column(
+                            children: [
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  width: 56,
+                                  height: 56,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.grey[300],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  height: 12,
+                                  width: 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Recent Messages Header - visible immediately
+                  Text(
+                    "Recent Message",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2D2D2D),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Chat List skeleton - only this part has skeleton loading
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: 5,
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) => const SkeletonChatCard(),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      case 4: // Profile - skeleton loading that matches actual profile page
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Red Header with Smooth Curved Bottom - skeleton
+                ClipPath(
+                  clipper: _HeaderClipper(),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.only(
+                      top: 30,
+                      left: 20,
+                      right: 20,
+                      bottom: 60,
+                    ),
+                    color: const Color(0xFFB41214),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // "My Profile" title - skeleton
+                        ShimmerEffect(
+                          isLoading: true,
+                          child: Container(
+                            height: 28,
+                            width: 150,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Row: Profile Picture + Info - skeleton
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            // Profile picture skeleton
+                            ShimmerEffect(
+                              isLoading: true,
+                              child: Container(
+                                width: 90,
+                                height: 90,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withOpacity(0.3),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Name skeleton
+                                  ShimmerEffect(
+                                    isLoading: true,
+                                    child: Container(
+                                      height: 18,
+                                      width: 180,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Year skeleton
+                                  ShimmerEffect(
+                                    isLoading: true,
+                                    child: Container(
+                                      height: 14,
+                                      width: 120,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Edit button skeleton
+                                  ShimmerEffect(
+                                    isLoading: true,
+                                    child: Container(
+                                      height: 32,
+                                      width: 100,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.3),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Content skeleton
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 25),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Quick Info Section skeleton
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.grey[50],
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            // Gender skeleton
+                            Column(
+                              children: [
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.grey[300],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 16,
+                                    width: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 12,
+                                    width: 30,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            // Building skeleton
+                            Column(
+                              children: [
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.grey[300],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 16,
+                                    width: 50,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 12,
+                                    width: 40,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // College Department skeleton
+                      ShimmerEffect(
+                        isLoading: true,
+                        child: Container(
+                          height: 14,
+                          width: 120,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.grey[100],
+                        ),
+                        child: Row(
+                          children: [
+                            ShimmerEffect(
+                              isLoading: true,
+                              child: Container(
+                                width: 52,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ShimmerEffect(
+                                    isLoading: true,
+                                    child: Container(
+                                      height: 16,
+                                      width: 200,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  ShimmerEffect(
+                                    isLoading: true,
+                                    child: Container(
+                                      height: 14,
+                                      width: 150,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // Bio skeleton
+                      ShimmerEffect(
+                        isLoading: true,
+                        child: Container(
+                          height: 14,
+                          width: 60,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ShimmerEffect(
+                        isLoading: true,
+                        child: Container(
+                          width: double.infinity,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // Top Skills skeleton
+                      ShimmerEffect(
+                        isLoading: true,
+                        child: Container(
+                          height: 14,
+                          width: 80,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: List.generate(5, (index) {
+                          return ShimmerEffect(
+                            isLoading: true,
+                            child: Container(
+                              height: 32,
+                              width: 80 + (index * 10),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // Areas for Improvement skeleton
+                      ShimmerEffect(
+                        isLoading: true,
+                        child: Container(
+                          height: 14,
+                          width: 140,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: List.generate(4, (index) {
+                          return ShimmerEffect(
+                            isLoading: true,
+                            child: Container(
+                              height: 32,
+                              width: 90 + (index * 15),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                          );
+                        }),
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      // Logout button skeleton
+                      ShimmerEffect(
+                        isLoading: true,
+                        child: Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 30),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      default:
+        return const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB41214)),
+          ),
+        );
+    }
   }
 
   /// Returns the appropriate action widget for the current page index.
@@ -201,9 +861,7 @@ class _HomeContent extends StatelessWidget {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFFB41214)),
-          );
+          return const SizedBox.shrink();
         }
 
         final docs = snapshot.data?.docs ?? [];
@@ -1076,6 +1734,27 @@ class BookmarkClipper extends CustomClipper<Path> {
     path.lineTo(0, size.height - 6);
     path.close();
     
+    return path;
+  }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+/// Custom clipper for smooth curved bottom (for profile skeleton)
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    path.lineTo(0, size.height - 50);
+    path.quadraticBezierTo(
+      size.width / 2,
+      size.height + 30, // control point for curve depth
+      size.width,
+      size.height - 50,
+    );
+    path.lineTo(size.width, 0);
+    path.close();
     return path;
   }
 

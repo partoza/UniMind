@@ -25,6 +25,8 @@ class _MessageScreenState extends State<MessageScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+  int _maxLines = 1;
+  final int _maxLinesLimit = 6;
 
   String get chatId {
     final ids = [currentUid, widget.peerUid]..sort();
@@ -36,6 +38,11 @@ class _MessageScreenState extends State<MessageScreen> {
     super.initState();
     _markMessagesAsRead();
     _initializeChatDocument();
+    _controller.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    // No need to change maxLines anymore - let TextField handle scrolling internally
   }
 
   void _initializeChatDocument() async {
@@ -369,9 +376,16 @@ class _MessageScreenState extends State<MessageScreen> {
                         hintText: "Type a message...",
                         hintStyle: GoogleFonts.montserrat(color: const Color(0xFF9CA3AF)),
                         border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      maxLines: null,
-                      onSubmitted: (value) => _sendMessage(),
+                      maxLines: _maxLinesLimit,
+                      minLines: 1,
+                      textInputAction: TextInputAction.newline,
+                      onSubmitted: (value) {
+                        if (value.trim().isNotEmpty) {
+                          _sendMessage();
+                        }
+                      },
                     ),
                   ),
                   IconButton(

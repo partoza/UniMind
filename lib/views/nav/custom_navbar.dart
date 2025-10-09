@@ -4,11 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 class CustomNavBar extends StatelessWidget {
   final int currentIndex;
   final Function(int) onTap;
+  final bool isLoading;
 
   const CustomNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.isLoading = false,
   });
 
   @override
@@ -35,6 +37,7 @@ class CustomNavBar extends StatelessWidget {
                 activeIcon: Icons.home_rounded,
                 label: "Home",
                 isActive: currentIndex == 0,
+                isLoading: isLoading && currentIndex == 0,
                 onTap: () => onTap(0),
               ),
               _NavBarItem(
@@ -42,6 +45,7 @@ class CustomNavBar extends StatelessWidget {
                 activeIcon: Icons.group_rounded,
                 label: "Follow",
                 isActive: currentIndex == 1,
+                isLoading: isLoading && currentIndex == 1,
                 onTap: () => onTap(1),
               ),
               _NavBarItem(
@@ -49,6 +53,7 @@ class CustomNavBar extends StatelessWidget {
                 activeIcon: Icons.explore_rounded,
                 label: "Discover",
                 isActive: currentIndex == 2,
+                isLoading: isLoading && currentIndex == 2,
                 onTap: () => onTap(2),
               ),
               _NavBarItem(
@@ -56,6 +61,7 @@ class CustomNavBar extends StatelessWidget {
                 activeIcon: Icons.chat_bubble_rounded,
                 label: "Chat",
                 isActive: currentIndex == 3,
+                isLoading: isLoading && currentIndex == 3,
                 onTap: () => onTap(3),
               ),
               _NavBarItem(
@@ -63,6 +69,7 @@ class CustomNavBar extends StatelessWidget {
                 activeIcon: Icons.person_rounded,
                 label: "Profile",
                 isActive: currentIndex == 4,
+                isLoading: isLoading && currentIndex == 4,
                 onTap: () => onTap(4),
               ),
             ],
@@ -78,6 +85,7 @@ class _NavBarItem extends StatelessWidget {
   final IconData activeIcon;
   final String label;
   final bool isActive;
+  final bool isLoading;
   final VoidCallback onTap;
 
   const _NavBarItem({
@@ -85,6 +93,7 @@ class _NavBarItem extends StatelessWidget {
     required this.activeIcon,
     required this.label,
     required this.isActive,
+    this.isLoading = false,
     required this.onTap,
   });
 
@@ -118,12 +127,21 @@ class _NavBarItem extends StatelessWidget {
                   ),
                 );
               },
-              child: Icon(
-                isActive ? activeIcon : icon,
-                key: ValueKey(isActive ? 'active_$icon' : 'inactive_$icon'),
-                color: isActive ? const Color(0xFFB41214) : const Color(0xFF666666),
-                size: isActive ? 26 : 24,
-              ),
+              child: isLoading
+                  ? SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.grey[600]!),
+                      ),
+                    )
+                  : Icon(
+                      isActive ? activeIcon : icon,
+                      key: ValueKey(isActive ? 'active_$icon' : 'inactive_$icon'),
+                      color: isActive ? const Color(0xFFB41214) : const Color(0xFF666666),
+                      size: isActive ? 26 : 24,
+                    ),
             ),
             const SizedBox(height: 4),
             // Smooth label transition

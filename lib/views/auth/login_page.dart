@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/profile_setup/selectionpage.dart';
 import 'package:unimind/views/home/home_page.dart';
 import 'package:unimind/services/auth_service.dart';
+import 'package:unimind/widgets/loading_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:unimind/views/terms_and_policy/temspolicy_page.dart';
 
@@ -17,6 +18,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool showLogin = true;
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -253,15 +255,36 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () async {
-                        final user = await AuthService().signInWithGoogle();
-                        if (user != null) {
-                          print("Signed in as ${user.displayName}");
+                      onPressed: _isLoading ? null : () async {
+                        setState(() {
+                          _isLoading = true;
+                        });
 
-                          final snapshot = await FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(user.uid)
-                              .get();
+                        try {
+                          final user = await AuthService().signInWithGoogle();
+                          if (user != null) {
+                            print("Signed in as ${user.displayName}");
+
+                            // Show loading overlay with reasonable delay
+                            if (mounted) {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (context) => const LoadingOverlay(
+                                  child: SizedBox.shrink(),
+                                  isLoading: true,
+                                  message: "Setting up your account...",
+                                ),
+                              );
+                            }
+
+                            // Add a small delay to show loading state
+                            await Future.delayed(const Duration(milliseconds: 800));
+
+                            final snapshot = await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .get();
 
                           final data = snapshot.data();
                           final profileComplete =

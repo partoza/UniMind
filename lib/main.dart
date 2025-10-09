@@ -1,42 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/loading/loading_page.dart';
 import 'package:unimind/views/profile_setup/selectionpage.dart';
 import 'package:unimind/views/auth/login_page.dart';
 import 'package:unimind/views/home/home_page.dart';
+import 'package:unimind/views/match/matched.dart';
+import 'package:unimind/views/profile_setup/gender.dart';
+import 'package:unimind/views/profile_setup/collegedep.dart';
+import 'package:unimind/views/profile_setup/program_year.dart';
+import 'package:unimind/views/profile_setup/selectavatar.dart';
+import 'package:unimind/views/profile_setup/strengths.dart';
+import 'package:unimind/views/profile_setup/weaknesses.dart';
+import 'package:unimind/widgets/loading_widget.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-  runApp(const MyApp());
+  runApp(const TestApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  Future<Widget> _getLandingPage() async {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) {
-      return const LoginPage();
-    }
-
-    final snapshot = await FirebaseFirestore.instance
-        .collection("users")
-        .doc(user.uid)
-        .get();
-
-    final data = snapshot.data();
-    final profileComplete = data?["profileComplete"] ?? false;
-
-    if (profileComplete) {
-      return const HomePage();
-    } else {
-      return const SelectionPage();
-    }
-  }
+class TestApp extends StatelessWidget {
+  const TestApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -62,5 +47,33 @@ class MyApp extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _testFirebaseConnection(BuildContext context) async {
+    try {
+      // Test Firebase connection
+      final firestore = FirebaseFirestore.instance;
+      
+      // Try to read from Firestore
+      await firestore.collection('test').limit(1).get();
+      
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Firebase connection successful!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Firebase connection failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

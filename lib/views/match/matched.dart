@@ -151,11 +151,19 @@ class MatchedPage extends StatelessWidget {
                                   Positioned(
                                     top: 0,
                                     right: 6,
-                                    child: BookmarkBadgeWidget(
-                                      department: 'CCE', // User's department
-                                      size: Size(
-                                        isSmallScreen ? 28 : 32,
-                                        isSmallScreen ? 42 : 48,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFB41214),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'CCE',
+                                        style: GoogleFonts.montserrat(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -211,11 +219,19 @@ class MatchedPage extends StatelessWidget {
                                   Positioned(
                                     top: 0,
                                     right: 6,
-                                    child: BookmarkBadgeWidget(
-                                      department: 'CAS', // Partner's department
-                                      size: Size(
-                                        isSmallScreen ? 28 : 32,
-                                        isSmallScreen ? 42 : 48,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF007BFF),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        'CAS',
+                                        style: GoogleFonts.montserrat(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ),
                                   ),
