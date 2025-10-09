@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:unimind/views/home/home_page.dart';
 
 class MatchedPage extends StatelessWidget {
   const MatchedPage({super.key});
@@ -146,20 +147,15 @@ class MatchedPage extends StatelessWidget {
                                       color: Colors.grey,
                                     ),
                                   ),
-                                  // Yellow banner with star
+                                  // Bookmark badge (matching home page style)
                                   Positioned(
-                                    top: 6,
+                                    top: 0,
                                     right: 6,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.yellow[700],
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Icon(
-                                        Icons.star,
-                                        size: 12,
-                                        color: Colors.white,
+                                    child: BookmarkBadgeWidget(
+                                      department: 'CCE', // User's department
+                                      size: Size(
+                                        isSmallScreen ? 28 : 32,
+                                        isSmallScreen ? 42 : 48,
                                       ),
                                     ),
                                   ),
@@ -211,20 +207,15 @@ class MatchedPage extends StatelessWidget {
                                       ),
                                     ),
                                   ),
-                                  // Green banner with check
+                                  // Bookmark badge (matching home page style)
                                   Positioned(
-                                    top: 6,
+                                    top: 0,
                                     right: 6,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.green,
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: const Icon(
-                                        Icons.check,
-                                        size: 12,
-                                        color: Colors.white,
+                                    child: BookmarkBadgeWidget(
+                                      department: 'CAS', // Partner's department
+                                      size: Size(
+                                        isSmallScreen ? 28 : 32,
+                                        isSmallScreen ? 42 : 48,
                                       ),
                                     ),
                                   ),
