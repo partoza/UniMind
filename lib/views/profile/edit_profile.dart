@@ -537,78 +537,52 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   void _showAvatarSelectionDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Choose Avatar", style: GoogleFonts.montserrat()),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: CircleAvatar(
-                backgroundImage: AssetImage("assets/avatar1.jpg"),
-              ),
-              title: Text("Avatar 1"),
+  final List<String> avatarPaths = [
+    "assets/avatar/caeavatar.png",
+    "assets/avatar/cafaeavatar.png",
+    "assets/avatar/caseavatar.png",
+    "assets/avatar/cbaeavatar.png",
+    "assets/avatar/cceavatar.png",
+    "assets/avatar/ccjeavatar.png",
+    "assets/avatar/ceeavatar.png",
+    "assets/avatar/cheavatar.png",
+    "assets/avatar/chseavatar.png",
+    "assets/avatar/cteavatar.png",
+  ];
+
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text("Choose Avatar", style: GoogleFonts.montserrat()),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: GridView.builder(
+          shrinkWrap: true,
+          itemCount: avatarPaths.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4, // number of avatars per row
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
+          ),
+          itemBuilder: (context, index) {
+            return GestureDetector(
               onTap: () {
                 setState(() {
-                  avatarPath = "assets/avatar1.jpg";
+                  avatarPath = avatarPaths[index];
                 });
                 Navigator.of(context).pop();
               },
-            ),
-            ListTile(
-              leading: CircleAvatar(
-                backgroundImage: AssetImage("assets/avatar2.jpg"),
+              child: CircleAvatar(
+                radius: 30,
+                backgroundImage: AssetImage(avatarPaths[index]),
               ),
-              title: Text("Avatar 2"),
-              onTap: () {
-                setState(() {
-                  avatarPath = "assets/avatar2.jpg";
-                });
-                Navigator.of(context).pop();
-              },
-            ),
-            ListTile(
-              leading: CircleAvatar(
-                backgroundImage: AssetImage("assets/avatar3.jpg"),
-              ),
-              title: Text("Avatar 3"),
-              onTap: () {
-                setState(() {
-                  avatarPath = "assets/avatar3.jpg";
-                });
-                Navigator.of(context).pop();
-              },
-            ),
-            ListTile(
-              leading: CircleAvatar(
-                backgroundImage: AssetImage("assets/avatar4.jpg"),
-              ),
-              title: Text("Avatar 4"),
-              onTap: () {
-                setState(() {
-                  avatarPath = "assets/avatar4.jpg";
-                });
-                Navigator.of(context).pop();
-              },
-            ),
-            ListTile(
-              leading: CircleAvatar(
-                backgroundImage: AssetImage("assets/avatar5.jpg"),
-              ),
-              title: Text("Avatar 5"),
-              onTap: () {
-                setState(() {
-                  avatarPath = "assets/avatar5.jpg";
-                });
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
+            );
+          },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
