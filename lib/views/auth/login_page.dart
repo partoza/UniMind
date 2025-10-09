@@ -1,9 +1,11 @@
+import 'package:flutter/gestures.dart' show TapGestureRecognizer;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/profile_setup/selectionpage.dart';
 import 'package:unimind/views/home/home_page.dart';
 import 'package:unimind/services/auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:unimind/views/terms_and_policy/temspolicy_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -41,7 +43,11 @@ class _LoginPageState extends State<LoginPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(height: 60),
-                Image.asset("assets/icon/logoIconWhite.png", width: 120, height: 120),
+                Image.asset(
+                  "assets/icon/logoIconWhite.png",
+                  width: 120,
+                  height: 120,
+                ),
                 const SizedBox(height: 5),
                 Text(
                   "Study ta GA!",
@@ -65,8 +71,8 @@ class _LoginPageState extends State<LoginPage> {
             child: Container(
               height: size.height * 0.66,
               width: double.infinity,
-              padding:  EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 0),
-              decoration:  BoxDecoration(
+              padding: EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 0),
+              decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(30),
@@ -99,15 +105,13 @@ class _LoginPageState extends State<LoginPage> {
                       labelText: "Username",
                       floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
                       border: const UnderlineInputBorder(
-                        borderSide: BorderSide(
-                          color: Colors.black,
-                        ), 
+                        borderSide: BorderSide(color: Colors.black),
                       ),
                       focusedBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), 
+                        ),
                       ),
                     ),
                   ),
@@ -168,7 +172,9 @@ class _LoginPageState extends State<LoginPage> {
                       onPressed: () {
                         Navigator.pushReplacement(
                           context,
-                          MaterialPageRoute(builder: (context) => const SelectionPage()),
+                          MaterialPageRoute(
+                            builder: (context) => const SelectionPage(),
+                          ),
                         );
                       },
                       child: Text(
@@ -213,7 +219,12 @@ class _LoginPageState extends State<LoginPage> {
                         child: Divider(color: Colors.black26, thickness: 1),
                       ),
                       Padding(
-                        padding: EdgeInsets.only(left: 20, right: 20, top: 0, bottom: 0),
+                        padding: EdgeInsets.only(
+                          left: 20,
+                          right: 20,
+                          top: 0,
+                          bottom: 0,
+                        ),
                         child: Text(
                           "or Login with",
                           style: GoogleFonts.montserrat(
@@ -253,19 +264,24 @@ class _LoginPageState extends State<LoginPage> {
                               .get();
 
                           final data = snapshot.data();
-                          final profileComplete = data?['profileComplete'] ?? false;
+                          final profileComplete =
+                              data?['profileComplete'] ?? false;
 
                           if (profileComplete) {
                             // If profile is complete
                             Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (context) => const HomePage()),
+                              MaterialPageRoute(
+                                builder: (context) => const HomePage(),
+                              ),
                             );
                           } else {
                             // If profile is not complete
                             Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (context) => const SelectionPage()),
+                              MaterialPageRoute(
+                                builder: (context) => const SelectionPage(),
+                              ),
                             );
                           }
                         } else {
@@ -314,8 +330,18 @@ class _LoginPageState extends State<LoginPage> {
                             style: GoogleFonts.montserrat(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black54,
+                              color: Color(0xffb41214), // hyperlink style
+                              decoration: TextDecoration.underline,
                             ),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const TermsScreen(),
+                                  ),
+                                );
+                              },
                           ),
                           const TextSpan(
                             text: ". See how we use your data in our ",
@@ -325,8 +351,18 @@ class _LoginPageState extends State<LoginPage> {
                             style: GoogleFonts.montserrat(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: Colors.black54,
+                              color: Color(0xffb41214),
+                              decoration: TextDecoration.underline,
                             ),
+                            recognizer: TapGestureRecognizer()
+                              ..onTap = () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const TermsScreen(),
+                                  ),
+                                );
+                              },
                           ),
                           const TextSpan(text: "."),
                         ],
@@ -390,7 +426,7 @@ class _LoginPageState extends State<LoginPage> {
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), 
+                        ),
                       ),
                     ),
                   ),
@@ -400,9 +436,7 @@ class _LoginPageState extends State<LoginPage> {
                       labelText: "Last Name",
                       floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
                       border: const UnderlineInputBorder(
-                        borderSide: BorderSide(
-                          color: Colors.black,
-                        ),
+                        borderSide: BorderSide(color: Colors.black),
                       ),
                       focusedBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(
@@ -418,15 +452,13 @@ class _LoginPageState extends State<LoginPage> {
                       labelText: "Username",
                       floatingLabelStyle: TextStyle(color: Color(0xFFB41214)),
                       border: const UnderlineInputBorder(
-                        borderSide: BorderSide(
-                          color: Colors.black,
-                        ),
+                        borderSide: BorderSide(color: Colors.black),
                       ),
                       focusedBorder: const UnderlineInputBorder(
                         borderSide: BorderSide(
                           color: Color(0xFFB41214),
                           width: 2,
-                        ), 
+                        ),
                       ),
                     ),
                   ),

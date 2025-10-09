@@ -1,6 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:unimind/views/auth/login_page.dart';
 import 'package:unimind/views/profile/edit_profile.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+
+Future<void> signOutUser(BuildContext context) async {
+  final googleSignIn = GoogleSignIn();
+
+  try {
+    // Sign out from Firebase
+    await FirebaseAuth.instance.signOut();
+
+    // Disconnect Google account (forces account picker next time)
+    await googleSignIn.disconnect();
+    await googleSignIn.signOut();
+
+    print("User logged out and disconnected from Google.");
+  } catch (e) {
+    print("Error during logout: $e");
+  }
+
+  // Redirect to login page after logout
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => const LoginPage()),
+    (Route<dynamic> route) => false,
+  );
+}
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -221,6 +248,10 @@ class ProfilePage extends StatelessWidget {
                   ], isImprovement: true),
 
                   const SizedBox(height: 40),
+
+                  buildLogoutButton(context),
+
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
@@ -352,6 +383,169 @@ class ProfilePage extends StatelessWidget {
       }).toList(),
     );
   }
+}
+
+// Logout button (note onPressed is async)
+Widget buildLogoutButton(BuildContext context) {
+  return Container(
+    width: double.infinity,
+    margin: const EdgeInsets.symmetric(horizontal: 4),
+    child: ElevatedButton.icon(
+      onPressed: () async {
+        // Show confirmation dialog and wait for result
+        final confirm = await _showLogoutConfirmation(context);
+        if (confirm == true) {
+          await signOutUser(context);
+        }
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        foregroundColor: const Color(0xFFDC2626),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: const Color(0xFFDC2626).withOpacity(0.3),
+            width: 1.5,
+          ),
+        ),
+        elevation: 0,
+        shadowColor: Colors.transparent,
+      ),
+      icon: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFDC2626).withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: const Icon(Icons.logout_rounded, size: 20),
+      ),
+      label: Text(
+        "Sign Out",
+        style: GoogleFonts.montserrat(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFFDC2626),
+        ),
+      ),
+    ),
+  );
+}
+
+// Return Future<bool?> so the caller can await it
+Future<bool?> _showLogoutConfirmation(BuildContext context) {
+  return showDialog<bool>(
+    context: context,
+    barrierDismissible: true,
+    builder: (BuildContext dialogContext) {
+      return Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.all(24),
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 32,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.logout_rounded,
+                  color: Color(0xFFDC2626),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Sign Out?",
+                style: GoogleFonts.montserrat(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                "Are you sure you want to sign out? You'll need to log in again to access your account.",
+                style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black54,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        Navigator.of(
+                          dialogContext,
+                        ).pop(false); // user cancelled
+                      },
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      child: Text(
+                        "Cancel",
+                        style: GoogleFonts.montserrat(
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop(true); // user confirmed
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: Text(
+                        "Sign Out",
+                        style: GoogleFonts.montserrat(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
 
 /// Custom clipper for smooth curved bottom
