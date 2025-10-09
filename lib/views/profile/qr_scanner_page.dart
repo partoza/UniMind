@@ -8,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/rendering.dart';
-import 'package:unimind/views/profile/qr_scanner_page.dart';
 
 class QrScannerPage extends StatefulWidget {
   const QrScannerPage({super.key, required this.source});
@@ -267,23 +266,6 @@ String _getCurrentUserId() {
         backgroundColor: const Color(0xFFB71C1C),
         elevation: 0.5,
         foregroundColor: Colors.white,
-        actions: [
-        IconButton(
-          icon: const Icon(Icons.qr_code_2_rounded),
-          onPressed: () {
-            // Navigate to QR code page with user data
-            final currentUser = FirebaseAuth.instance.currentUser;
-            if (currentUser != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => QrScannerPage(source: currentUser.uid),
-                ),
-              );
-            }
-          },
-        ),
-      ],
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: Colors.white),

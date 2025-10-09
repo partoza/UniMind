@@ -546,24 +546,60 @@ class _EditProfilePageState extends State<EditProfilePage> {
           children: [
             ListTile(
               leading: CircleAvatar(
-                backgroundImage: AssetImage("assets/cce_male.jpg"),
+                backgroundImage: AssetImage("assets/avatar1.jpg"),
               ),
-              title: Text("Male Avatar"),
+              title: Text("Avatar 1"),
               onTap: () {
                 setState(() {
-                  avatarPath = "assets/cce_male.jpg";
+                  avatarPath = "assets/avatar1.jpg";
                 });
                 Navigator.of(context).pop();
               },
             ),
             ListTile(
               leading: CircleAvatar(
-                backgroundImage: AssetImage("assets/cce_female.jpg"),
+                backgroundImage: AssetImage("assets/avatar2.jpg"),
               ),
-              title: Text("Female Avatar"),
+              title: Text("Avatar 2"),
               onTap: () {
                 setState(() {
-                  avatarPath = "assets/cce_female.jpg";
+                  avatarPath = "assets/avatar2.jpg";
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundImage: AssetImage("assets/avatar3.jpg"),
+              ),
+              title: Text("Avatar 3"),
+              onTap: () {
+                setState(() {
+                  avatarPath = "assets/avatar3.jpg";
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundImage: AssetImage("assets/avatar4.jpg"),
+              ),
+              title: Text("Avatar 4"),
+              onTap: () {
+                setState(() {
+                  avatarPath = "assets/avatar4.jpg";
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundImage: AssetImage("assets/avatar5.jpg"),
+              ),
+              title: Text("Avatar 5"),
+              onTap: () {
+                setState(() {
+                  avatarPath = "assets/avatar5.jpg";
                 });
                 Navigator.of(context).pop();
               },
