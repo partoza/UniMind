@@ -25,10 +25,24 @@ class _MessageScreenState extends State<MessageScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+  String? _currentUserAvatar;
 
   String get chatId {
     final ids = [currentUid, widget.peerUid]..sort();
     return '${ids[0]}_${ids[1]}';
+  }
+
+  ImageProvider _getAvatarImage(String? avatarPath) {
+    if (avatarPath == null || avatarPath.isEmpty) {
+      return const AssetImage('assets/default_avatar.png');
+    }
+    
+    // Check if it's a URL (starts with http/https) or a local asset
+    if (avatarPath.startsWith('http')) {
+      return NetworkImage(avatarPath);
+    } else {
+      return AssetImage(avatarPath);
+    }
   }
 
   @override
@@ -36,6 +50,25 @@ class _MessageScreenState extends State<MessageScreen> {
     super.initState();
     _markMessagesAsRead();
     _initializeChatDocument();
+    _fetchCurrentUserAvatar();
+  }
+
+  void _fetchCurrentUserAvatar() async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(currentUid)
+          .get();
+      
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+        setState(() {
+          _currentUserAvatar = userData['avatarPath'];
+        });
+      }
+    } catch (e) {
+      print('Error fetching current user avatar: $e');
+    }
   }
 
   void _initializeChatDocument() async {
@@ -94,9 +127,7 @@ class _MessageScreenState extends State<MessageScreen> {
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundImage: widget.peerAvatar.isNotEmpty
-                  ? NetworkImage(widget.peerAvatar)
-                  : const AssetImage('assets/default_avatar.png') as ImageProvider,
+              backgroundImage: _getAvatarImage(widget.peerAvatar),
               backgroundColor: Colors.grey[200],
             ),
             const SizedBox(width: 12),
@@ -160,9 +191,6 @@ class _MessageScreenState extends State<MessageScreen> {
               .orderBy("timestamp", descending: false) // ascending
               .snapshots(),
               builder: (context, snapshot) {
-                // Debug output
-                print('Stream snapshot state: ${snapshot.connectionState}');
-                print('Stream has data: ${snapshot.hasData}');
                 if (snapshot.hasError) {
                   print('Stream error: ${snapshot.error}');
                   return Center(
@@ -248,9 +276,7 @@ class _MessageScreenState extends State<MessageScreen> {
           if (!isMe) ...[
             CircleAvatar(
               radius: 12,
-              backgroundImage: widget.peerAvatar.isNotEmpty
-                  ? NetworkImage(widget.peerAvatar)
-                  : null,
+              backgroundImage: _getAvatarImage(widget.peerAvatar),
               backgroundColor: Colors.grey[300],
             ),
             const SizedBox(width: 8),
@@ -296,8 +322,8 @@ class _MessageScreenState extends State<MessageScreen> {
             const SizedBox(width: 8),
             CircleAvatar(
               radius: 12,
-              backgroundColor: const Color(0xFFB41214),
-              child: Icon(Icons.person, size: 12, color: Colors.white),
+              backgroundImage: _getAvatarImage(_currentUserAvatar),
+              backgroundColor: Colors.grey[300],
             ),
           ],
         ],

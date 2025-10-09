@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:unimind/helper/map.dart';
 
 class FollowPage extends StatelessWidget {
   const FollowPage({super.key});
@@ -218,14 +217,18 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
                                     .where('toUid', isEqualTo: fromUid)
                                     .where('status', isEqualTo: 'pending')
                                     .get();
-                                for (var d in pendingA.docs) batch.delete(d.reference);
+                                for (var d in pendingA.docs) {
+                                  batch.delete(d.reference);
+                                }
 
                                 final pendingB = await followRequestsRef
                                     .where('fromUid', isEqualTo: fromUid)
                                     .where('toUid', isEqualTo: currentUid)
                                     .where('status', isEqualTo: 'pending')
                                     .get();
-                                for (var d in pendingB.docs) batch.delete(d.reference);
+                                for (var d in pendingB.docs) {
+                                  batch.delete(d.reference);
+                                }
 
                                 // Update BOTH followers and following for both users
                                 final myFollowingDoc = currentUserRef.collection('following').doc(fromUid);

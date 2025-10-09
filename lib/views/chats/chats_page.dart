@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -14,6 +15,60 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final currentUid = FirebaseAuth.instance.currentUser!.uid;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  Timer? _debounceTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    if (_debounceTimer != null) {
+      _debounceTimer!.cancel();
+    }
+
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      setState(() {
+        _searchQuery = _searchController.text.toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  ImageProvider _getAvatarImage(String? avatarPath) {
+    if (avatarPath == null || avatarPath.isEmpty) {
+      return const AssetImage('assets/default_avatar.png');
+    }
+    
+    if (avatarPath.startsWith('http')) {
+      return NetworkImage(avatarPath);
+    } else {
+      return AssetImage(avatarPath);
+    }
+  }
+
+  void _navigateToChat(String peerUid, String peerName, String peerAvatar) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MessageScreen(
+          peerUid: peerUid,
+          peerName: peerName,
+          peerAvatar: peerAvatar,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +126,7 @@ class _ChatPageState extends State<ChatPage> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: TextField(
+                        controller: _searchController,
                         decoration: InputDecoration(
                           hintText: "Search a GA...",
                           hintStyle: GoogleFonts.montserrat(
@@ -86,6 +142,17 @@ class _ChatPageState extends State<ChatPage> {
                         ),
                       ),
                     ),
+                    if (_searchController.text.isNotEmpty)
+                      IconButton(
+                        icon: Icon(
+                          Icons.clear,
+                          color: const Color(0xFF6B7280).withOpacity(0.7),
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          _searchController.clear();
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -137,7 +204,6 @@ class _ChatPageState extends State<ChatPage> {
                       color: const Color(0xFF2D2D2D),
                     ),
                   ),
-                  // You can add a "See All" button here if needed
                 ],
               ),
               const SizedBox(height: 16),
@@ -193,45 +259,63 @@ class _ChatPageState extends State<ChatPage> {
         final userData = userSnap.data!.data() as Map<String, dynamic>? ?? {};
         final displayName = userData['displayName'] ?? 'Unknown User';
         final firstName = displayName.split(' ').first;
+        final avatarPath = userData['avatarPath'] ?? '';
 
-        return Container(
-          width: 70,
-          margin: const EdgeInsets.only(right: 16),
-          child: Column(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFFB41214).withOpacity(0.3),
-                    width: 2,
+        // Filter by search query
+        if (_searchQuery.isNotEmpty && 
+            !displayName.toLowerCase().contains(_searchQuery) &&
+            !firstName.toLowerCase().contains(_searchQuery)) {
+          return const SizedBox.shrink();
+        }
+
+        return GestureDetector(
+          onTap: () {
+            _navigateToChat(peerUid, displayName, avatarPath);
+          },
+          child: Container(
+            width: 70,
+            margin: const EdgeInsets.only(right: 16),
+            child: Column(
+              children: [
+                // Avatar with subtle tap feedback
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      _navigateToChat(peerUid, displayName, avatarPath);
+                    },
+                    borderRadius: BorderRadius.circular(28),
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFB41214).withOpacity(0.3),
+                          width: 2,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 26,
+                        backgroundImage: _getAvatarImage(avatarPath),
+                        backgroundColor: Colors.grey[200],
+                      ),
+                    ),
                   ),
                 ),
-                child: CircleAvatar(
-                  radius: 26,
-                  backgroundImage:
-                      userData['avatarPath'] != null &&
-                          userData['avatarPath']!.isNotEmpty
-                      ? NetworkImage(userData['avatarPath']!)
-                      : const AssetImage('assets/default_avatar.png')
-                            as ImageProvider,
-                  backgroundColor: Colors.grey[200],
+                const SizedBox(height: 6),
+                Text(
+                  firstName,
+                  style: GoogleFonts.montserrat(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFF2D2D2D),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                firstName,
-                style: GoogleFonts.montserrat(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: const Color(0xFF2D2D2D),
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -263,6 +347,14 @@ class _ChatPageState extends State<ChatPage> {
 
             final userData =
                 userSnap.data!.data() as Map<String, dynamic>? ?? {};
+            
+            // Filter by search query
+            final displayName = userData['displayName'] ?? 'Unknown User';
+            if (_searchQuery.isNotEmpty && 
+                !displayName.toLowerCase().contains(_searchQuery)) {
+              return const SizedBox.shrink();
+            }
+
             return _buildChatTile(peerUid, userData);
           },
         );
@@ -313,15 +405,10 @@ class _ChatPageState extends State<ChatPage> {
             color: Colors.transparent,
             child: InkWell(
               onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => MessageScreen(
-                      peerUid: peerUid,
-                      peerName: userData['displayName'] ?? 'Unknown User',
-                      peerAvatar: userData['avatarPath'] ?? '',
-                    ),
-                  ),
+                _navigateToChat(
+                  peerUid, 
+                  userData['displayName'] ?? 'Unknown User', 
+                  userData['avatarPath'] ?? ''
                 );
               },
               borderRadius: BorderRadius.circular(12),
@@ -342,12 +429,7 @@ class _ChatPageState extends State<ChatPage> {
                       ),
                       child: CircleAvatar(
                         radius: 23,
-                        backgroundImage:
-                            userData['avatarPath'] != null &&
-                                userData['avatarPath']!.isNotEmpty
-                            ? NetworkImage(userData['avatarPath']!)
-                            : const AssetImage('assets/default_avatar.png')
-                                  as ImageProvider,
+                        backgroundImage: _getAvatarImage(userData['avatarPath']),
                         backgroundColor: Colors.grey[200],
                       ),
                     ),
@@ -362,7 +444,7 @@ class _ChatPageState extends State<ChatPage> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               SizedBox(
-                                width: 150, // set max width here
+                                width: 150,
                                 child: Text(
                                   userData['displayName'] ?? 'Unknown User',
                                   style: GoogleFonts.montserrat(
@@ -370,9 +452,8 @@ class _ChatPageState extends State<ChatPage> {
                                     fontSize: 12,
                                     color: const Color(0xFF2D2D2D),
                                   ),
-                                  maxLines: 1, // limit to one line
-                                  overflow: TextOverflow
-                                      .ellipsis, // show "..." when too long
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   softWrap: false,
                                 ),
                               ),

@@ -10,9 +10,7 @@ import 'package:unimind/views/discover/discover_page.dart';
 import 'package:unimind/views/profile/qr_scanner_page.dart';
 import 'package:unimind/views/home/filter_page.dart';
 
-
 class HomePage extends StatefulWidget {
-
   const HomePage({super.key});
   
   @override
@@ -21,21 +19,23 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
+  
+  // Add filter state here
+  Map<String, dynamic> _currentFilters = {
+    'gender': null,
+    'department': null,
+    'yearRange': const RangeValues(1, 4),
+  };
 
-  late final List<Widget> _pages;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Define all pages
-    _pages = [
-      const _HomeContent(),
-      const FollowPage(),
-      DiscoverPage(onQRDetected: () { print("object"); }, onUploadImage: () { print("object"); },),
-      const ChatPage(),
-      const ProfilePage(),
-    ];
+  // Method to clear all filters
+  void _clearFilters() {
+    setState(() {
+      _currentFilters = {
+        'gender': null,
+        'department': null,
+        'yearRange': const RangeValues(1, 4),
+      };
+    });
   }
 
   @override
@@ -93,14 +93,13 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-        // Right-side action changes depending on the selected page
         actions: [
           _actionForCurrentPage(context),
         ],
       ),
 
-      // show correct page
-      body: _pages[_currentIndex],
+      // Build body dynamically based on current index
+      body: _buildCurrentPage(),
 
       // use custom nav bar
       bottomNavigationBar: CustomNavBar(
@@ -114,57 +113,136 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildCurrentPage() {
+    switch (_currentIndex) {
+      case 0:
+        return _HomeContent(
+          filters: _currentFilters,
+          onClearFilters: _clearFilters, // Pass the clear function
+        );
+      case 1:
+        return const FollowPage();
+      case 2:
+        return const DiscoverPage();
+      case 3:
+        return const ChatPage();
+      case 4:
+        return const ProfilePage();
+      default:
+        return const SizedBox();
+    }
+  }
+
   /// Returns the appropriate action widget for the current page index.
   Widget _actionForCurrentPage(BuildContext context) {
-    // 0: Home, 1: Follow, 2: Discover, 3: Chat, 4: Profile
     switch (_currentIndex) {
       case 0: // Home - filter button
         return IconButton(
-          icon: const Icon(Icons.filter_list, color: Colors.black, size: 30,),
-          onPressed: () {
-            Navigator.push(
+          icon: Stack(
+            children: [
+              const Icon(Icons.filter_list, color: Colors.black, size: 30),
+              // Show indicator dot when filters are active
+              if (_hasActiveFilters())
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB41214),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 12,
+                      minHeight: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          onPressed: () async {
+            // Wait for filter result
+            final result = await Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const FilterPage()),
+              MaterialPageRoute(
+                builder: (_) => FilterPage(initialFilters: _currentFilters),
+              ),
             );
+            
+            // If we got new filters, update the state
+            if (result != null) {
+              setState(() {
+                _currentFilters = result;
+              });
+            }
           },
         );
       case 1: // Follow - no icon
       case 3: // Chat - no icon
         return const SizedBox.shrink();
       case 2: // Discover - QR icon (source: discover)
-        return IconButton(
-          icon: const Icon(Icons.qr_code, color: Colors.black, size: 30,),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const QrScannerPage(source: 'discover'),
-              ),
-            );
-          },
+  return IconButton(
+    icon: const Icon(Icons.qr_code, color: Colors.black, size: 30,),
+    onPressed: () {
+      // This should navigate to the DiscoverPage (scanner), not QrScannerPage (QR display)
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const DiscoverPage(), // Change to DiscoverPage
+        ),
+      );
+    },
+  );
+case 4: // Profile - QR icon (source: profile)
+  return IconButton(
+    icon: const Icon(Icons.qr_code, color: Colors.black, size: 30,),
+    onPressed: () {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => QrScannerPage(source: currentUser.uid), // Pass actual user ID
+          ),
         );
-      case 4: // Profile - QR icon (source: profile)
-        return IconButton(
-          icon: const Icon(Icons.qr_code, color: Colors.black, size: 30,),
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const QrScannerPage(source: 'profile'),
-              ),
-            );
-          },
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please log in to view QR code'),
+            backgroundColor: Colors.red,
+          ),
         );
+      }
+    },
+  );
       default:
         return const SizedBox.shrink();
     }
   }
+
+  bool _hasActiveFilters() {
+    return _currentFilters['gender'] != null || 
+           _currentFilters['department'] != null || 
+           (_currentFilters['yearRange'] as RangeValues).start > 1 || 
+           (_currentFilters['yearRange'] as RangeValues).end < 4;
+  }
 }
 
-/// Home content
-class _HomeContent extends StatelessWidget {
-  const _HomeContent();
+/// Home content - Update to accept filters and clear callback
+class _HomeContent extends StatefulWidget {
+  final Map<String, dynamic> filters;
+  final VoidCallback onClearFilters;
 
+  const _HomeContent({
+    required this.filters,
+    required this.onClearFilters,
+  });
+
+  @override
+  State<_HomeContent> createState() => _HomeContentState();
+}
+
+class _HomeContentState extends State<_HomeContent> {
   /// Helper function to abbreviate program names
   String _abbreviateProgram(String program) {
     final programAbbreviations = {
@@ -179,10 +257,78 @@ class _HomeContent extends StatelessWidget {
       'Bachelor of Science in Mathematics': 'BS Math',
       'Bachelor of Science in Psychology': 'BS Psych',
       'Bachelor of Arts in Communication': 'BA Comm',
-      // Add more abbreviations as needed
     };
     
     return programAbbreviations[program] ?? program;
+  }
+
+  /// Filter users based on current filter settings
+  List<QueryDocumentSnapshot> _filterUsers(List<QueryDocumentSnapshot> docs, String currentUid) {
+    return docs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>? ?? {};
+      final docUid = data['uid'] as String? ?? doc.id;
+      
+      // Exclude current user
+      if (docUid == currentUid) return false;
+
+      // Apply gender filter
+      if (widget.filters['gender'] != null) {
+        final userGender = data['gender'] as String? ?? '';
+        if (userGender != widget.filters['gender']) {
+          return false;
+        }
+      }
+
+      // Apply department filter
+      if (widget.filters['department'] != null) {
+        final userDepartment = data['department'] as String? ?? '';
+        final filterDepartment = widget.filters['department'] as String;
+        
+        // Map display names to abbreviations for comparison
+        String userDepartmentDisplay;
+        switch (userDepartment) {
+          case 'CCE':
+            userDepartmentDisplay = 'College of Computing Education';
+            break;
+          case 'CEE':
+            userDepartmentDisplay = 'College of Engineering Education';
+            break;
+          case 'CASE':
+            userDepartmentDisplay = 'College of Arts and Sciences Education';
+            break;
+          default:
+            userDepartmentDisplay = userDepartment;
+        }
+        
+        if (userDepartmentDisplay != filterDepartment) {
+          return false;
+        }
+      }
+
+      // Apply year level filter
+      final yearRange = widget.filters['yearRange'] as RangeValues;
+      final userYearLevel = data['yearLevel'];
+      
+      int yearLevel;
+      if (userYearLevel is int) {
+        yearLevel = userYearLevel;
+      } else if (userYearLevel is String) {
+        // Handle string year levels
+        if (userYearLevel.contains('1') || userYearLevel.contains('1st')) yearLevel = 1;
+        else if (userYearLevel.contains('2') || userYearLevel.contains('2nd')) yearLevel = 2;
+        else if (userYearLevel.contains('3') || userYearLevel.contains('3rd')) yearLevel = 3;
+        else if (userYearLevel.contains('4') || userYearLevel.contains('4th')) yearLevel = 4;
+        else yearLevel = 1; // default
+      } else {
+        yearLevel = 1; // default
+      }
+
+      if (yearLevel < yearRange.start || yearLevel > yearRange.end) {
+        return false;
+      }
+
+      return true;
+    }).toList();
   }
 
   @override
@@ -193,11 +339,7 @@ class _HomeContent extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('users').snapshots(),
       builder: (context, snapshot) {
-        debugPrint('Snapshot data type: ${snapshot.data?.runtimeType}');
-        debugPrint('Snapshot has error: ${snapshot.hasError}');
         if (snapshot.hasError) {
-          debugPrint('Stream error: ${snapshot.error}');
-          debugPrint('Error stack: ${snapshot.error}');
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -207,14 +349,70 @@ class _HomeContent extends StatelessWidget {
         }
 
         final docs = snapshot.data?.docs ?? [];
-        final otherDocs = docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>? ?? {};
-          final docUid = data['uid'] as String? ?? doc.id;
-          return docUid != currentUid;
-        }).toList();
+        final filteredDocs = _filterUsers(docs, currentUid!);
 
-        if (otherDocs.isEmpty) {
-          return const Center(child: Text("No other users found"));
+        // Show active filters
+        final hasActiveFilters = widget.filters['gender'] != null || 
+                                widget.filters['department'] != null || 
+                                (widget.filters['yearRange'] as RangeValues).start > 1 || 
+                                (widget.filters['yearRange'] as RangeValues).end < 4;
+
+        if (filteredDocs.isEmpty) {
+          return Column(
+            children: [
+              if (hasActiveFilters) 
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    "No users match your current filters",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.search_off,
+                        size: 64,
+                        color: Colors.grey[400],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        hasActiveFilters ? "No users match your filters" : "No users found",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (hasActiveFilters)
+                        ElevatedButton(
+                          onPressed: widget.onClearFilters, // Use the callback here
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFB41214),
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          ),
+                          child: Text(
+                            "Clear Filters",
+                            style: GoogleFonts.montserrat(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
         }
 
         return ListView.builder(
@@ -222,41 +420,47 @@ class _HomeContent extends StatelessWidget {
             horizontal: 16,
             vertical: 8,
           ),
-          itemCount: otherDocs.length + 1, // +1 for header
+          itemCount: filteredDocs.length + 1,
           itemBuilder: (context, i) {
             // First item is the header
             if (i == 0) {
               return Padding(
                 padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    "Suggested for you",
-                    style: GoogleFonts.montserrat(
-                      fontSize: 18 * textScale,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Suggested for you",
+                      style: GoogleFonts.montserrat(
+                        fontSize: 18 * textScale,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
+                    if (hasActiveFilters)
+                      Text(
+                        "${filteredDocs.length} results",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 12 * textScale,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                  ],
                 ),
               );
             }
 
             // Subtract 1 from index since first item is header
             final docIndex = i - 1;
-            final data =
-                otherDocs[docIndex].data() as Map<String, dynamic>? ?? {};
-            final docUid = data['uid'] as String? ?? otherDocs[docIndex].id;
-            final displayName =
-                data['displayName'] as String? ?? "Unknown";
+            final data = filteredDocs[docIndex].data() as Map<String, dynamic>? ?? {};
+            final docUid = data['uid'] as String? ?? filteredDocs[docIndex].id;
+            final displayName = data['displayName'] as String? ?? "Unknown";
             final yearLevel = data['yearLevel']?.toString() ?? "";
             final program = data['program'] as String? ?? "";
             final department = data['department'] as String? ?? "";
             final abbreviatedProgram = _abbreviateProgram(program);
-            final nameAndCourse =
-                "$yearLevel${abbreviatedProgram.isNotEmpty ? ', $abbreviatedProgram' : ''}";
-            final avatarPath =
-                (data['avatarPath'] ?? data['avatar'] ?? '') as String;
+            final nameAndCourse = "$yearLevel${abbreviatedProgram.isNotEmpty ? ', $abbreviatedProgram' : ''}";
+            final avatarPath = (data['avatarPath'] ?? data['avatar'] ?? '') as String;
             final strengths = (data['strengths'] is List)
                 ? List<String>.from(
                     (data['strengths'] as List).map((e) => e.toString()),
@@ -428,7 +632,9 @@ class _SuggestedCardState extends State<SuggestedCard> {
             .get();
 
         final batch = FirebaseFirestore.instance.batch();
-        for (var d in sentQuery.docs) batch.delete(d.reference);
+        for (var d in sentQuery.docs) {
+          batch.delete(d.reference);
+        }
         await batch.commit();
         return;
       }
@@ -449,8 +655,12 @@ class _SuggestedCardState extends State<SuggestedCard> {
           .where('status', isEqualTo: 'pending')
           .get();
 
-      for (var d in pendingA.docs) batch.delete(d.reference);
-      for (var d in pendingB.docs) batch.delete(d.reference);
+      for (var d in pendingA.docs) {
+        batch.delete(d.reference);
+      }
+      for (var d in pendingB.docs) {
+        batch.delete(d.reference);
+      }
 
       // When accepting an incoming request
       if (isPendingReceived) {
@@ -728,7 +938,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
                           topLeft: Radius.circular(20),
                           topRight: Radius.circular(20),
                         ),
-                        child: Container(
+                        child: SizedBox(
                           width: double.infinity,
                           height: double.infinity,
                           child: _buildImage(widget.imagePath, screenWidth),

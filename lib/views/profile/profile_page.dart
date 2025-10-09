@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/auth/login_page.dart';
 import 'package:unimind/views/profile/edit_profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 Future<void> signOutUser(BuildContext context) async {
@@ -29,12 +30,58 @@ Future<void> signOutUser(BuildContext context) async {
   );
 }
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
+
+  @override
+  State<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  User? get currentUser => _auth.currentUser;
+  
+  String _getYearLevelString(dynamic yearLevel) {
+    try {
+      // Handle both int and string types
+      int level;
+      if (yearLevel is int) {
+        level = yearLevel;
+      } else if (yearLevel is String) {
+        final match = RegExp(r'\d+').firstMatch(yearLevel);
+        level = match != null ? int.parse(match.group(0)!) : 1;
+      } else {
+        level = 1; // default
+      }
+
+      switch (level) {
+        case 1: return '1st Year Student';
+        case 2: return '2nd Year Student';
+        case 3: return '3rd Year Student';
+        case 4: return '4th Year Student';
+        case 5: return '5th Year Student';
+        default: return 'Student';
+      }
+    } catch (e) {
+      print("Error parsing year level: $e");
+      return 'Student';
+    }
+  }
+
+  // Helper method to safely get data from Firestore
+  dynamic _getUserData(Map<String, dynamic>? userData, String key, {dynamic defaultValue}) {
+    if (userData == null || !userData.containsKey(key)) {
+      return defaultValue;
+    }
+    return userData[key];
+  }
 
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.of(context).textScaleFactor;
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
@@ -53,207 +100,49 @@ class ProfilePage extends StatelessWidget {
                   bottom: 60,
                 ),
                 color: const Color(0xFFB41214),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "My Profile",
-                      style: GoogleFonts.montserrat(
-                        fontSize: 28 * textScale,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
+                child: StreamBuilder<DocumentSnapshot>(
+                  stream: currentUser != null 
+                    ? _firestore.collection('users').doc(currentUser!.uid).snapshots()
+                    : null,
+                  builder: (context, snapshot) {
+                    print("StreamBuilder snapshot state: ${snapshot.connectionState}");
+                    print("StreamBuilder has data: ${snapshot.hasData}");
+                    if (snapshot.hasError) {
+                      print("StreamBuilder error: ${snapshot.error}");
+                    }
 
-                    /// Row: Profile Picture + Info
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        const CircleAvatar(
-                          radius: 45,
-                          backgroundImage: AssetImage("assets/cce_male.jpg"),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "John Rex Partoza",
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                "3rd Year Student",
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              OutlinedButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => EditProfilePage(),
-                                    ),
-                                  );
-                                },
-                                style: OutlinedButton.styleFrom(
-                                  side: const BorderSide(color: Colors.white70),
-                                  backgroundColor: Colors.white,
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 6,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: Text(
-                                  "Edit Profile",
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return _buildHeaderLoading();
+                    }
+
+                    if (!snapshot.hasData || !snapshot.data!.exists) {
+                      return _buildHeaderPlaceholder();
+                    }
+
+                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                    print("User data received: $userData");
+                    return _buildHeaderContent(userData, context);
+                  },
                 ),
               ),
             ),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 25),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildQuickInfoSection(),
+            StreamBuilder<DocumentSnapshot>(
+              stream: currentUser != null
+                ? _firestore.collection('users').doc(currentUser!.uid).snapshots()
+                : null,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return _buildBodyLoading();
+                }
 
-                  const SizedBox(height: 2),
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  return _buildBodyPlaceholder();
+                }
 
-                  /// College Department with Modern Card
-                  _sectionTitle("College Department"),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color.fromARGB(255, 227, 224, 41),
-                          Color(0xfff7f9e8),
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 15,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Image.asset("assets/ccelogo.png", height: 36),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "College of Computing Education",
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey[800],
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                "BS Information Technology",
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 14,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  /// Bio
-                  _sectionTitle("My Bio"),
-                  _infoCard("LF Batak mo study og math"),
-
-                  const SizedBox(height: 15),
-
-                  /// Top Skills
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _sectionTitle("Top Skills"),
-                            const SizedBox(height: 8),
-                            _buildSkillsChips([
-                              "Coding",
-                              "UI/UX Design",
-                              "Graphic Design",
-                              "Flutter",
-                              "Problem Solving",
-                            ]),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  /// Things I'd like to get better
-                  _sectionTitle("Areas for Improvement"),
-                  const SizedBox(height: 8),
-                  _buildSkillsChips([
-                    "Advanced Algorithms",
-                    "Machine Learning",
-                    "Backend Development",
-                    "Team Leadership",
-                  ], isImprovement: true),
-
-                  const SizedBox(height: 40),
-
-                  buildLogoutButton(context),
-
-                  const SizedBox(height: 30),
-                ],
-              ),
+                final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                return _buildBodyContent(userData, context);
+              },
             ),
           ],
         ),
@@ -261,7 +150,580 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  /// Section Title
+  Widget _buildHeaderLoading() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "My Profile",
+          style: GoogleFonts.montserrat(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const CircleAvatar(
+              radius: 45,
+              backgroundColor: Colors.white24,
+              child: Icon(Icons.person, size: 40, color: Colors.white),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 150,
+                    height: 20,
+                    color: Colors.white24,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: 100,
+                    height: 16,
+                    color: Colors.white24,
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: null,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white70),
+                      backgroundColor: Colors.white24,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      "Edit Profile",
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeaderPlaceholder() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "My Profile",
+          style: GoogleFonts.montserrat(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const CircleAvatar(
+              radius: 45,
+              backgroundImage: AssetImage("assets/cce_male.jpg"),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    currentUser?.email ?? "Guest User",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    "Complete your profile",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditProfilePage(),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white70),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      "Edit Profile",
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHeaderContent(Map<String, dynamic>? userData, BuildContext context) {
+    final displayName = _getUserData(userData, 'displayName', defaultValue: currentUser?.email ?? "Unknown User");
+    final yearLevel = _getUserData(userData, 'yearLevel', defaultValue: 1);
+    final avatarPath = _getUserData(userData, 'avatarPath', defaultValue: "assets/cce_male.jpg");
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          "My Profile",
+          style: GoogleFonts.montserrat(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 20),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            CircleAvatar(
+              radius: 45,
+              backgroundImage: AssetImage(avatarPath),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    displayName.toString(),
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Text(
+                    _getYearLevelString(yearLevel),
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => EditProfilePage(),
+                        ),
+                      );
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white70),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 6,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      "Edit Profile",
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBodyLoading() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildQuickInfoSectionLoading(),
+          const SizedBox(height: 15),
+          _sectionTitle("College Department"),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.grey[200],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.school, size: 36, color: Colors.grey),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 200,
+                        height: 20,
+                        color: Colors.grey[300],
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 150,
+                        height: 16,
+                        color: Colors.grey[300],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 15),
+          _sectionTitle("My Bio"),
+          Container(
+            width: double.infinity,
+            height: 60,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              color: Colors.grey[200],
+            ),
+          ),
+          const SizedBox(height: 40),
+          buildLogoutButton(context),
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBodyPlaceholder() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildQuickInfoSection(),
+          const SizedBox(height: 2),
+          _sectionTitle("College Department"),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.fromARGB(255, 227, 224, 41),
+                  Color(0xfff7f9e8),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Image.asset("assets/ccelogo.png", height: 36),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Complete your profile",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Add your department and program",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 15),
+          _sectionTitle("My Bio"),
+          _infoCard("No bio yet. You can add one by editing your profile."),
+          const SizedBox(height: 40),
+          buildLogoutButton(context),
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBodyContent(Map<String, dynamic>? userData, BuildContext context) {
+    final department = _getUserData(userData, 'department', defaultValue: "Department not set");
+    final program = _getUserData(userData, 'program', defaultValue: "Program not set");
+    final gender = _getUserData(userData, 'gender', defaultValue: "Not set");
+    final strengths = _getUserData(userData, 'strengths', defaultValue: <String>[]);
+    final weaknesses = _getUserData(userData, 'weaknesses', defaultValue: <String>[]);
+    final bio = _getUserData(userData, 'bio', defaultValue: "No bio yet. You can add one by editing your profile.");
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 25),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildQuickInfoSectionWithData(gender.toString()),
+          const SizedBox(height: 2),
+          _sectionTitle("College Department"),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color.fromARGB(255, 227, 224, 41),
+                  Color(0xfff7f9e8),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 15,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Image.asset("assets/ccelogo.png", height: 36),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        department.toString(),
+                        style: GoogleFonts.montserrat(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        program.toString(),
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 15),
+
+          /// Bio Section - Always show this
+          _sectionTitle("My Bio"),
+          _infoCard(bio.toString()),
+
+          const SizedBox(height: 15),
+
+          /// Strengths Section
+          if (strengths is List && strengths.isNotEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionTitle("Strengths"),
+                const SizedBox(height: 8),
+                _buildSkillsChips(
+                  List<String>.from(strengths),
+                  isImprovement: false,
+                ),
+                const SizedBox(height: 15),
+              ],
+            ),
+
+          /// Weaknesses Section
+          if (weaknesses is List && weaknesses.isNotEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionTitle("Areas for Improvement"),
+                const SizedBox(height: 8),
+                _buildSkillsChips(
+                  List<String>.from(weaknesses),
+                  isImprovement: true,
+                ),
+                const SizedBox(height: 15),
+              ],
+            ),
+
+          const SizedBox(height: 40),
+          buildLogoutButton(context),
+          const SizedBox(height: 30),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickInfoSectionLoading() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.grey[50],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildQuickInfoItemLoading(),
+          _buildQuickInfoItemLoading(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickInfoItemLoading() {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.grey[300],
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.help_outline, size: 20, color: Colors.grey),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: 60,
+          height: 16,
+          color: Colors.grey[300],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 40,
+          height: 12,
+          color: Colors.grey[300],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickInfoSectionWithData(String gender) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        color: Colors.grey[50],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildQuickInfoItem("Gender", gender, Icons.person),
+          _buildQuickInfoItem("Building", "PS Building", Icons.apartment),
+        ],
+      ),
+    );
+  }
+
+  // Keep all your existing helper methods
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -276,7 +738,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  /// Card with plain text
   Widget _infoCard(String text) {
     return Container(
       width: double.infinity,
@@ -306,7 +767,7 @@ class ProfilePage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildQuickInfoItem("Gender", "Male", Icons.male),
+          _buildQuickInfoItem("Gender", "Not set", Icons.person),
           _buildQuickInfoItem("Building", "PS Building", Icons.apartment),
         ],
       ),
@@ -385,14 +846,15 @@ class ProfilePage extends StatelessWidget {
   }
 }
 
-// Logout button (note onPressed is async)
+// Keep the rest of your existing methods (buildLogoutButton, _showLogoutConfirmation, _HeaderClipper)
+// They remain exactly the same as in your original code...
+
 Widget buildLogoutButton(BuildContext context) {
   return Container(
     width: double.infinity,
     margin: const EdgeInsets.symmetric(horizontal: 4),
     child: ElevatedButton.icon(
       onPressed: () async {
-        // Show confirmation dialog and wait for result
         final confirm = await _showLogoutConfirmation(context);
         if (confirm == true) {
           await signOutUser(context);
@@ -432,7 +894,6 @@ Widget buildLogoutButton(BuildContext context) {
   );
 }
 
-// Return Future<bool?> so the caller can await it
 Future<bool?> _showLogoutConfirmation(BuildContext context) {
   return showDialog<bool>(
     context: context,
@@ -495,9 +956,7 @@ Future<bool?> _showLogoutConfirmation(BuildContext context) {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () {
-                        Navigator.of(
-                          dialogContext,
-                        ).pop(false); // user cancelled
+                        Navigator.of(dialogContext).pop(false);
                       },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
@@ -519,7 +978,7 @@ Future<bool?> _showLogoutConfirmation(BuildContext context) {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.of(dialogContext).pop(true); // user confirmed
+                        Navigator.of(dialogContext).pop(true);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFDC2626),
@@ -548,7 +1007,6 @@ Future<bool?> _showLogoutConfirmation(BuildContext context) {
   );
 }
 
-/// Custom clipper for smooth curved bottom
 class _HeaderClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
@@ -556,7 +1014,7 @@ class _HeaderClipper extends CustomClipper<Path> {
     path.lineTo(0, size.height - 50);
     path.quadraticBezierTo(
       size.width / 2,
-      size.height + 30, // control point for curve depth
+      size.height + 30,
       size.width,
       size.height - 50,
     );

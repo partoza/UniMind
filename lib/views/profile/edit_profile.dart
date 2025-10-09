@@ -1,18 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EditProfilePage extends StatefulWidget {
+  const EditProfilePage({super.key});
+
   @override
   _EditProfilePageState createState() => _EditProfilePageState();
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  // Form controllers
+  final TextEditingController _displayNameController = TextEditingController();
+  final TextEditingController _bioController = TextEditingController();
+  
+  // Form variables with defaults
   String selectedGender = "Male";
   String selectedYear = "3rd Year";
-  String selectedDepartment = "College of Computing Education";
-  String selectedProgram = "BSIT";
-  String selectedBuilding = "PS";
-  String bio = ""; // Add bio variable
+  String selectedDepartment = "CCE"; // Default to CCE
+  String selectedProgram = "Bachelor of Science in Information Technology";
+  String selectedBuilding = "PS Building";
+  String bio = "";
+  String avatarPath = "assets/cce_male.jpg";
 
   List<String> skills = [
     "Coding",
@@ -20,22 +33,200 @@ class _EditProfilePageState extends State<EditProfilePage> {
     "Math",
     "Video Editing",
     "Research Writing",
+    "Problem Solving",
+    "Graphic Design",
+    "Public Speaking",
+    "Team Leadership",
+    "Machine Learning",
   ];
+  
   List<String> betterSkills = [
     "Coding",
     "UI/UX Design",
     "Math",
     "Video Editing",
     "Research Writing",
+    "Advanced Algorithms",
+    "Backend Development",
+    "Data Analysis",
+    "Mobile Development",
+    "Cloud Computing",
   ];
-  List<String> selectedSkills = ["Coding", "UI/UX Design"];
-  List<String> selectedBetterSkills = ["Coding", "UI/UX Design"];
+  
+  List<String> selectedSkills = [];
+  List<String> selectedBetterSkills = [];
 
   final Color primaryRed = const Color(0xFFB41214);
   final Color backgroundColor = const Color(0xFFF8F9FA);
   final Color surfaceColor = Colors.white;
   final Color textPrimary = const Color(0xFF1A1D1F);
   final Color textSecondary = const Color(0xFF6F767E);
+
+  bool _isLoading = true;
+  Map<String, dynamic>? _userData;
+
+  // Department mapping - Firebase values to display values
+  final List<Map<String, String>> _departmentOptions = [
+    {'value': 'CCE', 'display': 'College of Computing Education', 'image': 'assets/ccelogo.png'},
+    {'value': 'CEE', 'display': 'College of Engineering Education', 'image': 'assets/ceelogo.png'},
+    {'value': 'CASE', 'display': 'College of Arts and Sciences Education', 'image': 'assets/caselogo.png'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        final userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+        
+        if (userDoc.exists) {
+          setState(() {
+            _userData = userDoc.data()!;
+            _populateFormWithUserData();
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      print("Error loading user data: $e");
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _populateFormWithUserData() {
+    if (_userData == null) return;
+
+    // Personal Information
+    _displayNameController.text = _userData!['displayName'] ?? "";
+    selectedGender = _userData!['gender'] ?? "Male";
+    avatarPath = _userData!['avatarPath'] ?? "assets/cce_male.jpg";
+
+    // Academic Information
+    final yearLevel = _userData!['yearLevel'] ?? 3;
+    selectedYear = _getYearString(yearLevel);
+    
+    // Handle department - use the actual value from Firebase
+    selectedDepartment = _userData!['department'] ?? "CCE";
+    
+    selectedProgram = _userData!['program'] ?? "Bachelor of Science in Information Technology";
+    selectedBuilding = "PS Building"; // Default since not in Firebase
+
+    // Bio
+    bio = _userData!['bio'] ?? "";
+    _bioController.text = bio;
+
+    // Skills
+    final strengths = _userData!['strengths'] ?? [];
+    final weaknesses = _userData!['weaknesses'] ?? [];
+    
+    selectedSkills = List<String>.from(strengths);
+    selectedBetterSkills = List<String>.from(weaknesses);
+  }
+
+  String _getYearString(dynamic yearLevel) {
+    try {
+      int level;
+      if (yearLevel is int) {
+        level = yearLevel;
+      } else if (yearLevel is String) {
+        // Handle string year levels like "3rd Year College"
+        if (yearLevel.contains('1')) return '1st Year';
+        if (yearLevel.contains('2')) return '2nd Year';
+        if (yearLevel.contains('3')) return '3rd Year';
+        if (yearLevel.contains('4')) return '4th Year';
+        if (yearLevel.contains('5')) return '5th Year';
+        level = 3;
+      } else {
+        level = 3;
+      }
+
+      switch (level) {
+        case 1: return '1st Year';
+        case 2: return '2nd Year';
+        case 3: return '3rd Year';
+        case 4: return '4th Year';
+        case 5: return '5th Year';
+        default: return '3rd Year';
+      }
+    } catch (e) {
+      print("Error parsing year level: $e");
+      return '3rd Year';
+    }
+  }
+
+  int _getYearNumber(String yearString) {
+    switch (yearString) {
+      case '1st Year': return 1;
+      case '2nd Year': return 2;
+      case '3rd Year': return 3;
+      case '4th Year': return 4;
+      case '5th Year': return 5;
+      default: return 3;
+    }
+  }
+
+  // Get display name for department
+  String _getDepartmentDisplayName(String value) {
+    final department = _departmentOptions.firstWhere(
+      (dept) => dept['value'] == value,
+      orElse: () => _departmentOptions.first,
+    );
+    return department['display']!;
+  }
+
+  Future<void> _saveChanges() async {
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        // Prepare update data
+        final updateData = {
+          'displayName': _displayNameController.text.trim(),
+          'gender': selectedGender,
+          'yearLevel': _getYearNumber(selectedYear),
+          'department': selectedDepartment, // Save the actual value (CCE, CEE, etc.)
+          'program': selectedProgram,
+          'bio': _bioController.text.trim(),
+          'strengths': selectedSkills,
+          'weaknesses': selectedBetterSkills,
+          'avatarPath': avatarPath,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'profileComplete': true,
+        };
+
+        // Update Firestore
+        await _firestore.collection('users').doc(currentUser.uid).update(updateData);
+
+        // Show success and pop
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Profile updated successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      print("Error saving profile: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error updating profile. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,166 +250,172 @@ class _EditProfilePageState extends State<EditProfilePage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: Stack(
-        children: [
-          // Scrollable Content
-          SingleChildScrollView(
-            padding: EdgeInsets.only(
-              left: 20,
-              right: 20,
-              top: 20,
-              bottom: 100,
-            ), // Extra bottom padding for fixed button
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      body: _isLoading 
+          ? _buildLoadingIndicator()
+          : Stack(
               children: [
-                // Profile Image Section
-                _buildProfileImageSection(),
-                SizedBox(height: 15),
+                // Scrollable Content
+                SingleChildScrollView(
+                  padding: EdgeInsets.only(
+                    left: 20,
+                    right: 20,
+                    top: 20,
+                    bottom: 100,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Profile Image Section
+                      _buildProfileImageSection(),
+                      SizedBox(height: 15),
 
-                // Personal Information Card
-                _buildCard(
-                  children: [
-                    _buildSectionHeader(
-                      "Personal Information",
-                      Icons.person_outline_rounded,
-                    ),
-                    SizedBox(height: 16),
-                    _buildTextField("First Name", "John Rex"),
-                    SizedBox(height: 12),
-                    _buildTextField("Last Name", "Partoza"),
-                    SizedBox(height: 12),
-                    _buildDropdown(
-                      "Gender",
-                      ["Male", "Female"],
-                      selectedGender,
-                      (val) {
-                        setState(() => selectedGender = val!);
-                      },
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20),
+                      // Personal Information Card
+                      _buildCard(
+                        children: [
+                          _buildSectionHeader(
+                            "Personal Information",
+                            Icons.person_outline_rounded,
+                          ),
+                          SizedBox(height: 16),
+                          _buildTextField("Display Name", "Enter your display name", _displayNameController),
+                          SizedBox(height: 12),
+                          _buildDropdown(
+                            "Gender",
+                            ["Male", "Female"],
+                            selectedGender,
+                            (val) {
+                              setState(() => selectedGender = val!);
+                            },
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 20),
 
-                // Academic Information Card
-                _buildCard(
-                  children: [
-                    _buildSectionHeader(
-                      "Academic Information",
-                      Icons.school_outlined,
-                    ),
-                    SizedBox(height: 16),
-                    _buildDropdown(
-                      "Year Level",
-                      ["1st Year", "2nd Year", "3rd Year", "4th Year"],
-                      selectedYear,
-                      (val) {
-                        setState(() => selectedYear = val!);
-                      },
-                    ),
-                    SizedBox(height: 12),
-                    _buildDropdownWithImage(
-                      "College Department",
-                      [
-                        {
-                          'value': 'College of Computing Education',
-                          'image': 'assets/ccelogo.png',
-                        },
-                        {
-                          'value': 'College of Engineering Education',
-                          'image': 'assets/ceelogo.png',
-                        },
-                        {
-                          'value': 'College of Arts and Sciences Education',
-                          'image': 'assets/caselogo.png',
-                        },
-                      ],
-                      selectedDepartment,
-                      (val) {
-                        setState(() => selectedDepartment = val!);
-                      },
-                    ),
-                    SizedBox(height: 12),
-                    _buildDropdown(
-                      "Program",
-                      ["BSIT", "BSCS", "BSEMC"],
-                      selectedProgram,
-                      (val) {
-                        setState(() => selectedProgram = val!);
-                      },
-                    ),
-                    SizedBox(height: 12),
-                    _buildDropdown(
-                      "Building",
-                      ["PS", "CS", "ENG"],
-                      selectedBuilding,
-                      (val) {
-                        setState(() => selectedBuilding = val!);
-                      },
-                    ),
-                  ],
-                ),
-                SizedBox(height: 20),
+                      // Academic Information Card
+                      _buildCard(
+                        children: [
+                          _buildSectionHeader(
+                            "Academic Information",
+                            Icons.school_outlined,
+                          ),
+                          SizedBox(height: 16),
+                          _buildDropdown(
+                            "Year Level",
+                            ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year"],
+                            selectedYear,
+                            (val) {
+                              setState(() => selectedYear = val!);
+                            },
+                          ),
+                          SizedBox(height: 12),
+                          _buildDepartmentDropdown(),
+                          SizedBox(height: 12),
+                          _buildDropdown(
+                            "Program",
+                            [
+                              "Bachelor of Science in Information Technology",
+                              "BS Information Technology",
+                              "Bachelor of Science in Computer Science",
+                              "BS Computer Science",
+                              "Bachelor of Science in Entertainment and Multimedia Computing",
+                              "BS Entertainment and Multimedia Computing",
+                            ],
+                            selectedProgram,
+                            (val) {
+                              setState(() => selectedProgram = val!);
+                            },
+                          ),
+                          SizedBox(height: 12),
+                          _buildDropdown(
+                            "Building",
+                            ["PS Building", "CS Building", "ENG Building"],
+                            selectedBuilding,
+                            (val) {
+                              setState(() => selectedBuilding = val!);
+                            },
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 20),
 
-                // Skills Card
-                _buildCard(
-                  children: [
-                    _buildSectionHeader(
-                      "Skills & Interests",
-                      Icons.psychology_outlined,
-                    ),
-                    SizedBox(height: 16),
-                    _buildSkillsSection(
-                      "My Top Skills",
-                      skills,
-                      selectedSkills,
-                      (skill, selected) {
-                        setState(() {
-                          selected
-                              ? selectedSkills.add(skill)
-                              : selectedSkills.remove(skill);
-                        });
-                      },
-                    ),
-                    SizedBox(height: 20),
-                    _buildSkillsSection(
-                      "Things I'd like to get better at",
-                      betterSkills,
-                      selectedBetterSkills,
-                      (skill, selected) {
-                        setState(() {
-                          selected
-                              ? selectedBetterSkills.add(skill)
-                              : selectedBetterSkills.remove(skill);
-                        });
-                      },
-                    ),
-                  ],
-                ),
-                SizedBox(height: 28),
+                      // Skills Card
+                      _buildCard(
+                        children: [
+                          _buildSectionHeader(
+                            "Skills & Interests",
+                            Icons.psychology_outlined,
+                          ),
+                          SizedBox(height: 16),
+                          _buildSkillsSection(
+                            "My Top Skills",
+                            skills,
+                            selectedSkills,
+                            (skill, selected) {
+                              setState(() {
+                                selected
+                                    ? selectedSkills.add(skill)
+                                    : selectedSkills.remove(skill);
+                              });
+                            },
+                          ),
+                          SizedBox(height: 20),
+                          _buildSkillsSection(
+                            "Things I'd like to get better at",
+                            betterSkills,
+                            selectedBetterSkills,
+                            (skill, selected) {
+                              setState(() {
+                                selected
+                                    ? selectedBetterSkills.add(skill)
+                                    : selectedBetterSkills.remove(skill);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 28),
 
-                // Bio Section Card
-                _buildCard(
-                  children: [
-                    _buildSectionHeader(
-                      "About Me",
-                      Icons.edit_note_rounded,
-                    ),
-                    SizedBox(height: 16),
-                    _buildBioTextField(),
-                  ],
+                      // Bio Section Card
+                      _buildCard(
+                        children: [
+                          _buildSectionHeader(
+                            "About Me",
+                            Icons.edit_note_rounded,
+                          ),
+                          SizedBox(height: 16),
+                          _buildBioTextField(),
+                        ],
+                      ),
+                      SizedBox(height: 20),
+                    ],
+                  ),
                 ),
-                SizedBox(height: 20),
+
+                // Fixed Save Button
+                Positioned(
+                  left: 20,
+                  right: 20,
+                  bottom: 20,
+                  child: _buildFixedSaveButton(),
+                ),
               ],
             ),
-          ),
+    );
+  }
 
-          // Fixed Save Button
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 20,
-            child: _buildFixedSaveButton(),
+  Widget _buildLoadingIndicator() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(color: primaryRed),
+          SizedBox(height: 16),
+          Text(
+            "Loading your profile...",
+            style: GoogleFonts.montserrat(
+              fontSize: 16,
+              color: textSecondary,
+            ),
           ),
         ],
       ),
@@ -226,16 +423,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   Widget _buildFixedSaveButton() {
-    return Container(
+    return SizedBox(
       width: double.infinity,
       child: Padding(
         padding: const EdgeInsets.all(2),
         child: SizedBox(
           height: 54,
           child: ElevatedButton(
-            onPressed: () {
-              // Handle save changes
-            },
+            onPressed: _saveChanges,
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryRed,
               foregroundColor: Colors.white,
@@ -299,7 +494,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 child: CircleAvatar(
                   radius: 45,
                   backgroundColor: Colors.grey.shade100,
-                  backgroundImage: AssetImage("assets/cce_male.jpg"),
+                  backgroundImage: AssetImage(avatarPath),
                 ),
               ),
               Positioned(
@@ -320,7 +515,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
           SizedBox(height: 12),
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              // Handle profile picture change
+              _showAvatarSelectionDialog();
+            },
             style: TextButton.styleFrom(
               foregroundColor: primaryRed,
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -334,6 +532,44 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showAvatarSelectionDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Choose Avatar", style: GoogleFonts.montserrat()),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: CircleAvatar(
+                backgroundImage: AssetImage("assets/cce_male.jpg"),
+              ),
+              title: Text("Male Avatar"),
+              onTap: () {
+                setState(() {
+                  avatarPath = "assets/cce_male.jpg";
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+            ListTile(
+              leading: CircleAvatar(
+                backgroundImage: AssetImage("assets/cce_female.jpg"),
+              ),
+              title: Text("Female Avatar"),
+              onTap: () {
+                setState(() {
+                  avatarPath = "assets/cce_female.jpg";
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -362,7 +598,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildTextField(String label, String hint) {
+  Widget _buildTextField(String label, String hint, TextEditingController controller) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -383,6 +619,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             border: Border.all(color: Colors.grey.shade200),
           ),
           child: TextField(
+            controller: controller,
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: GoogleFonts.montserrat(color: textSecondary),
@@ -416,6 +653,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             border: Border.all(color: Colors.grey.shade200),
           ),
           child: TextField(
+            controller: _bioController,
             maxLines: 4,
             maxLength: 150,
             onChanged: (value) {
@@ -446,17 +684,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildDropdown(
-    String label,
-    List<String> items,
-    String selectedValue,
-    Function(String?) onChanged,
-  ) {
+  Widget _buildDepartmentDropdown() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          label,
+          "College Department",
           style: GoogleFonts.montserrat(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -465,8 +698,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
         SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: selectedValue,
-          isExpanded: true, // ✅ Makes text wrap nicely
+          value: selectedDepartment,
+          isExpanded: true,
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.grey.shade50,
@@ -486,23 +719,49 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
           dropdownColor: surfaceColor,
           borderRadius: BorderRadius.circular(12),
-          menuMaxHeight:
-              MediaQuery.of(context).size.height *
-              0.5, // ✅ Responsive max height
+          menuMaxHeight: MediaQuery.of(context).size.height * 0.5,
           icon: Icon(Icons.keyboard_arrow_down_rounded, color: textSecondary),
           style: GoogleFonts.montserrat(fontSize: 14, color: textPrimary),
-          items: items
-              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+          items: _departmentOptions
+              .map(
+                (item) => DropdownMenuItem<String>(
+                  value: item['value'],
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 24,
+                        margin: EdgeInsets.only(right: 12),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(6),
+                          image: DecorationImage(
+                            image: AssetImage(item['image']!),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                      Flexible(
+                        child: Text(
+                          item['display']!,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
               .toList(),
-          onChanged: onChanged,
+          onChanged: (val) {
+            setState(() => selectedDepartment = val!);
+          },
         ),
       ],
     );
   }
 
-  Widget _buildDropdownWithImage(
+  Widget _buildDropdown(
     String label,
-    List<Map<String, String>> items,
+    List<String> items,
     String selectedValue,
     Function(String?) onChanged,
   ) {
@@ -540,39 +799,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
           ),
           dropdownColor: surfaceColor,
           borderRadius: BorderRadius.circular(12),
-          menuMaxHeight:
-              MediaQuery.of(context).size.height * 0.5, // ✅ Responsive
+          menuMaxHeight: MediaQuery.of(context).size.height * 0.5,
           icon: Icon(Icons.keyboard_arrow_down_rounded, color: textSecondary),
           style: GoogleFonts.montserrat(fontSize: 14, color: textPrimary),
           items: items
-              .map(
-                (item) => DropdownMenuItem<String>(
-                  value: item['value'],
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        margin: EdgeInsets.only(right: 12),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(6),
-                          image: DecorationImage(
-                            image: AssetImage(item['image']!),
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                      Flexible(
-                        child: Text(
-                          item['value']!,
-                          overflow:
-                              TextOverflow.ellipsis, // ✅ Prevents text overflow
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
+              .map((item) => DropdownMenuItem(value: item, child: Text(item)))
               .toList(),
           onChanged: onChanged,
         ),
@@ -632,5 +863,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
       ],
     );
+  }
+
+  @override
+  void dispose() {
+    _displayNameController.dispose();
+    _bioController.dispose();
+    super.dispose();
   }
 }

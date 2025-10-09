@@ -61,7 +61,7 @@ class MatchedPage extends StatelessWidget {
                 SizedBox(height: isSmallScreen ? 20 : 40),
                 
                 // Study partner cards with circular background
-                Container(
+                SizedBox(
                   height: isSmallScreen ? 300 : 360,
                   child: Stack(
                     alignment: Alignment.center,

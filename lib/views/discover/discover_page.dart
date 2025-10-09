@@ -3,16 +3,223 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:convert';
 
-class DiscoverPage extends StatelessWidget {
-  final VoidCallback onQRDetected;
-  final VoidCallback onUploadImage;
+class DiscoverPage extends StatefulWidget {
+  const DiscoverPage({super.key});
 
-  const DiscoverPage({
-    Key? key,
-    required this.onQRDetected,
-    required this.onUploadImage,
-  }) : super(key: key);
+  @override
+  State<DiscoverPage> createState() => _DiscoverPageState();
+}
+
+class _DiscoverPageState extends State<DiscoverPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  
+  bool _showingProfile = false;
+  Map<String, dynamic>? _scannedUserData;
+  bool _isFollowing = false;
+  bool _isLoading = false;
+
+  void _onQRDetected(BarcodeCapture capture) {
+    final List<Barcode> barcodes = capture.barcodes;
+    
+    for (final barcode in barcodes) {
+      if (barcode.rawValue != null && !_showingProfile && !_isLoading) {
+        _processScannedQR(barcode.rawValue!);
+        break;
+      }
+    }
+  }
+
+  Future<void> _processScannedQR(String qrData) async {
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    print("=== QR SCAN DEBUG ===");
+    print("Raw QR Data: '$qrData'");
+    print("QR Data Length: ${qrData.length}");
+    print("QR Data Type: ${qrData.runtimeType}");
+    
+    // Add a delay to see if multiple scans are happening
+    await Future.delayed(Duration(milliseconds: 500));
+    
+    String? scannedUserId = _extractUserIdFromQR(qrData);
+    
+    print("Extracted User ID: $scannedUserId");
+    
+    if (scannedUserId == null) {
+      print("No user ID extracted - invalid format");
+      _showErrorSnackBar("Invalid QR code format");
+      setState(() { _isLoading = false; });
+      return;
+    }
+
+    print("Current User ID: ${_auth.currentUser?.uid}");
+    if (scannedUserId == _auth.currentUser?.uid) {
+      _showErrorSnackBar("This is your own QR code");
+      setState(() { _isLoading = false; });
+      return;
+    }
+
+    print("Fetching user data for ID: $scannedUserId");
+    final userDoc = await _firestore.collection('users').doc(scannedUserId).get();
+    
+    if (!userDoc.exists) {
+      print("User document does not exist");
+      _showErrorSnackBar("User not found");
+      setState(() { _isLoading = false; });
+      return;
+    }
+
+    final currentUserId = _auth.currentUser!.uid;
+    final followDoc = await _firestore
+        .collection('users')
+        .doc(currentUserId)
+        .collection('following')
+        .doc(scannedUserId)
+        .get();
+
+    setState(() {
+      _scannedUserData = userDoc.data()!;
+      _scannedUserData!['id'] = scannedUserId;
+      _isFollowing = followDoc.exists;
+      _showingProfile = true;
+      _isLoading = false;
+    });
+
+    print("Successfully loaded user profile");
+
+  } catch (e) {
+    print("Error processing QR: $e");
+    _showErrorSnackBar("Error scanning QR code");
+    setState(() {
+      _isLoading = false;
+    });
+  }
+}
+
+  String? _extractUserIdFromQR(String qrData) {
+  try {
+    print("=== EXTRACTING USER ID ===");
+    print("Raw QR Data: '$qrData'");
+    
+    // Clean the data
+    final cleanedData = qrData.trim();
+    print("Cleaned Data: '$cleanedData'");
+
+    // Handle unimind://user/ format
+    if (cleanedData.startsWith('unimind://user/')) {
+      // Extract everything after 'unimind://user/'
+      final userId = cleanedData.substring('unimind://user/'.length);
+      print("Extracted User ID from URL: '$userId'");
+      
+      // If it's "profile", this is invalid - we need the actual user ID
+      if (userId == 'profile') {
+        print("ERROR: QR contains 'profile' instead of actual user ID");
+        return null;
+      }
+      
+      return userId;
+    }
+
+    // Direct user ID (Firebase IDs are typically 20-30 alphanumeric chars)
+    if (RegExp(r'^[a-zA-Z0-9]{20,30}$').hasMatch(cleanedData)) {
+      print("Using direct User ID: $cleanedData");
+      return cleanedData;
+    }
+
+    print("No valid format detected");
+    return null;
+  } catch (e) {
+    print("Error extracting user ID: $e");
+    return null;
+  }
+}
+
+  Future<void> _toggleFollow() async {
+    if (_scannedUserData == null) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final currentUserId = _auth.currentUser!.uid;
+    final scannedUserId = _scannedUserData!['id'];
+    
+    try {
+      if (_isFollowing) {
+        await _firestore
+            .collection('users')
+            .doc(currentUserId)
+            .collection('following')
+            .doc(scannedUserId)
+            .delete();
+            
+        await _firestore
+            .collection('users')
+            .doc(scannedUserId)
+            .collection('followers')
+            .doc(currentUserId)
+            .delete();
+      } else {
+        await _firestore
+            .collection('users')
+            .doc(currentUserId)
+            .collection('following')
+            .doc(scannedUserId)
+            .set({
+          'followedAt': FieldValue.serverTimestamp(),
+          'displayName': _scannedUserData!['displayName'],
+          'avatarPath': _scannedUserData!['avatarPath'],
+        });
+        
+        await _firestore
+            .collection('users')
+            .doc(scannedUserId)
+            .collection('followers')
+            .doc(currentUserId)
+            .set({
+          'followedAt': FieldValue.serverTimestamp(),
+          'displayName': _auth.currentUser!.displayName ?? 'User',
+        });
+      }
+
+      setState(() {
+        _isFollowing = !_isFollowing;
+        _isLoading = false;
+      });
+
+    } catch (e) {
+      print("Error toggling follow: $e");
+      _showErrorSnackBar("Error updating follow status");
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  void _closeProfile() {
+    setState(() {
+      _showingProfile = false;
+      _scannedUserData = null;
+      _isFollowing = false;
+    });
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,21 +237,17 @@ class DiscoverPage extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Animation centered around QR scanner area
             Positioned.fill(
               child: IgnorePointer(child: ModernScanningAnimation()),
             ),
 
-            // Main UI content on top
             SafeArea(
               child: Column(
                 children: [
-                  // Enhanced Header Section
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 32, 24, 16),
                     child: Column(
                       children: [
-                        // App branding
                         Row(
                           children: [
                             Container(
@@ -129,20 +332,17 @@ class DiscoverPage extends StatelessWidget {
 
                   const SizedBox(height: 32),
 
-                  // Modern QR Scanner Section
                   Expanded(
                     child: Center(
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: AspectRatio(
-                          aspectRatio: 1.0, // Force square aspect ratio
+                          aspectRatio: 1.0,
                           child: Container(
                             width: MediaQuery.of(context).size.width * 0.75,
                             constraints: BoxConstraints(
-                              maxWidth:
-                                  MediaQuery.of(context).size.width * 0.75,
-                              maxHeight:
-                                  MediaQuery.of(context).size.width * 0.75,
+                              maxWidth: MediaQuery.of(context).size.width * 0.75,
+                              maxHeight: MediaQuery.of(context).size.width * 0.75,
                             ),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(24),
@@ -164,7 +364,7 @@ class DiscoverPage extends StatelessWidget {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(24),
                               child: ModernQRScanner(
-                                onQRDetected: onQRDetected,
+                                onQRDetected: _onQRDetected,
                               ),
                             ),
                           ),
@@ -173,12 +373,10 @@ class DiscoverPage extends StatelessWidget {
                     ),
                   ),
 
-                  // Bottom Action Section
                   Padding(
                     padding: const EdgeInsets.all(24),
                     child: Column(
                       children: [
-                        // Info text
                         Text(
                           'or upload a QR code image',
                           style: GoogleFonts.montserrat(
@@ -189,7 +387,6 @@ class DiscoverPage extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
 
-                        // Modern Upload Button
                         Container(
                           width: double.infinity,
                           height: 56,
@@ -210,7 +407,10 @@ class DiscoverPage extends StatelessWidget {
                             ],
                           ),
                           child: ElevatedButton(
-                            onPressed: onUploadImage,
+                            onPressed: () {
+                              // TODO: Implement image upload
+                              _showErrorSnackBar("Image upload coming soon!");
+                            },
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
@@ -256,18 +456,458 @@ class DiscoverPage extends StatelessWidget {
                 ],
               ),
             ),
+
+            if (_isLoading)
+              Container(
+                color: Colors.black.withOpacity(0.7),
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+              ),
+
+            if (_showingProfile && _scannedUserData != null)
+              _buildProfileOverlay(),
           ],
         ),
       ),
     );
   }
+
+  Widget _buildProfileOverlay() {
+  final displayName = _scannedUserData!['displayName'] ?? 'Unknown User';
+  final yearLevel = _scannedUserData!['yearLevel'] ?? '';
+  final department = _scannedUserData!['department'] ?? 'Not specified';
+  final program = _scannedUserData!['program'] ?? 'Not specified';
+  final bio = _scannedUserData!['bio'] ?? 'No bio available';
+  final avatarPath = _scannedUserData!['avatarPath'] ?? 'assets/cce_male.jpg';
+  final gender = _scannedUserData!['gender'] ?? 'Not set';
+  final strengths = _scannedUserData!['strengths'] ?? <String>[];
+  final weaknesses = _scannedUserData!['weaknesses'] ?? <String>[];
+
+  return Scaffold(
+    backgroundColor: Colors.white,
+    body: SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// Red Header with Smooth Curved Bottom (matches profile page)
+          ClipPath(
+            clipper: _HeaderClipper(),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.only(
+                top: 30,
+                left: 20,
+                right: 20,
+                bottom: 60,
+              ),
+              color: const Color(0xFFB41214),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                        onPressed: _closeProfile,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Scanned Profile',
+                        style: GoogleFonts.montserrat(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 45,
+                        backgroundImage: AssetImage(avatarPath),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: GoogleFonts.montserrat(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              _getYearLevelString(yearLevel),
+                              style: GoogleFonts.montserrat(
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.white70),
+                              ),
+                              child: Text(
+                                department,
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          /// Body Content (matches profile page structure)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 25),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                /// Quick Info Section
+                _buildQuickInfoSection(gender.toString()),
+                const SizedBox(height: 2),
+
+                /// College Department Section
+                _sectionTitle("College Department"),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color.fromARGB(255, 227, 224, 41),
+                        Color(0xfff7f9e8),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 15,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Image.asset("assets/ccelogo.png", height: 36),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              department,
+                              style: GoogleFonts.montserrat(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.grey[800],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              program,
+                              style: GoogleFonts.montserrat(
+                                fontSize: 14,
+                                color: Colors.grey[600],
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 15),
+
+                /// Bio Section
+                _sectionTitle("My Bio"),
+                _infoCard(bio),
+
+                const SizedBox(height: 15),
+
+                /// Strengths Section
+                if (strengths is List && strengths.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle("Strengths"),
+                      const SizedBox(height: 8),
+                      _buildSkillsChips(
+                        List<String>.from(strengths),
+                        isImprovement: false,
+                      ),
+                      const SizedBox(height: 15),
+                    ],
+                  ),
+
+                /// Weaknesses Section
+                if (weaknesses is List && weaknesses.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _sectionTitle("Areas for Improvement"),
+                      const SizedBox(height: 8),
+                      _buildSkillsChips(
+                        List<String>.from(weaknesses),
+                        isImprovement: true,
+                      ),
+                      const SizedBox(height: 15),
+                    ],
+                  ),
+
+                /// Follow Button
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _toggleFollow,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _isFollowing 
+                          ? Colors.grey[500]
+                          : const Color(0xFFB41214),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      elevation: 3,
+                      shadowColor: Colors.black.withOpacity(0.3),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                _isFollowing ? Icons.check_circle : Icons.person_add_alt_1,
+                                size: 22,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                _isFollowing ? 'FOLLOWING' : 'FOLLOW USER',
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 30),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
-/// Modern scanning animation with subtle effects
+// Add these helper methods to match the profile page styling:
+
+Widget _sectionTitle(String title) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Text(
+      title,
+      style: GoogleFonts.montserrat(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey[700],
+      ),
+    ),
+  );
+}
+
+Widget _infoCard(String text) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: Colors.black12),
+    ),
+    child: Text(
+      text, 
+      style: GoogleFonts.montserrat(
+        fontSize: 14,
+        height: 1.5,
+      )
+    ),
+  );
+}
+
+Widget _buildQuickInfoSection(String gender) {
+  return Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(20),
+      color: Colors.grey[50],
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 10,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      children: [
+        _buildQuickInfoItem("Gender", gender, Icons.person),
+        _buildQuickInfoItem("Building", "PS Building", Icons.apartment),
+      ],
+    ),
+  );
+}
+
+Widget _buildQuickInfoItem(String title, String value, IconData icon) {
+  return Column(
+    children: [
+      Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFB41214).withOpacity(0.1),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, size: 20, color: const Color(0xFFB41214)),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        value,
+        style: GoogleFonts.montserrat(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          color: Colors.grey[800],
+        ),
+      ),
+      Text(
+        title,
+        style: GoogleFonts.montserrat(
+          fontSize: 12, 
+          color: Colors.grey[500]
+        ),
+      ),
+    ],
+  );
+}
+
+Widget _buildSkillsChips(List<String> skills, {bool isImprovement = false}) {
+  return Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: skills.map((skill) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          gradient: isImprovement
+              ? const LinearGradient(colors: [Colors.grey, Color(0xFF9E9E9E)])
+              : const LinearGradient(
+                  colors: [Color(0xFFB41214), Color(0xFFD32F2F)],
+                ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isImprovement)
+              const Icon(Icons.arrow_upward, size: 12, color: Colors.white),
+            const SizedBox(width: 4),
+            Text(
+              skill,
+              style: GoogleFonts.montserrat(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+    }).toList(),
+  );
+}
+  String _getYearLevelString(dynamic yearLevel) {
+    try {
+      int level;
+      if (yearLevel is int) {
+        level = yearLevel;
+      } else if (yearLevel is String) {
+        final match = RegExp(r'\d+').firstMatch(yearLevel);
+        level = match != null ? int.parse(match.group(0)!) : 1;
+      } else {
+        level = 1;
+      }
+
+      switch (level) {
+        case 1: return '1st Year Student';
+        case 2: return '2nd Year Student';
+        case 3: return '3rd Year Student';
+        case 4: return '4th Year Student';
+        case 5: return '5th Year Student';
+        default: return 'Student';
+      }
+    } catch (e) {
+      return 'Student';
+    }
+  }
+}
+
 class ModernScanningAnimation extends StatefulWidget {
+  const ModernScanningAnimation({super.key});
+
   @override
-  State<ModernScanningAnimation> createState() =>
-      _ModernScanningAnimationState();
+  State<ModernScanningAnimation> createState() => _ModernScanningAnimationState();
 }
 
 class _ModernScanningAnimationState extends State<ModernScanningAnimation>
@@ -282,15 +922,13 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
   void initState() {
     super.initState();
 
-    // Pulse animation controller
     _pulseController = AnimationController(
-      duration: const Duration(milliseconds: 3000), // Slightly slower
+      duration: const Duration(milliseconds: 3000),
       vsync: this,
     )..repeat(reverse: true);
 
-    // Rotation animation controller
     _rotationController = AnimationController(
-      duration: const Duration(milliseconds: 6000), // Slower rotation
+      duration: const Duration(milliseconds: 6000),
       vsync: this,
     )..repeat();
 
@@ -319,25 +957,21 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
 
-    // Calculate QR scanner position and size
     final scannerSize = screenWidth * 0.75;
     final scannerCenterX = screenWidth * 0.5;
-    final scannerCenterY = screenHeight * 0.45; // Moved higher from 0.5 to 0.45
+    final scannerCenterY = screenHeight * 0.45;
 
     return AnimatedBuilder(
       animation: Listenable.merge([_pulseController, _rotationController]),
       builder: (context, child) {
-        return Container(
+        return SizedBox(
           width: double.infinity,
           height: double.infinity,
           child: Stack(
             children: [
-              // Reduced pulsing rings for better performance
               ...List.generate(2, (ringIndex) {
-                // Reduced from 3 to 2
                 final ringSize = scannerSize * (1.0 + ringIndex * 0.5);
-                final opacity =
-                    _opacityAnimation.value * (0.5 - ringIndex * 0.15);
+                final opacity = _opacityAnimation.value * (0.5 - ringIndex * 0.15);
 
                 return Positioned(
                   left: scannerCenterX - ringSize / 2,
@@ -353,7 +987,7 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
                           shape: BoxShape.circle,
                           border: Border.all(
                             color: Colors.white,
-                            width: 2.0 + ringIndex, // Reduced width
+                            width: 2.0 + ringIndex,
                           ),
                         ),
                       ),
@@ -362,7 +996,6 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
                 );
               }),
 
-              // Optimized scanning beams
               Positioned(
                 left: scannerCenterX - scannerSize * 0.75,
                 top: scannerCenterY - scannerSize * 0.75,
@@ -372,24 +1005,17 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
                     size: Size(scannerSize * 1.5, scannerSize * 1.5),
                     painter: ScanningBeamPainter(
                       progress: _rotationController.value,
-                      opacity: _opacityAnimation.value * 0.6, // Reduced opacity
+                      opacity: _opacityAnimation.value * 0.6,
                     ),
                   ),
                 ),
               ),
 
-              // Reduced orbiting particles for performance
               ...List.generate(6, (index) {
-                // Reduced from 8 to 6
-                final angle =
-                    (index * 60.0) * (math.pi / 180); // Adjusted spacing
+                final angle = (index * 60.0) * (math.pi / 180);
                 final radius = scannerSize * 0.55;
-                final x =
-                    scannerCenterX +
-                    radius * math.cos(angle + _rotationAnimation.value * 0.3);
-                final y =
-                    scannerCenterY +
-                    radius * math.sin(angle + _rotationAnimation.value * 0.3);
+                final x = scannerCenterX + radius * math.cos(angle + _rotationAnimation.value * 0.3);
+                final y = scannerCenterY + radius * math.sin(angle + _rotationAnimation.value * 0.3);
 
                 return Positioned(
                   left: x - 5,
@@ -397,7 +1023,7 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
                   child: Opacity(
                     opacity: _opacityAnimation.value * 0.7,
                     child: Container(
-                      width: 10, // Slightly smaller
+                      width: 10,
                       height: 10,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -415,32 +1041,19 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
                 );
               }),
 
-              // Reduced floating particles
               ...List.generate(8, (index) {
-                // Reduced from 12 to 8
                 final random = math.Random(index);
-                final baseX =
-                    scannerCenterX +
-                    (random.nextDouble() - 0.5) * scannerSize * 1.2;
-                final baseY =
-                    scannerCenterY +
-                    (random.nextDouble() - 0.5) * scannerSize * 1.2;
-                final animationOffset =
-                    _rotationAnimation.value *
-                    (random.nextDouble() - 0.5) *
-                    1.5;
+                final baseX = scannerCenterX + (random.nextDouble() - 0.5) * scannerSize * 1.2;
+                final baseY = scannerCenterY + (random.nextDouble() - 0.5) * scannerSize * 1.2;
+                final animationOffset = _rotationAnimation.value * (random.nextDouble() - 0.5) * 1.5;
 
                 return Positioned(
-                  left: baseX + animationOffset * 30 - 2, // Reduced movement
-                  top:
-                      baseY +
-                      math.sin(_pulseController.value * 2 * math.pi + index) *
-                          15 -
-                      2,
+                  left: baseX + animationOffset * 30 - 2,
+                  top: baseY + math.sin(_pulseController.value * 2 * math.pi + index) * 15 - 2,
                   child: Opacity(
                     opacity: _opacityAnimation.value * 0.4,
                     child: Container(
-                      width: 4, // Smaller particles
+                      width: 4,
                       height: 4,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
@@ -451,14 +1064,13 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
                 );
               }),
 
-              // Simplified central pulsing effect
               Positioned(
                 left: scannerCenterX - scannerSize * 0.7,
                 top: scannerCenterY - scannerSize * 0.7,
                 child: Opacity(
                   opacity: _opacityAnimation.value * 0.3,
                   child: Transform.scale(
-                    scale: _pulseAnimation.value * 1.3, // Reduced scale
+                    scale: _pulseAnimation.value * 1.3,
                     child: Container(
                       width: scannerSize * 1.4,
                       height: scannerSize * 1.4,
@@ -481,7 +1093,6 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
   }
 }
 
-/// Custom painter for scanning beam effects
 class ScanningBeamPainter extends CustomPainter {
   final double progress;
   final double opacity;
@@ -495,11 +1106,9 @@ class ScanningBeamPainter extends CustomPainter {
 
     final paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0; // Reduced stroke width
+      ..strokeWidth = 2.0;
 
-    // Reduced number of scanning beams for performance
     for (int i = 0; i < 4; i++) {
-      // Reduced from 6 to 4
       final angle = (i * 90 + progress * 360) * (3.14159 / 180);
       final startAngle = angle - 0.3;
       final sweepAngle = 0.6;
@@ -530,12 +1139,9 @@ class ScanningBeamPainter extends CustomPainter {
       );
     }
 
-    // Simplified outer scanning rings
     for (int ring = 1; ring <= 2; ring++) {
-      // Reduced from 3 to 2
       final ringRadius = radius * (0.2 + ring * 0.2);
-      final ringAngle =
-          (progress * 120 + ring * 45) * (3.14159 / 180); // Slower rotation
+      final ringAngle = (progress * 120 + ring * 45) * (3.14159 / 180);
 
       paint.shader = ui.Gradient.sweep(
         center,
@@ -560,12 +1166,10 @@ class ScanningBeamPainter extends CustomPainter {
   }
 }
 
-/// Modern QR Scanner with clean design
 class ModernQRScanner extends StatefulWidget {
-  final VoidCallback onQRDetected;
+  final Function(BarcodeCapture) onQRDetected;
 
-  const ModernQRScanner({Key? key, required this.onQRDetected})
-    : super(key: key);
+  const ModernQRScanner({super.key, required this.onQRDetected});
 
   @override
   State<ModernQRScanner> createState() => _ModernQRScannerState();
@@ -580,38 +1184,53 @@ class _ModernQRScannerState extends State<ModernQRScanner> {
     super.dispose();
   }
 
+  Widget _buildModernCorner(bool isTop, bool isLeft) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: isLeft ? Colors.white : Colors.transparent,
+            width: 4,
+          ),
+          top: BorderSide(
+            color: isTop ? Colors.white : Colors.transparent,
+            width: 4,
+          ),
+          right: BorderSide(
+            color: !isLeft ? Colors.white : Colors.transparent,
+            width: 4,
+          ),
+          bottom: BorderSide(
+            color: !isTop ? Colors.white : Colors.transparent,
+            width: 4,
+          ),
+        ),
+        borderRadius: BorderRadius.only(
+          topLeft: isTop && isLeft ? const Radius.circular(8) : Radius.zero,
+          topRight: isTop && !isLeft ? const Radius.circular(8) : Radius.zero,
+          bottomLeft: !isTop && isLeft ? const Radius.circular(8) : Radius.zero,
+          bottomRight: !isTop && !isLeft ? const Radius.circular(8) : Radius.zero,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // QR Scanner Camera
         MobileScanner(
           controller: cameraController,
-          onDetect: (capture) {
-            final List<Barcode> barcodes = capture.barcodes;
-            for (final barcode in barcodes) {
-              if (barcode.rawValue != null) {
-                widget.onQRDetected();
-              }
-            }
-          },
+          onDetect: widget.onQRDetected,
         ),
 
-        // Modern corner indicators
         Positioned(top: 24, left: 24, child: _buildModernCorner(true, true)),
         Positioned(top: 24, right: 24, child: _buildModernCorner(true, false)),
-        Positioned(
-          bottom: 24,
-          left: 24,
-          child: _buildModernCorner(false, true),
-        ),
-        Positioned(
-          bottom: 24,
-          right: 24,
-          child: _buildModernCorner(false, false),
-        ),
+        Positioned(bottom: 24, left: 24, child: _buildModernCorner(false, true)),
+        Positioned(bottom: 24, right: 24, child: _buildModernCorner(false, false)),
 
-        // Center target indicator
         Center(
           child: Container(
             width: 80,
@@ -645,39 +1264,25 @@ class _ModernQRScannerState extends State<ModernQRScanner> {
       ],
     );
   }
+}
 
-  Widget _buildModernCorner(bool isTop, bool isLeft) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        border: Border(
-          left: BorderSide(
-            color: isLeft ? Colors.white : Colors.transparent,
-            width: 4,
-          ),
-          top: BorderSide(
-            color: isTop ? Colors.white : Colors.transparent,
-            width: 4,
-          ),
-          right: BorderSide(
-            color: !isLeft ? Colors.white : Colors.transparent,
-            width: 4,
-          ),
-          bottom: BorderSide(
-            color: !isTop ? Colors.white : Colors.transparent,
-            width: 4,
-          ),
-        ),
-        borderRadius: BorderRadius.only(
-          topLeft: isTop && isLeft ? const Radius.circular(8) : Radius.zero,
-          topRight: isTop && !isLeft ? const Radius.circular(8) : Radius.zero,
-          bottomLeft: !isTop && isLeft ? const Radius.circular(8) : Radius.zero,
-          bottomRight: !isTop && !isLeft
-              ? const Radius.circular(8)
-              : Radius.zero,
-        ),
-      ),
+// Add the HeaderClipper class (copy from profile page)
+class _HeaderClipper extends CustomClipper<Path> {
+  @override
+  Path getClip(Size size) {
+    Path path = Path();
+    path.lineTo(0, size.height - 50);
+    path.quadraticBezierTo(
+      size.width / 2,
+      size.height + 30,
+      size.width,
+      size.height - 50,
     );
+    path.lineTo(size.width, 0);
+    path.close();
+    return path;
   }
+
+  @override
+  bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }

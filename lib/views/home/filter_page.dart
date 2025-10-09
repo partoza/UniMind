@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class FilterPage extends StatefulWidget {
-  const FilterPage({super.key});
+  final Map<String, dynamic>? initialFilters;
+  
+  const FilterPage({super.key, this.initialFilters});
 
   @override
   State<FilterPage> createState() => _FilterPageState();
@@ -27,17 +29,29 @@ String getOrdinal(int number) {
 class _FilterPageState extends State<FilterPage> {
   String? selectedGender;
   String? selectedDepartment;
-  RangeValues yearRange = const RangeValues(2, 3);
+  RangeValues yearRange = const RangeValues(1, 4);
 
   final List<String> genders = ["Male", "Female", "Other"];
   final List<Map<String, String>> departments = [
     {"name": "College of Computing Education", "logo": "assets/ccelogo.png"},
     {
-      "name": "College of Arts and Science Education",
+      "name": "College of Arts and Sciences Education",
       "logo": "assets/caselogo.png",
     },
     {"name": "College of Engineering Education", "logo": "assets/ceelogo.png"},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Initialize with provided filters or defaults
+    if (widget.initialFilters != null) {
+      selectedGender = widget.initialFilters!['gender'];
+      selectedDepartment = widget.initialFilters!['department'];
+      yearRange = widget.initialFilters!['yearRange'] ?? const RangeValues(1, 4);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -154,7 +168,7 @@ class _FilterPageState extends State<FilterPage> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // 🔹 Fixed-size Department Logo
+                        // Department Logo
                         ClipRRect(
                           borderRadius: BorderRadius.circular(6),
                           child: Image.asset(
@@ -167,8 +181,7 @@ class _FilterPageState extends State<FilterPage> {
                         SizedBox(
                           width: MediaQuery.of(context).size.width * 0.03,
                         ),
-
-                        // 🔹 Department Name (wraps if long)
+                        // Department Name
                         Expanded(
                           child: Text(
                             dept["name"]!,
@@ -177,8 +190,8 @@ class _FilterPageState extends State<FilterPage> {
                                   MediaQuery.of(context).size.width * 0.035,
                               fontWeight: FontWeight.w500,
                             ),
-                            softWrap: true, // ✅ allows line breaks
-                            overflow: TextOverflow.visible, // ✅ don’t cut text
+                            softWrap: true,
+                            overflow: TextOverflow.visible,
                           ),
                         ),
                       ],
@@ -188,32 +201,25 @@ class _FilterPageState extends State<FilterPage> {
                 onChanged: (value) {
                   setState(() => selectedDepartment = value);
                 },
-
-                // Button styling
                 buttonStyleData: ButtonStyleData(
                   height: 70,
                   padding: const EdgeInsets.symmetric(
                     horizontal: 12,
                     vertical: 10,
-                  ), // more space
+                  ),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.grey.shade400, width: 1),
                     color: Colors.white,
                   ),
                 ),
-
-                // Dropdown styling
                 dropdownStyleData: DropdownStyleData(
-                  maxHeight:
-                      MediaQuery.of(context).size.height *
-                      0.5, // taller dropdown
+                  maxHeight: MediaQuery.of(context).size.height * 0.5,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     color: Colors.white,
                   ),
                 ),
-
                 iconStyleData: const IconStyleData(
                   icon: Icon(Icons.arrow_drop_down, color: Colors.black),
                 ),
@@ -222,7 +228,7 @@ class _FilterPageState extends State<FilterPage> {
 
             const SizedBox(height: 24),
 
-            // 🔹 Year Level Range Slider
+            // Year Level Range Slider
             Text(
               "What year level is your study buddy?",
               style: GoogleFonts.montserrat(
@@ -232,11 +238,11 @@ class _FilterPageState extends State<FilterPage> {
             ),
             const SizedBox(height: 12),
 
-            // 🔹 Year Level Filter Container
+            // Year Level Filter Container
             Container(
-              padding: const EdgeInsets.all(16), // inner spacing
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white, // same background as dropdown
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.grey.shade400, width: 1),
               ),
@@ -251,13 +257,13 @@ class _FilterPageState extends State<FilterPage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-
+                  const SizedBox(height: 12),
                   RangeSlider(
                     values: yearRange,
                     min: 1,
                     max: 4,
                     divisions: 3,
-                    activeColor: const Color.fromARGB(255, 0, 0, 0),
+                    activeColor: const Color(0xFFB41214),
                     inactiveColor: Colors.grey[300],
                     labels: RangeLabels(
                       "${getOrdinal(yearRange.start.toInt())} Year",
@@ -265,14 +271,10 @@ class _FilterPageState extends State<FilterPage> {
                     ),
                     onChanged: (RangeValues values) {
                       setState(() {
-                        yearRange = RangeValues(
-                          values.start.roundToDouble(),
-                          values.end.roundToDouble(),
-                        );
+                        yearRange = values;
                       });
                     },
                   ),
-
                   const SizedBox(height: 6),
                   Text(
                     "Pick a range from freshman to senior, it's up to you!",
@@ -286,6 +288,41 @@ class _FilterPageState extends State<FilterPage> {
             ),
 
             const SizedBox(height: 8),
+
+            // Clear Filters Button (only show if any filters are active)
+            if (selectedGender != null || selectedDepartment != null || yearRange.start > 1 || yearRange.end < 4)
+              Column(
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey[700],
+                        side: BorderSide(color: Colors.grey[400]!),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          selectedGender = null;
+                          selectedDepartment = null;
+                          yearRange = const RangeValues(1, 4);
+                        });
+                      },
+                      child: Text(
+                        "Clear All Filters",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
 
             const Spacer(),
 
@@ -308,7 +345,7 @@ class _FilterPageState extends State<FilterPage> {
                   });
                 },
                 child: Text(
-                  "Apply",
+                  "Apply Filters",
                   style: GoogleFonts.montserrat(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
