@@ -486,17 +486,6 @@ class _ChatPageState extends State<ChatPage> {
               children: [
                 CircleAvatar(radius: 25, backgroundColor: Colors.grey),
                 SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(height: 8),
-                      LinearProgressIndicator(),
-                      SizedBox(height: 8),
-                      LinearProgressIndicator(),
-                    ],
-                  ),
-                ),
               ],
             ),
           ),
