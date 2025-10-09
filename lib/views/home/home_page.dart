@@ -170,7 +170,6 @@ class _HomePageState extends State<HomePage> {
       // use custom nav bar
       bottomNavigationBar: CustomNavBar(
         currentIndex: _isNavigating ? _targetIndex : _currentIndex,
-        isLoading: _isNavigating,
         onTap: _handleTabNavigation,
       ),
     );
