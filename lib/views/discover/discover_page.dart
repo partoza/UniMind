@@ -16,17 +16,15 @@ class DiscoverPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.of(context).textScaleFactor;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFB41214),
-              Color(0xFF8B0000),
-              Color(0xFF5D0000),
-            ],
+            colors: [Color(0xFFB41214), Color(0xFF8B0000), Color(0xFF5D0000)],
             stops: [0.0, 0.7, 1.0],
           ),
         ),
@@ -34,11 +32,9 @@ class DiscoverPage extends StatelessWidget {
           children: [
             // Animation centered around QR scanner area
             Positioned.fill(
-              child: IgnorePointer(
-                child: ModernScanningAnimation(),
-              ),
+              child: IgnorePointer(child: ModernScanningAnimation()),
             ),
-            
+
             // Main UI content on top
             SafeArea(
               child: Column(
@@ -68,8 +64,8 @@ class DiscoverPage extends StatelessWidget {
                                     'DISCOVER',
                                     style: GoogleFonts.montserrat(
                                       color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w800,
+                                      fontSize: 28 * textScale,
+                                      fontWeight: FontWeight.w700,
                                       letterSpacing: 1.5,
                                     ),
                                   ),
@@ -143,8 +139,10 @@ class DiscoverPage extends StatelessWidget {
                           child: Container(
                             width: MediaQuery.of(context).size.width * 0.75,
                             constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.75,
-                              maxHeight: MediaQuery.of(context).size.width * 0.75,
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
+                              maxHeight:
+                                  MediaQuery.of(context).size.width * 0.75,
                             ),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(24),
@@ -216,7 +214,9 @@ class DiscoverPage extends StatelessWidget {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
                               ),
@@ -266,7 +266,8 @@ class DiscoverPage extends StatelessWidget {
 /// Modern scanning animation with subtle effects
 class ModernScanningAnimation extends StatefulWidget {
   @override
-  State<ModernScanningAnimation> createState() => _ModernScanningAnimationState();
+  State<ModernScanningAnimation> createState() =>
+      _ModernScanningAnimationState();
 }
 
 class _ModernScanningAnimationState extends State<ModernScanningAnimation>
@@ -280,7 +281,7 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
   @override
   void initState() {
     super.initState();
-    
+
     // Pulse animation controller
     _pulseController = AnimationController(
       duration: const Duration(milliseconds: 3000), // Slightly slower
@@ -293,29 +294,17 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
       vsync: this,
     )..repeat();
 
-    _pulseAnimation = Tween<double>(
-      begin: 0.7,
-      end: 1.1,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
+    _pulseAnimation = Tween<double>(begin: 0.7, end: 1.1).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
 
-    _rotationAnimation = Tween<double>(
-      begin: 0,
-      end: 2 * 3.14159,
-    ).animate(CurvedAnimation(
-      parent: _rotationController,
-      curve: Curves.linear,
-    ));
+    _rotationAnimation = Tween<double>(begin: 0, end: 2 * 3.14159).animate(
+      CurvedAnimation(parent: _rotationController, curve: Curves.linear),
+    );
 
-    _opacityAnimation = Tween<double>(
-      begin: 0.3,
-      end: 0.8,
-    ).animate(CurvedAnimation(
-      parent: _pulseController,
-      curve: Curves.easeInOut,
-    ));
+    _opacityAnimation = Tween<double>(begin: 0.3, end: 0.8).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -329,12 +318,12 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
-    
+
     // Calculate QR scanner position and size
     final scannerSize = screenWidth * 0.75;
     final scannerCenterX = screenWidth * 0.5;
     final scannerCenterY = screenHeight * 0.45; // Moved higher from 0.5 to 0.45
-    
+
     return AnimatedBuilder(
       animation: Listenable.merge([_pulseController, _rotationController]),
       builder: (context, child) {
@@ -344,10 +333,12 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
           child: Stack(
             children: [
               // Reduced pulsing rings for better performance
-              ...List.generate(2, (ringIndex) { // Reduced from 3 to 2
+              ...List.generate(2, (ringIndex) {
+                // Reduced from 3 to 2
                 final ringSize = scannerSize * (1.0 + ringIndex * 0.5);
-                final opacity = _opacityAnimation.value * (0.5 - ringIndex * 0.15);
-                
+                final opacity =
+                    _opacityAnimation.value * (0.5 - ringIndex * 0.15);
+
                 return Positioned(
                   left: scannerCenterX - ringSize / 2,
                   top: scannerCenterY - ringSize / 2,
@@ -388,12 +379,18 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
               ),
 
               // Reduced orbiting particles for performance
-              ...List.generate(6, (index) { // Reduced from 8 to 6
-                final angle = (index * 60.0) * (math.pi / 180); // Adjusted spacing
+              ...List.generate(6, (index) {
+                // Reduced from 8 to 6
+                final angle =
+                    (index * 60.0) * (math.pi / 180); // Adjusted spacing
                 final radius = scannerSize * 0.55;
-                final x = scannerCenterX + radius * math.cos(angle + _rotationAnimation.value * 0.3);
-                final y = scannerCenterY + radius * math.sin(angle + _rotationAnimation.value * 0.3);
-                
+                final x =
+                    scannerCenterX +
+                    radius * math.cos(angle + _rotationAnimation.value * 0.3);
+                final y =
+                    scannerCenterY +
+                    radius * math.sin(angle + _rotationAnimation.value * 0.3);
+
                 return Positioned(
                   left: x - 5,
                   top: y - 5,
@@ -419,15 +416,27 @@ class _ModernScanningAnimationState extends State<ModernScanningAnimation>
               }),
 
               // Reduced floating particles
-              ...List.generate(8, (index) { // Reduced from 12 to 8
+              ...List.generate(8, (index) {
+                // Reduced from 12 to 8
                 final random = math.Random(index);
-                final baseX = scannerCenterX + (random.nextDouble() - 0.5) * scannerSize * 1.2;
-                final baseY = scannerCenterY + (random.nextDouble() - 0.5) * scannerSize * 1.2;
-                final animationOffset = _rotationAnimation.value * (random.nextDouble() - 0.5) * 1.5;
-                
+                final baseX =
+                    scannerCenterX +
+                    (random.nextDouble() - 0.5) * scannerSize * 1.2;
+                final baseY =
+                    scannerCenterY +
+                    (random.nextDouble() - 0.5) * scannerSize * 1.2;
+                final animationOffset =
+                    _rotationAnimation.value *
+                    (random.nextDouble() - 0.5) *
+                    1.5;
+
                 return Positioned(
                   left: baseX + animationOffset * 30 - 2, // Reduced movement
-                  top: baseY + math.sin(_pulseController.value * 2 * math.pi + index) * 15 - 2,
+                  top:
+                      baseY +
+                      math.sin(_pulseController.value * 2 * math.pi + index) *
+                          15 -
+                      2,
                   child: Opacity(
                     opacity: _opacityAnimation.value * 0.4,
                     child: Container(
@@ -483,17 +492,18 @@ class ScanningBeamPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
-    
+
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.0; // Reduced stroke width
 
     // Reduced number of scanning beams for performance
-    for (int i = 0; i < 4; i++) { // Reduced from 6 to 4
+    for (int i = 0; i < 4; i++) {
+      // Reduced from 6 to 4
       final angle = (i * 90 + progress * 360) * (3.14159 / 180);
       final startAngle = angle - 0.3;
       final sweepAngle = 0.6;
-      
+
       paint.shader = ui.Gradient.sweep(
         center,
         [
@@ -510,7 +520,7 @@ class ScanningBeamPainter extends CustomPainter {
         startAngle,
         startAngle + sweepAngle,
       );
-      
+
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius * 0.4),
         startAngle,
@@ -521,10 +531,12 @@ class ScanningBeamPainter extends CustomPainter {
     }
 
     // Simplified outer scanning rings
-    for (int ring = 1; ring <= 2; ring++) { // Reduced from 3 to 2
+    for (int ring = 1; ring <= 2; ring++) {
+      // Reduced from 3 to 2
       final ringRadius = radius * (0.2 + ring * 0.2);
-      final ringAngle = (progress * 120 + ring * 45) * (3.14159 / 180); // Slower rotation
-      
+      final ringAngle =
+          (progress * 120 + ring * 45) * (3.14159 / 180); // Slower rotation
+
       paint.shader = ui.Gradient.sweep(
         center,
         [
@@ -537,7 +549,7 @@ class ScanningBeamPainter extends CustomPainter {
         ringAngle - 0.4,
         ringAngle + 0.4,
       );
-      
+
       canvas.drawCircle(center, ringRadius, paint..strokeWidth = 1.5);
     }
   }
@@ -552,7 +564,8 @@ class ScanningBeamPainter extends CustomPainter {
 class ModernQRScanner extends StatefulWidget {
   final VoidCallback onQRDetected;
 
-  const ModernQRScanner({Key? key, required this.onQRDetected}) : super(key: key);
+  const ModernQRScanner({Key? key, required this.onQRDetected})
+    : super(key: key);
 
   @override
   State<ModernQRScanner> createState() => _ModernQRScannerState();
@@ -587,8 +600,16 @@ class _ModernQRScannerState extends State<ModernQRScanner> {
         // Modern corner indicators
         Positioned(top: 24, left: 24, child: _buildModernCorner(true, true)),
         Positioned(top: 24, right: 24, child: _buildModernCorner(true, false)),
-        Positioned(bottom: 24, left: 24, child: _buildModernCorner(false, true)),
-        Positioned(bottom: 24, right: 24, child: _buildModernCorner(false, false)),
+        Positioned(
+          bottom: 24,
+          left: 24,
+          child: _buildModernCorner(false, true),
+        ),
+        Positioned(
+          bottom: 24,
+          right: 24,
+          child: _buildModernCorner(false, false),
+        ),
 
         // Center target indicator
         Center(
@@ -652,7 +673,9 @@ class _ModernQRScannerState extends State<ModernQRScanner> {
           topLeft: isTop && isLeft ? const Radius.circular(8) : Radius.zero,
           topRight: isTop && !isLeft ? const Radius.circular(8) : Radius.zero,
           bottomLeft: !isTop && isLeft ? const Radius.circular(8) : Radius.zero,
-          bottomRight: !isTop && !isLeft ? const Radius.circular(8) : Radius.zero,
+          bottomRight: !isTop && !isLeft
+              ? const Radius.circular(8)
+              : Radius.zero,
         ),
       ),
     );

@@ -21,79 +21,220 @@ class _ChatPageState extends State<ChatPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(height: 40),
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Messages",
-                  style: GoogleFonts.montserrat(
-                    fontSize: 28 * textScale,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF2D2D2D),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Messages",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 28 * textScale,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFB41214),
+                      height: 1.1,
+                    ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Chat with your connections",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14 * textScale,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Search Bar
+              Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F8F8),
+                  borderRadius: BorderRadius.circular(25),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.search, size: 28),
-                  color: const Color(0xFF6B7280),
-                  onPressed: () {
-                    // Implement search functionality
+                child: Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    Icon(
+                      Icons.search,
+                      color: const Color(0xFF6B7280).withOpacity(0.7),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: "Search a GA...",
+                          hintStyle: GoogleFonts.montserrat(
+                            color: const Color(0xFF6B7280).withOpacity(0.7),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          border: InputBorder.none,
+                        ),
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          color: const Color(0xFF2D2D2D),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Connections Horizontal List
+              SizedBox(
+                height: 80,
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection("users")
+                      .doc(currentUid)
+                      .collection("following")
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return _buildConnectionsLoading();
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return _buildEmptyConnections();
+                    }
+
+                    final followingDocs = snapshot.data!.docs;
+
+                    return ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: followingDocs.length,
+                      itemBuilder: (context, index) {
+                        final doc = followingDocs[index];
+                        final uid = doc.id;
+                        return _buildConnectionCircle(uid);
+                      },
+                    );
                   },
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Chat with your connections",
-              style: GoogleFonts.montserrat(
-                fontSize: 14 * textScale,
-                fontWeight: FontWeight.w400,
-                color: const Color(0xFF6B7280),
               ),
-            ),
-            const SizedBox(height: 24),
-            
-            // Chat List
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection("users")
-                    .doc(currentUid)
-                    .collection("following")
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return _buildLoadingState();
-                  }
+              const SizedBox(height: 24),
 
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return _buildEmptyState();
-                  }
-
-                  final followingDocs = snapshot.data!.docs;
-
-                  return ListView.separated(
-                    itemCount: followingDocs.length,
-                    separatorBuilder: (context, index) => const Divider(height: 1, indent: 70),
-                    itemBuilder: (context, index) {
-                      final doc = followingDocs[index];
-                      final uid = doc.id;
-
-                      return _buildChatListItem(uid);
-                    },
-                  );
-                },
+              // Recent Messages Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Recent Message",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2D2D2D),
+                    ),
+                  ),
+                  // You can add a "See All" button here if needed
+                ],
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+
+              // Chat List
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection("users")
+                      .doc(currentUid)
+                      .collection("following")
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return _buildLoadingState();
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return _buildEmptyState();
+                    }
+
+                    final followingDocs = snapshot.data!.docs;
+
+                    return ListView.separated(
+                      itemCount: followingDocs.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final doc = followingDocs[index];
+                        final uid = doc.id;
+
+                        return _buildChatListItem(uid);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildConnectionCircle(String peerUid) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection("users").doc(peerUid).get(),
+      builder: (context, userSnap) {
+        if (!userSnap.hasData || !userSnap.data!.exists) {
+          return const SizedBox.shrink();
+        }
+
+        final userData = userSnap.data!.data() as Map<String, dynamic>? ?? {};
+        final displayName = userData['displayName'] ?? 'Unknown User';
+        final firstName = displayName.split(' ').first;
+
+        return Container(
+          width: 70,
+          margin: const EdgeInsets.only(right: 16),
+          child: Column(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFB41214).withOpacity(0.3),
+                    width: 2,
+                  ),
+                ),
+                child: CircleAvatar(
+                  radius: 26,
+                  backgroundImage:
+                      userData['avatarPath'] != null &&
+                          userData['avatarPath']!.isNotEmpty
+                      ? NetworkImage(userData['avatarPath']!)
+                      : const AssetImage('assets/default_avatar.png')
+                            as ImageProvider,
+                  backgroundColor: Colors.grey[200],
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                firstName,
+                style: GoogleFonts.montserrat(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF2D2D2D),
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -111,13 +252,17 @@ class _ChatPageState extends State<ChatPage> {
         }
 
         return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance.collection("users").doc(peerUid).get(),
+          future: FirebaseFirestore.instance
+              .collection("users")
+              .doc(peerUid)
+              .get(),
           builder: (context, userSnap) {
             if (!userSnap.hasData || !userSnap.data!.exists) {
               return const SizedBox.shrink();
             }
 
-            final userData = userSnap.data!.data() as Map<String, dynamic>? ?? {};
+            final userData =
+                userSnap.data!.data() as Map<String, dynamic>? ?? {};
             return _buildChatTile(peerUid, userData);
           },
         );
@@ -142,124 +287,221 @@ class _ChatPageState extends State<ChatPage> {
         if (msgSnap.hasData && msgSnap.data!.docs.isNotEmpty) {
           final msg = msgSnap.data!.docs.first.data() as Map<String, dynamic>;
           lastMessage = msg['text'] ?? 'Say Hi!';
-          
-          // Format timestamp
+
           if (msg['timestamp'] != null) {
             final timestamp = msg['timestamp'] as Timestamp;
             timeAgo = _formatTimeAgo(timestamp.toDate());
           }
-          
-          // Check if message is unread (you can add this field to your messages)
+
           hasUnread = msg['read'] == false && msg['senderUid'] != currentUid;
         }
 
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 4),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            leading: Stack(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: const Color(0xFFB41214).withOpacity(0.2), width: 2),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => MessageScreen(
+                      peerUid: peerUid,
+                      peerName: userData['displayName'] ?? 'Unknown User',
+                      peerAvatar: userData['avatarPath'] ?? '',
+                    ),
                   ),
-                  child: CircleAvatar(
-                    radius: 26,
-                    backgroundImage: userData['avatarPath'] != null && userData['avatarPath']!.isNotEmpty
-                        ? NetworkImage(userData['avatarPath']!)
-                        : const AssetImage('assets/default_avatar.png') as ImageProvider,
-                    backgroundColor: Colors.grey[200],
-                  ),
-                ),
-                if (hasUnread)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      width: 12,
-                      height: 12,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFB41214),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    // Avatar
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
                         shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFB41214).withOpacity(0.2),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 23,
+                        backgroundImage:
+                            userData['avatarPath'] != null &&
+                                userData['avatarPath']!.isNotEmpty
+                            ? NetworkImage(userData['avatarPath']!)
+                            : const AssetImage('assets/default_avatar.png')
+                                  as ImageProvider,
+                        backgroundColor: Colors.grey[200],
                       ),
                     ),
-                  ),
-              ],
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    userData['displayName'] ?? 'Unknown User',
-                    style: GoogleFonts.montserrat(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: const Color(0xFF2D2D2D),
+                    const SizedBox(width: 16),
+
+                    // Message Content
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              SizedBox(
+                                width: 150, // set max width here
+                                child: Text(
+                                  userData['displayName'] ?? 'Unknown User',
+                                  style: GoogleFonts.montserrat(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: const Color(0xFF2D2D2D),
+                                  ),
+                                  maxLines: 1, // limit to one line
+                                  overflow: TextOverflow
+                                      .ellipsis, // show "..." when too long
+                                  softWrap: false,
+                                ),
+                              ),
+                              Text(
+                                timeAgo.isEmpty ? 'Now' : timeAgo,
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF9CA3AF),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            lastMessage,
+                            style: GoogleFonts.montserrat(
+                              fontSize: 14,
+                              color: const Color(0xFF6B7280),
+                              fontWeight: hasUnread
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                          ),
+                        ],
+                      ),
                     ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+
+                    // Unread indicator
+                    if (hasUnread)
+                      Container(
+                        width: 8,
+                        height: 8,
+                        margin: const EdgeInsets.only(left: 8),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFB41214),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                  ],
                 ),
-                if (timeAgo.isNotEmpty)
-                  Text(
-                    timeAgo,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 12,
-                      color: const Color(0xFF6B7280),
-                    ),
-                  ),
-              ],
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4.0),
-              child: Text(
-                lastMessage,
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  color: const Color(0xFF6B7280),
-                  fontWeight: hasUnread ? FontWeight.w600 : FontWeight.w400,
-                ),
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
               ),
             ),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MessageScreen(
-                    peerUid: peerUid,
-                    peerName: userData['displayName'] ?? 'Unknown User',
-                    peerAvatar: userData['avatarPath'] ?? '',
-                  ),
-                ),
-              );
-            },
           ),
         );
       },
     );
   }
 
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFFB41214)),
+  Widget _buildConnectionsLoading() {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      itemCount: 4,
+      itemBuilder: (context, index) {
+        return Container(
+          width: 70,
+          margin: const EdgeInsets.only(right: 16),
+          child: Column(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Container(width: 40, height: 12, color: Colors.grey[300]),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            "Loading conversations...",
-            style: GoogleFonts.montserrat(
-              color: const Color(0xFF6B7280),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyConnections() {
+    return Center(
+      child: Text(
+        "No connections yet",
+        style: GoogleFonts.montserrat(
+          color: const Color(0xFF6B7280),
+          fontSize: 14,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return ListView.builder(
+      itemCount: 4,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: const Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                CircleAvatar(radius: 25, backgroundColor: Colors.grey),
+                SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(height: 8),
+                      LinearProgressIndicator(),
+                      SizedBox(height: 8),
+                      LinearProgressIndicator(),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -269,7 +511,7 @@ class _ChatPageState extends State<ChatPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            Icons.chat_bubble_outline,
+            Icons.chat_bubble_outline_rounded,
             size: 80,
             color: Colors.grey[300],
           ),
@@ -284,10 +526,8 @@ class _ChatPageState extends State<ChatPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            "Start following users to begin chatting",
-            style: GoogleFonts.montserrat(
-              color: const Color(0xFF6B7280),
-            ),
+            "Start a conversation with your connections",
+            style: GoogleFonts.montserrat(color: const Color(0xFF6B7280)),
             textAlign: TextAlign.center,
           ),
         ],
@@ -300,10 +540,10 @@ class _ChatPageState extends State<ChatPage> {
     final difference = now.difference(date);
 
     if (difference.inMinutes < 1) return 'Now';
-    if (difference.inMinutes < 60) return '${difference.inMinutes}m';
-    if (difference.inHours < 24) return '${difference.inHours}h';
-    if (difference.inDays < 7) return '${difference.inDays}d';
-    
+    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
+    if (difference.inHours < 24) return '${difference.inHours}h ago';
+    if (difference.inDays < 7) return '${difference.inDays}d ago';
+
     return DateFormat('MMM dd').format(date);
   }
 

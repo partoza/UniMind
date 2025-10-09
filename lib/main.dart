@@ -43,20 +43,23 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: "UniMind",
-      home: FutureBuilder<Widget>(
-        future: _getLandingPage(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            // Show your loading screen while checking
-            return const LoadingPage();
-          } else if (snapshot.hasError) {
-            return const Scaffold(
-              body: Center(child: Text("Something went wrong")),
-            );
-          } else {
-            return snapshot.data!;
-          }
-        },
+      home: Container(
+        color: Colors.white, // Set background color to white
+        child: FutureBuilder<Widget>(
+          future: _getLandingPage(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              // Show your loading screen while checking
+              return const LoadingPage();
+            } else if (snapshot.hasError) {
+              return const Scaffold(
+                body: Center(child: Text("Something went wrong")),
+              );
+            } else {
+              return snapshot.data!;
+            }
+          },
+        ),
       ),
     );
   }

@@ -90,7 +90,7 @@ class _TermsScreenState extends State<TermsScreen> {
                   ),
                 ),
                 Text(
-                  "Study Together",
+                  "Study ta GA!",
                   style: GoogleFonts.montserrat(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
@@ -170,7 +170,7 @@ class _TermsScreenState extends State<TermsScreen> {
                         ),
                       ),
                       Text(
-                        "GA,",
+                        "GA!",
                         style: GoogleFonts.montserrat(
                           fontWeight: FontWeight.w700,
                           fontSize: 28,

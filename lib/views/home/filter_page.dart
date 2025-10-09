@@ -9,6 +9,21 @@ class FilterPage extends StatefulWidget {
   State<FilterPage> createState() => _FilterPageState();
 }
 
+String getOrdinal(int number) {
+  switch (number) {
+    case 1:
+      return "1st";
+    case 2:
+      return "2nd";
+    case 3:
+      return "3rd";
+    case 4:
+      return "4th";
+    default:
+      return number.toString();
+  }
+}
+
 class _FilterPageState extends State<FilterPage> {
   String? selectedGender;
   String? selectedDepartment;
@@ -16,21 +31,13 @@ class _FilterPageState extends State<FilterPage> {
 
   final List<String> genders = ["Male", "Female", "Other"];
   final List<Map<String, String>> departments = [
-  {
-    "name": "College of Computing Education",
-    "logo": "assets/ccelogo.png",
-  },
-  {
-    "name": "College of Arts and Science Education",
-    "logo": "assets/caselogo.png",
-  },
-  {
-    "name": "College of Engineering Education",
-    "logo": "assets/ceelogo.png",
-  },
-];
-
-
+    {"name": "College of Computing Education", "logo": "assets/ccelogo.png"},
+    {
+      "name": "College of Arts and Science Education",
+      "logo": "assets/caselogo.png",
+    },
+    {"name": "College of Engineering Education", "logo": "assets/ceelogo.png"},
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +67,10 @@ class _FilterPageState extends State<FilterPage> {
             // Gender Dropdown
             Text(
               "Who would you like to study with?",
-              style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w600),
+              style: GoogleFonts.montserrat(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             DropdownButtonHideUnderline(
@@ -68,7 +78,10 @@ class _FilterPageState extends State<FilterPage> {
                 isExpanded: true,
                 hint: Text(
                   "Select Gender",
-                  style: GoogleFonts.montserrat(fontSize: 14, color: Colors.grey[600]),
+                  style: GoogleFonts.montserrat(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
                 ),
                 value: selectedGender,
                 items: genders.map((gender) {
@@ -76,7 +89,10 @@ class _FilterPageState extends State<FilterPage> {
                     value: gender,
                     child: Text(
                       gender,
-                      style: GoogleFonts.montserrat(fontSize: 14, color: Colors.black),
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        color: Colors.black,
+                      ),
                     ),
                   );
                 }).toList(),
@@ -87,7 +103,10 @@ class _FilterPageState extends State<FilterPage> {
                   height: 55,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color.fromARGB(255, 179, 179, 179), width: 1),
+                    border: Border.all(
+                      color: const Color.fromARGB(255, 179, 179, 179),
+                      width: 1,
+                    ),
                     color: Colors.white,
                   ),
                 ),
@@ -99,7 +118,10 @@ class _FilterPageState extends State<FilterPage> {
                   ),
                 ),
                 iconStyleData: const IconStyleData(
-                  icon: Icon(Icons.arrow_drop_down, color: Color.fromARGB(255, 0, 0, 0)),
+                  icon: Icon(
+                    Icons.arrow_drop_down,
+                    color: Color.fromARGB(255, 0, 0, 0),
+                  ),
                 ),
               ),
             ),
@@ -109,7 +131,10 @@ class _FilterPageState extends State<FilterPage> {
             // Department Dropdown
             Text(
               "Which college department do you want to connect with?",
-              style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w600),
+              style: GoogleFonts.montserrat(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 8),
             DropdownButtonHideUnderline(
@@ -139,14 +164,17 @@ class _FilterPageState extends State<FilterPage> {
                             fit: BoxFit.cover,
                           ),
                         ),
-                        SizedBox(width: MediaQuery.of(context).size.width * 0.03),
+                        SizedBox(
+                          width: MediaQuery.of(context).size.width * 0.03,
+                        ),
 
                         // 🔹 Department Name (wraps if long)
                         Expanded(
                           child: Text(
                             dept["name"]!,
                             style: GoogleFonts.montserrat(
-                              fontSize: MediaQuery.of(context).size.width * 0.035,
+                              fontSize:
+                                  MediaQuery.of(context).size.width * 0.035,
                               fontWeight: FontWeight.w500,
                             ),
                             softWrap: true, // ✅ allows line breaks
@@ -164,7 +192,10 @@ class _FilterPageState extends State<FilterPage> {
                 // Button styling
                 buttonStyleData: ButtonStyleData(
                   height: 70,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10), // more space
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ), // more space
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: Colors.grey.shade400, width: 1),
@@ -174,7 +205,9 @@ class _FilterPageState extends State<FilterPage> {
 
                 // Dropdown styling
                 dropdownStyleData: DropdownStyleData(
-                  maxHeight: MediaQuery.of(context).size.height * 0.5, // taller dropdown
+                  maxHeight:
+                      MediaQuery.of(context).size.height *
+                      0.5, // taller dropdown
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(10),
                     color: Colors.white,
@@ -187,14 +220,15 @@ class _FilterPageState extends State<FilterPage> {
               ),
             ),
 
-
-
             const SizedBox(height: 24),
 
             // 🔹 Year Level Range Slider
             Text(
               "What year level is your study buddy?",
-              style: GoogleFonts.montserrat(fontSize: 15, fontWeight: FontWeight.w600),
+              style: GoogleFonts.montserrat(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -204,17 +238,14 @@ class _FilterPageState extends State<FilterPage> {
               decoration: BoxDecoration(
                 color: Colors.white, // same background as dropdown
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: Colors.grey.shade400,
-                  width: 1,
-                ),
+                border: Border.all(color: Colors.grey.shade400, width: 1),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Current selection text
                   Text(
-                    "Between ${yearRange.start.toInt()} and ${yearRange.end.toInt()} Year",
+                    "Between ${getOrdinal(yearRange.start.toInt())} and ${getOrdinal(yearRange.end.toInt())} Year",
                     style: GoogleFonts.montserrat(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -229,8 +260,8 @@ class _FilterPageState extends State<FilterPage> {
                     activeColor: const Color.fromARGB(255, 0, 0, 0),
                     inactiveColor: Colors.grey[300],
                     labels: RangeLabels(
-                      "${yearRange.start.toInt()} Year",
-                      "${yearRange.end.toInt()} Year",
+                      "${getOrdinal(yearRange.start.toInt())} Year",
+                      "${getOrdinal(yearRange.end.toInt())} Year",
                     ),
                     onChanged: (RangeValues values) {
                       setState(() {
@@ -254,9 +285,7 @@ class _FilterPageState extends State<FilterPage> {
               ),
             ),
 
-
             const SizedBox(height: 8),
-
 
             const Spacer(),
 
