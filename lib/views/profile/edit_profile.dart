@@ -72,6 +72,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     {'value': 'CASE', 'display': 'College of Arts and Sciences Education', 'image': 'assets/caselogo.png'},
   ];
 
+  // FIX 1: Add all gender options including "Others"
+  final List<String> _genderOptions = ["Male", "Female", "Others"];
+
   @override
   void initState() {
     super.initState();
@@ -109,7 +112,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     // Personal Information
     _displayNameController.text = _userData!['displayName'] ?? "";
-    selectedGender = _userData!['gender'] ?? "Male";
+    
+    // FIX 2: Handle gender properly - if it's "Others" and not in our options, add it
+    final genderFromFirebase = _userData!['gender'] ?? "Male";
+    if (_genderOptions.contains(genderFromFirebase)) {
+      selectedGender = genderFromFirebase;
+    } else {
+      // If gender is "Others" or any other value not in our list, use "Others"
+      selectedGender = "Others";
+    }
+    
     avatarPath = _userData!['avatarPath'] ?? "assets/cce_male.jpg";
 
     // Academic Information
@@ -183,6 +195,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
       orElse: () => _departmentOptions.first,
     );
     return department['display']!;
+  }
+
+  // FIX 3: Get department logo path
+  String _getDepartmentLogoPath(String departmentValue) {
+    final department = _departmentOptions.firstWhere(
+      (dept) => dept['value'] == departmentValue,
+      orElse: () => _departmentOptions.first,
+    );
+    return department['image']!;
   }
 
   Future<void> _saveChanges() async {
@@ -279,9 +300,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           SizedBox(height: 16),
                           _buildTextField("Display Name", "Enter your display name", _displayNameController),
                           SizedBox(height: 12),
+                          // FIX 4: Use the gender options list with "Others"
                           _buildDropdown(
                             "Gender",
-                            ["Male", "Female"],
+                            _genderOptions, // Now includes "Others"
                             selectedGender,
                             (val) {
                               setState(() => selectedGender = val!);
@@ -537,52 +559,52 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   void _showAvatarSelectionDialog() {
-  final List<String> avatarPaths = [
-    "assets/avatar/caeavatar.png",
-    "assets/avatar/cafaeavatar.png",
-    "assets/avatar/caseavatar.png",
-    "assets/avatar/cbaeavatar.png",
-    "assets/avatar/cceavatar.png",
-    "assets/avatar/ccjeavatar.png",
-    "assets/avatar/ceeavatar.png",
-    "assets/avatar/cheavatar.png",
-    "assets/avatar/chseavatar.png",
-    "assets/avatar/cteavatar.png",
-  ];
+    final List<String> avatarPaths = [
+      "assets/avatar/caeavatar.png",
+      "assets/avatar/cafaeavatar.png",
+      "assets/avatar/caseavatar.png",
+      "assets/avatar/cbaeavatar.png",
+      "assets/avatar/cceavatar.png",
+      "assets/avatar/ccjeavatar.png",
+      "assets/avatar/ceeavatar.png",
+      "assets/avatar/cheavatar.png",
+      "assets/avatar/chseavatar.png",
+      "assets/avatar/cteavatar.png",
+    ];
 
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: Text("Choose Avatar", style: GoogleFonts.montserrat()),
-      content: SizedBox(
-        width: double.maxFinite,
-        child: GridView.builder(
-          shrinkWrap: true,
-          itemCount: avatarPaths.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4, // number of avatars per row
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Choose Avatar", style: GoogleFonts.montserrat()),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: GridView.builder(
+            shrinkWrap: true,
+            itemCount: avatarPaths.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4, // number of avatars per row
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    avatarPath = avatarPaths[index];
+                  });
+                  Navigator.of(context).pop();
+                },
+                child: CircleAvatar(
+                  radius: 30,
+                  backgroundImage: AssetImage(avatarPaths[index]),
+                ),
+              );
+            },
           ),
-          itemBuilder: (context, index) {
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  avatarPath = avatarPaths[index];
-                });
-                Navigator.of(context).pop();
-              },
-              child: CircleAvatar(
-                radius: 30,
-                backgroundImage: AssetImage(avatarPaths[index]),
-              ),
-            );
-          },
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
@@ -745,7 +767,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(6),
                           image: DecorationImage(
-                            image: AssetImage(item['image']!),
+                            // FIX 5: Use the dynamic logo path
+                            image: AssetImage(_getDepartmentLogoPath(item['value']!)),
                             fit: BoxFit.cover,
                           ),
                         ),

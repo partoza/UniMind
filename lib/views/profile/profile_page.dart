@@ -49,6 +49,19 @@ class _ProfilePageState extends State<ProfilePage> {
   
   User? get currentUser => _auth.currentUser;
   
+  // Add this method to get department logo
+  String _getDepartmentLogo(String department) {
+    switch (department) {
+      case 'CEE':
+        return 'assets/ceelogo.png';
+      case 'CASE':
+        return 'assets/caselogo.png';
+      case 'CCE':
+      default:
+        return 'assets/ccelogo.png';
+    }
+  }
+
   String _getYearLevelString(dynamic yearLevel) {
     try {
       // Handle both int and string types
@@ -548,6 +561,9 @@ class _ProfilePageState extends State<ProfilePage> {
     final weaknesses = _getUserData(userData, 'weaknesses', defaultValue: <String>[]);
     final bio = _getUserData(userData, 'bio', defaultValue: _isCurrentUser ? "No bio yet. You can add one by editing your profile." : "No bio available");
 
+    // FIX: Get the correct department logo
+    final departmentLogo = _getDepartmentLogo(department.toString());
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
       child: Column(
@@ -585,7 +601,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Image.asset("assets/ccelogo.png", height: 36),
+                  // FIX: Use dynamic department logo instead of hardcoded CCE logo
+                  child: Image.asset(departmentLogo, height: 36),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
