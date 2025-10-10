@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:unimind/views/profile/profile_page.dart'; // Add this import
 
 class MessageScreen extends StatefulWidget {
   final String peerUid;
@@ -43,6 +44,16 @@ class _MessageScreenState extends State<MessageScreen> {
     } else {
       return AssetImage(avatarPath);
     }
+  }
+
+  // Add this method for navigation
+  void _navigateToPeerProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfilePage(userId: widget.peerUid),
+      ),
+    );
   }
 
   @override
@@ -123,55 +134,59 @@ class _MessageScreenState extends State<MessageScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF2D2D2D)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Row(
-          children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundImage: _getAvatarImage(widget.peerAvatar),
-              backgroundColor: Colors.grey[200],
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.peerName,
-                    style: GoogleFonts.montserrat(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                      color: const Color(0xFF2D2D2D),
+        // Wrap the title with GestureDetector to make it clickable
+        title: GestureDetector(
+          onTap: _navigateToPeerProfile,
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundImage: _getAvatarImage(widget.peerAvatar),
+                backgroundColor: Colors.grey[200],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.peerName,
+                      style: GoogleFonts.montserrat(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: const Color(0xFF2D2D2D),
+                      ),
                     ),
-                  ),
-                  StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection("users")
-                        .doc(widget.peerUid)
-                        .snapshots(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
+                    StreamBuilder<DocumentSnapshot>(
+                      stream: FirebaseFirestore.instance
+                          .collection("users")
+                          .doc(widget.peerUid)
+                          .snapshots(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return Text(
+                            '...',
+                            style: GoogleFonts.montserrat(
+                              fontSize: 12,
+                              color: const Color(0xFF6B7280),
+                            ),
+                          );
+                        }
+                        final status = snapshot.hasData && snapshot.data!.exists ? 'Online' : 'Offline';
                         return Text(
-                          '...',
+                          status,
                           style: GoogleFonts.montserrat(
                             fontSize: 12,
                             color: const Color(0xFF6B7280),
                           ),
                         );
-                      }
-                      final status = snapshot.hasData && snapshot.data!.exists ? 'Online' : 'Offline';
-                      return Text(
-                        status,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 12,
-                          color: const Color(0xFF6B7280),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           IconButton(

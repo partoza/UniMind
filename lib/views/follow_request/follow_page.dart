@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:unimind/views/profile/profile_page.dart';
 
 class FollowPage extends StatelessWidget {
   const FollowPage({super.key});
@@ -126,6 +127,15 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
     );
   }
 
+  void _navigateToProfile() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProfilePage(userId: widget.uid),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.of(context).textScaleFactor;
@@ -148,18 +158,21 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left: Avatar
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Container(
-              width: screenWidth * 0.18,
-              height: screenWidth * 0.18,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(50),
-                color: Colors.grey[200],
-              ),
-              child: ClipOval(
-                child: _buildAvatar(widget.imagePath, screenWidth * 0.18),
+          // Left: Avatar (make it tappable)
+          GestureDetector(
+            onTap: _navigateToProfile,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                width: screenWidth * 0.18,
+                height: screenWidth * 0.18,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(50),
+                  color: Colors.grey[200],
+                ),
+                child: ClipOval(
+                  child: _buildAvatar(widget.imagePath, screenWidth * 0.18),
+                ),
               ),
             ),
           ),
@@ -169,20 +182,29 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.name,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 14 * textScale,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.yearCourse,
-                  style: GoogleFonts.montserrat(
-                    fontSize: 12 * textScale,
-                    color: Colors.grey[600],
+                // Make the name tappable too
+                GestureDetector(
+                  onTap: _navigateToProfile,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.name,
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14 * textScale,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.yearCourse,
+                        style: GoogleFonts.montserrat(
+                          fontSize: 12 * textScale,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 8),

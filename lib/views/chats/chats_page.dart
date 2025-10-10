@@ -70,6 +70,86 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
+  // New method to get chat data with last message timestamps for sorting
+  Stream<List<Map<String, dynamic>>> _getSortedChatsStream() {
+    return FirebaseFirestore.instance
+        .collection("users")
+        .doc(currentUid)
+        .collection("following")
+        .snapshots()
+        .asyncMap((followingSnapshot) async {
+      final followingDocs = followingSnapshot.docs;
+      final List<Map<String, dynamic>> chatDataList = [];
+
+      for (final doc in followingDocs) {
+        final peerUid = doc.id;
+        
+        // Get user data
+        final userDoc = await FirebaseFirestore.instance
+            .collection("users")
+            .doc(peerUid)
+            .get();
+        
+        if (!userDoc.exists) continue;
+
+        final userData = userDoc.data() as Map<String, dynamic>? ?? {};
+        final displayName = userData['displayName'] ?? 'Unknown User';
+        
+        // Filter by search query
+        if (_searchQuery.isNotEmpty && 
+            !displayName.toLowerCase().contains(_searchQuery)) {
+          continue;
+        }
+
+        // Check mutual follow
+        final mutualDoc = await FirebaseFirestore.instance
+            .collection("users")
+            .doc(peerUid)
+            .collection("following")
+            .doc(currentUid)
+            .get();
+
+        if (!mutualDoc.exists) continue;
+
+        // Get last message timestamp
+        final lastMessageQuery = await FirebaseFirestore.instance
+            .collection("chats")
+            .doc(_getChatId(currentUid, peerUid))
+            .collection("messages")
+            .orderBy("timestamp", descending: true)
+            .limit(1)
+            .get();
+
+        Timestamp? lastMessageTimestamp;
+        if (lastMessageQuery.docs.isNotEmpty) {
+          final lastMessage = lastMessageQuery.docs.first.data();
+          lastMessageTimestamp = lastMessage['timestamp'] as Timestamp?;
+        }
+
+        chatDataList.add({
+          'peerUid': peerUid,
+          'userData': userData,
+          'lastMessageTimestamp': lastMessageTimestamp,
+        });
+      }
+
+      // Sort by last message timestamp (most recent first)
+      // If no messages, they go to the bottom
+      chatDataList.sort((a, b) {
+        final timestampA = a['lastMessageTimestamp'] as Timestamp?;
+        final timestampB = b['lastMessageTimestamp'] as Timestamp?;
+        
+        if (timestampA == null && timestampB == null) return 0;
+        if (timestampA == null) return 1; // A goes after B
+        if (timestampB == null) return -1; // A goes before B
+        
+        return timestampB.compareTo(timestampA); // Most recent first
+      });
+
+      return chatDataList;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.of(context).textScaleFactor;
@@ -208,34 +288,31 @@ class _ChatPageState extends State<ChatPage> {
               ),
               const SizedBox(height: 16),
 
-              // Chat List
+              // Chat List - Now sorted by most recent message
               Expanded(
-                child: StreamBuilder<QuerySnapshot>(
-                  stream: FirebaseFirestore.instance
-                      .collection("users")
-                      .doc(currentUid)
-                      .collection("following")
-                      .snapshots(),
+                child: StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: _getSortedChatsStream(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return _buildLoadingState();
                     }
 
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
                       return _buildEmptyState();
                     }
 
-                    final followingDocs = snapshot.data!.docs;
+                    final chatDataList = snapshot.data!;
 
                     return ListView.separated(
-                      itemCount: followingDocs.length,
+                      itemCount: chatDataList.length,
                       separatorBuilder: (context, index) =>
                           const SizedBox(height: 8),
                       itemBuilder: (context, index) {
-                        final doc = followingDocs[index];
-                        final uid = doc.id;
+                        final chatData = chatDataList[index];
+                        final peerUid = chatData['peerUid'] as String;
+                        final userData = chatData['userData'] as Map<String, dynamic>;
 
-                        return _buildChatListItem(uid);
+                        return _buildChatTile(peerUid, userData);
                       },
                     );
                   },
@@ -317,46 +394,6 @@ class _ChatPageState extends State<ChatPage> {
               ],
             ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildChatListItem(String peerUid) {
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection("users")
-          .doc(peerUid)
-          .collection("following")
-          .doc(currentUid)
-          .snapshots(),
-      builder: (context, mutualSnap) {
-        if (!mutualSnap.hasData || !mutualSnap.data!.exists) {
-          return const SizedBox.shrink();
-        }
-
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
-              .collection("users")
-              .doc(peerUid)
-              .get(),
-          builder: (context, userSnap) {
-            if (!userSnap.hasData || !userSnap.data!.exists) {
-              return const SizedBox.shrink();
-            }
-
-            final userData =
-                userSnap.data!.data() as Map<String, dynamic>? ?? {};
-            
-            // Filter by search query
-            final displayName = userData['displayName'] ?? 'Unknown User';
-            if (_searchQuery.isNotEmpty && 
-                !displayName.toLowerCase().contains(_searchQuery)) {
-              return const SizedBox.shrink();
-            }
-
-            return _buildChatTile(peerUid, userData);
-          },
         );
       },
     );

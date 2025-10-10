@@ -31,7 +31,9 @@ Future<void> signOutUser(BuildContext context) async {
 }
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final String? userId; // If null, shows current user's profile
+  
+  const ProfilePage({super.key, this.userId});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -40,6 +42,10 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  
+  // Use provided userId or current user's ID
+  String get _targetUserId => widget.userId ?? _auth.currentUser!.uid;
+  bool get _isCurrentUser => widget.userId == null || widget.userId == _auth.currentUser?.uid;
   
   User? get currentUser => _auth.currentUser;
   
@@ -101,9 +107,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 color: const Color(0xFFB41214),
                 child: StreamBuilder<DocumentSnapshot>(
-                  stream: currentUser != null 
-                    ? _firestore.collection('users').doc(currentUser!.uid).snapshots()
-                    : null,
+                  stream: _firestore.collection('users').doc(_targetUserId).snapshots(),
                   builder: (context, snapshot) {
                     print("StreamBuilder snapshot state: ${snapshot.connectionState}");
                     print("StreamBuilder has data: ${snapshot.hasData}");
@@ -128,9 +132,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
 
             StreamBuilder<DocumentSnapshot>(
-              stream: currentUser != null
-                ? _firestore.collection('users').doc(currentUser!.uid).snapshots()
-                : null,
+              stream: _firestore.collection('users').doc(_targetUserId).snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return _buildBodyLoading();
@@ -155,7 +157,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "My Profile",
+          _isCurrentUser ? "My Profile" : "Profile",
           style: GoogleFonts.montserrat(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -188,28 +190,30 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.white24,
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: null,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white70),
-                      backgroundColor: Colors.white24,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 6,
+                  // Only show edit button for current user
+                  if (_isCurrentUser)
+                    OutlinedButton(
+                      onPressed: null,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white70),
+                        backgroundColor: Colors.white24,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 6,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      child: Text(
+                        "Edit Profile",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white70,
+                        ),
                       ),
                     ),
-                    child: Text(
-                      "Edit Profile",
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white70,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -224,7 +228,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "My Profile",
+          _isCurrentUser ? "My Profile" : "Profile",
           style: GoogleFonts.montserrat(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -245,7 +249,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    currentUser?.email ?? "Guest User",
+                    _isCurrentUser ? (currentUser?.email ?? "Guest User") : "User",
                     style: GoogleFonts.montserrat(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -253,42 +257,44 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   Text(
-                    "Complete your profile",
+                    _isCurrentUser ? "Complete your profile" : "User profile",
                     style: GoogleFonts.montserrat(
                       fontSize: 14,
                       color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EditProfilePage(),
+                  // Only show edit button for current user
+                  if (_isCurrentUser)
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditProfilePage(),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white70),
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 6,
                         ),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white70),
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 6,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      child: Text(
+                        "Edit Profile",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                    child: Text(
-                      "Edit Profile",
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -299,7 +305,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildHeaderContent(Map<String, dynamic>? userData, BuildContext context) {
-    final displayName = _getUserData(userData, 'displayName', defaultValue: currentUser?.email ?? "Unknown User");
+    final displayName = _getUserData(userData, 'displayName', defaultValue: _isCurrentUser ? (currentUser?.email ?? "Unknown User") : "Unknown User");
     final yearLevel = _getUserData(userData, 'yearLevel', defaultValue: 1);
     final avatarPath = _getUserData(userData, 'avatarPath', defaultValue: "assets/cce_male.jpg");
 
@@ -307,7 +313,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "My Profile",
+          _isCurrentUser ? "My Profile" : "Profile",
           style: GoogleFonts.montserrat(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -343,35 +349,37 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => EditProfilePage(),
+                  // Only show edit button for current user
+                  if (_isCurrentUser)
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditProfilePage(),
+                          ),
+                        );
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.white70),
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 6,
                         ),
-                      );
-                    },
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.white70),
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 6,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      child: Text(
+                        "Edit Profile",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                    child: Text(
-                      "Edit Profile",
-                      style: GoogleFonts.montserrat(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -439,9 +447,12 @@ class _ProfilePageState extends State<ProfilePage> {
               color: Colors.grey[200],
             ),
           ),
-          const SizedBox(height: 40),
-          buildLogoutButton(context),
-          const SizedBox(height: 30),
+          // Only show logout button for current user
+          if (_isCurrentUser) ...[
+            const SizedBox(height: 40),
+            buildLogoutButton(context),
+            const SizedBox(height: 30),
+          ],
         ],
       ),
     );
@@ -493,7 +504,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Complete your profile",
+                        _isCurrentUser ? "Complete your profile" : "User profile",
                         style: GoogleFonts.montserrat(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -502,7 +513,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        "Add your department and program",
+                        _isCurrentUser ? "Add your department and program" : "Profile information",
                         style: GoogleFonts.montserrat(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -517,10 +528,13 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 15),
           _sectionTitle("My Bio"),
-          _infoCard("No bio yet. You can add one by editing your profile."),
-          const SizedBox(height: 40),
-          buildLogoutButton(context),
-          const SizedBox(height: 30),
+          _infoCard(_isCurrentUser ? "No bio yet. You can add one by editing your profile." : "No bio available"),
+          // Only show logout button for current user
+          if (_isCurrentUser) ...[
+            const SizedBox(height: 40),
+            buildLogoutButton(context),
+            const SizedBox(height: 30),
+          ],
         ],
       ),
     );
@@ -532,7 +546,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final gender = _getUserData(userData, 'gender', defaultValue: "Not set");
     final strengths = _getUserData(userData, 'strengths', defaultValue: <String>[]);
     final weaknesses = _getUserData(userData, 'weaknesses', defaultValue: <String>[]);
-    final bio = _getUserData(userData, 'bio', defaultValue: "No bio yet. You can add one by editing your profile.");
+    final bio = _getUserData(userData, 'bio', defaultValue: _isCurrentUser ? "No bio yet. You can add one by editing your profile." : "No bio available");
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
@@ -640,9 +654,12 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
 
-          const SizedBox(height: 40),
-          buildLogoutButton(context),
-          const SizedBox(height: 30),
+          // Only show logout button for current user
+          if (_isCurrentUser) ...[
+            const SizedBox(height: 40),
+            buildLogoutButton(context),
+            const SizedBox(height: 30),
+          ],
         ],
       ),
     );
