@@ -62,6 +62,14 @@ class _MessageScreenState extends State<MessageScreen> {
     _markMessagesAsRead();
     _initializeChatDocument();
     _fetchCurrentUserAvatar();
+    
+    // Add listener to handle text changes for Messenger-like behavior
+    _controller.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    // This will be called when text changes
+    // The TextField will automatically handle scrolling when maxLines is reached
   }
 
   void _fetchCurrentUserAvatar() async {
@@ -393,12 +401,16 @@ class _MessageScreenState extends State<MessageScreen> {
         children: [
           Expanded(
             child: Container(
+              constraints: const BoxConstraints(
+                maxHeight: 120, // Maximum height for 5 lines
+              ),
               decoration: BoxDecoration(
                 color: const Color(0xFFF9FAFB),
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   const SizedBox(width: 16),
                   Expanded(
@@ -410,8 +422,11 @@ class _MessageScreenState extends State<MessageScreen> {
                         hintText: "Type a message...",
                         hintStyle: GoogleFonts.montserrat(color: const Color(0xFF9CA3AF)),
                         border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      maxLines: null,
+                      maxLines: 5, // Maximum 5 lines like Messenger
+                      minLines: 1, // Start with 1 line
+                      textInputAction: TextInputAction.newline,
                       onSubmitted: (value) => _sendMessage(),
                     ),
                   ),
@@ -494,6 +509,7 @@ class _MessageScreenState extends State<MessageScreen> {
 
   @override
   void dispose() {
+    _controller.removeListener(_onTextChanged);
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();

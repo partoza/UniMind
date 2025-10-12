@@ -9,6 +9,7 @@ import 'package:unimind/views/profile/profile_page.dart';
 import 'package:unimind/views/discover/discover_page.dart';
 import 'package:unimind/views/profile/qr_scanner_page.dart';
 import 'package:unimind/views/home/filter_page.dart';
+import 'package:unimind/widgets/loading_widget.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -201,7 +202,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildLoadingState() {
     return Positioned.fill(
       child: Container(
-        color: Colors.white,
+        color: _getBackgroundColorForTab(_targetIndex), // Match actual page background
         child: _getSkeletonForTab(_targetIndex),
       ),
     );
@@ -210,10 +211,27 @@ class _HomePageState extends State<HomePage> {
   Widget _buildInitialLoadingState() {
     return Positioned.fill(
       child: Container(
-        color: Colors.white,
+        color: const Color(0xFFF6F6F6), // Match actual home page background
         child: _getSkeletonForTab(0), // Show home skeleton for initial load
       ),
     );
+  }
+
+  Color _getBackgroundColorForTab(int tabIndex) {
+    switch (tabIndex) {
+      case 0: // Home
+        return const Color(0xFFF6F6F6);
+      case 1: // Follow
+        return Colors.white;
+      case 2: // Discover
+        return Colors.white;
+      case 3: // Chat
+        return Colors.white;
+      case 4: // Profile
+        return Colors.white;
+      default:
+        return Colors.white;
+    }
   }
 
   Widget _getSkeletonForTab(int tabIndex) {
@@ -221,240 +239,233 @@ class _HomePageState extends State<HomePage> {
     
     switch (tabIndex) {
       case 0: // Home - study partner cards with header
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          itemCount: 4, // +1 for header
-          itemBuilder: (context, i) {
-            // First item is the header
-            if (i == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // "Suggested for you" header
-                    Text(
-                      "Suggested for you",
-                      style: GoogleFonts.montserrat(
-                        fontSize: 18 * textScale,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1F2937),
-                      ),
-                    ),
-                    // Filter button skeleton
-                    Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }
-            
-            // Study partner cards
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Avatar skeleton
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Content skeleton
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          height: 16,
-                          width: 120,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 14,
-                          width: 80,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          height: 12,
-                          width: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Action button skeleton
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: Colors.grey[300],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      case 1: // Follow - skeleton loading
-        return const SizedBox.shrink(); // No loading for follow page
-      case 2: // Discover - skeleton loading
-        return const SizedBox.shrink(); // No loading for discover page
-      case 3: // Chat - skeleton loading
         return Column(
           children: [
-            // Header skeleton
-            Container(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Text(
-                    "Messages",
-                    style: GoogleFonts.montserrat(
-                      fontSize: 24 * textScale,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1F2937),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // Search bar skeleton
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.search, color: Colors.grey[400], size: 20),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Recent messages header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                "Recent Messages",
-                style: GoogleFonts.montserrat(
-                  fontSize: 16 * textScale,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF374151),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Chat list skeleton
+            // Study partner cards with shimmer - matches SuggestedCard structure
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: 5,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: 5, // +1 for header
                 itemBuilder: (context, index) {
+                  // First item is the header
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Suggested for you",
+                            style: GoogleFonts.montserrat(
+                              fontSize: 18 * textScale,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          // No filter button in header - it's in the app bar
+                        ],
+                      ),
+                    );
+                  }
+                  
+                  // Subtract 1 from index since first item is header
+                  final cardIndex = index - 1;
+                  final screenWidth = MediaQuery.of(context).size.width;
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(16),
+                    margin: const EdgeInsets.symmetric(vertical: 12, horizontal: 2),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 15,
+                          offset: const Offset(0, 8),
+                          spreadRadius: 1,
+                        ),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 6,
                           offset: const Offset(0, 2),
                         ),
                       ],
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Avatar skeleton
+                        // Top section with image and basic info - matches SuggestedCard
                         Container(
-                          width: 50,
-                          height: 50,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            shape: BoxShape.circle,
+                          height: screenWidth * 0.5,
+                          decoration: const BoxDecoration(
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(20),
+                              topRight: Radius.circular(20),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Content skeleton
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          child: Stack(
                             children: [
-                              Container(
-                                height: 16,
-                                width: 120,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(4),
+                              // Background image skeleton
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.grey,
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: Radius.circular(20),
+                                      topRight: Radius.circular(20),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(height: 8),
-                              Container(
-                                height: 14,
-                                width: 200,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(4),
+                              // Name and course info skeleton
+                              Positioned(
+                                bottom: 20,
+                                left: 20,
+                                right: 60,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    ShimmerEffect(
+                                      isLoading: true,
+                                      child: Container(
+                                        height: 18,
+                                        width: 150,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.3),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    ShimmerEffect(
+                                      isLoading: true,
+                                      child: Container(
+                                        height: 13,
+                                        width: 100,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.3),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        // Time skeleton
-                        Container(
-                          height: 12,
-                          width: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(4),
+                        // Bottom section with skills and actions - matches SuggestedCard
+                        Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Good In section
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  height: 14,
+                                  width: 60,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: List.generate(3, (i) {
+                                  return ShimmerEffect(
+                                    isLoading: true,
+                                    child: Container(
+                                      height: 28,
+                                      width: 60 + (i * 10),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                              const SizedBox(height: 16),
+                              // Need Improvements section
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  height: 14,
+                                  width: 120,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: List.generate(2, (i) {
+                                  return ShimmerEffect(
+                                    isLoading: true,
+                                    child: Container(
+                                      height: 28,
+                                      width: 70 + (i * 15),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                    ),
+                                  );
+                                }),
+                              ),
+                              const SizedBox(height: 16),
+                              // Bio section
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  height: 14,
+                                  width: 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  height: 40,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              // Follow button
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 40,
+                                    width: 100,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(25),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
@@ -464,6 +475,210 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
+        );
+      case 1: // Follow - skeleton loading
+        return const SizedBox.shrink(); // No loading for follow page
+      case 2: // Discover - skeleton loading
+        return const SizedBox.shrink(); // No loading for discover page
+      case 3: // Chat - skeleton loading
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header - visible immediately
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Messages",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 28 * textScale,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFB41214),
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Chat with your connections",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14 * textScale,
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Search Bar - actual functional search bar
+              Container(
+                height: 50,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F8F8),
+                  borderRadius: BorderRadius.circular(25),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    Icon(
+                      Icons.search,
+                      color: const Color(0xFF6B7280).withOpacity(0.7),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: "Search a GA...",
+                          hintStyle: GoogleFonts.montserrat(
+                            color: const Color(0xFF6B7280).withOpacity(0.7),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          border: InputBorder.none,
+                        ),
+                        style: GoogleFonts.montserrat(
+                          fontSize: 14,
+                          color: const Color(0xFF2D2D2D),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Connections Horizontal List - skeleton loading with shimmer
+              SizedBox(
+                height: 80,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: 4,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      width: 70,
+                      margin: const EdgeInsets.only(right: 16),
+                      child: Column(
+                        children: [
+                          ShimmerEffect(
+                            isLoading: true,
+                            child: Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          ShimmerEffect(
+                            isLoading: true,
+                            child: Container(width: 40, height: 12, color: Colors.grey[300]),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Recent Messages Header - visible immediately
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Recent Message",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF2D2D2D),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Chat List - skeleton loading with shimmer
+              Expanded(
+                child: ListView.builder(
+                  itemCount: 4,
+                  itemBuilder: (context, index) {
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            ShimmerEffect(
+                              isLoading: true,
+                              child: CircleAvatar(radius: 25, backgroundColor: Colors.grey[300]),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ShimmerEffect(
+                                    isLoading: true,
+                                    child: Container(
+                                      height: 16,
+                                      width: 120,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ShimmerEffect(
+                                    isLoading: true,
+                                    child: Container(
+                                      height: 14,
+                                      width: 200,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[300],
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            ShimmerEffect(
+                              isLoading: true,
+                              child: Container(
+                                height: 12,
+                                width: 40,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         );
       case 4: // Profile - skeleton loading
         return SingleChildScrollView(
@@ -485,13 +700,16 @@ class _HomePageState extends State<HomePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // "My Profile" title - skeleton
-                      Container(
-                        height: 28,
-                        width: 150,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(4),
+                      // "My Profile" title - skeleton with shimmer
+                      ShimmerEffect(
+                        isLoading: true,
+                        child: Container(
+                          height: 28,
+                          width: 150,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
@@ -499,13 +717,16 @@ class _HomePageState extends State<HomePage> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          // Profile picture skeleton
-                          Container(
-                            width: 90,
-                            height: 90,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: Colors.white.withOpacity(0.3),
+                          // Profile picture skeleton with shimmer
+                          ShimmerEffect(
+                            isLoading: true,
+                            child: Container(
+                              width: 90,
+                              height: 90,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withOpacity(0.3),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -513,33 +734,42 @@ class _HomePageState extends State<HomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // Name skeleton
-                                Container(
-                                  height: 18,
-                                  width: 180,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(4),
+                                // Name skeleton with shimmer
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 18,
+                                    width: 180,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                // Year skeleton
-                                Container(
-                                  height: 14,
-                                  width: 120,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(4),
+                                // Year skeleton with shimmer
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 14,
+                                    width: 120,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                // Edit button skeleton
-                                Container(
-                                  height: 32,
-                                  width: 100,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.3),
-                                    borderRadius: BorderRadius.circular(8),
+                                // Edit button skeleton with shimmer
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 32,
+                                    width: 100,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -574,64 +804,82 @@ class _HomePageState extends State<HomePage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          // Gender skeleton
+                          // Gender skeleton with shimmer
                           Column(
                             children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.grey[300],
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.grey[300],
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Container(
-                                height: 16,
-                                width: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(4),
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  height: 16,
+                                  width: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Container(
-                                height: 12,
-                                width: 30,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(4),
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  height: 12,
+                                  width: 30,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                          // Building skeleton
+                          // Building skeleton with shimmer
                           Column(
                             children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.grey[300],
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.grey[300],
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              Container(
-                                height: 16,
-                                width: 50,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(4),
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  height: 16,
+                                  width: 50,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 4),
-                              Container(
-                                height: 12,
-                                width: 40,
-                                decoration: BoxDecoration(
-                                  color: Colors.grey[300],
-                                  borderRadius: BorderRadius.circular(4),
+                              ShimmerEffect(
+                                isLoading: true,
+                                child: Container(
+                                  height: 12,
+                                  width: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[300],
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
                                 ),
                               ),
                             ],
@@ -640,13 +888,16 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 15),
-                    // College Department skeleton
-                    Container(
-                      height: 14,
-                      width: 120,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(4),
+                    // College Department skeleton with shimmer
+                    ShimmerEffect(
+                      isLoading: true,
+                      child: Container(
+                        height: 14,
+                        width: 120,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -658,12 +909,15 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[300],
-                              borderRadius: BorderRadius.circular(12),
+                          ShimmerEffect(
+                            isLoading: true,
+                            child: Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 16),
@@ -671,21 +925,27 @@ class _HomePageState extends State<HomePage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Container(
-                                  height: 16,
-                                  width: 200,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(4),
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 16,
+                                    width: 200,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Container(
-                                  height: 14,
-                                  width: 150,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey[300],
-                                    borderRadius: BorderRadius.circular(4),
+                                ShimmerEffect(
+                                  isLoading: true,
+                                  child: Container(
+                                    height: 14,
+                                    width: 150,
+                                    decoration: BoxDecoration(
+                                      color: Colors.grey[300],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -695,32 +955,41 @@ class _HomePageState extends State<HomePage> {
                       ),
                     ),
                     const SizedBox(height: 15),
-                    // Bio skeleton
-                    Container(
-                      height: 14,
-                      width: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(4),
+                    // Bio skeleton with shimmer
+                    ShimmerEffect(
+                      isLoading: true,
+                      child: Container(
+                        height: 14,
+                        width: 60,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(10),
+                    ShimmerEffect(
+                      isLoading: true,
+                      child: Container(
+                        width: double.infinity,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 15),
-                    // Top Skills skeleton
-                    Container(
-                      height: 14,
-                      width: 80,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(4),
+                    // Top Skills skeleton with shimmer
+                    ShimmerEffect(
+                      isLoading: true,
+                      child: Container(
+                        height: 14,
+                        width: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -728,24 +997,30 @@ class _HomePageState extends State<HomePage> {
                       spacing: 8,
                       runSpacing: 8,
                       children: List.generate(5, (index) {
-                        return Container(
-                          height: 32,
-                          width: 80 + (index * 10),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(20),
+                        return ShimmerEffect(
+                          isLoading: true,
+                          child: Container(
+                            height: 32,
+                            width: 80 + (index * 10),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                           ),
                         );
                       }),
                     ),
                     const SizedBox(height: 15),
-                    // Areas for Improvement skeleton
-                    Container(
-                      height: 14,
-                      width: 140,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(4),
+                    // Areas for Improvement skeleton with shimmer
+                    ShimmerEffect(
+                      isLoading: true,
+                      child: Container(
+                        height: 14,
+                        width: 140,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -753,24 +1028,30 @@ class _HomePageState extends State<HomePage> {
                       spacing: 8,
                       runSpacing: 8,
                       children: List.generate(4, (index) {
-                        return Container(
-                          height: 32,
-                          width: 90 + (index * 15),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[300],
-                            borderRadius: BorderRadius.circular(20),
+                        return ShimmerEffect(
+                          isLoading: true,
+                          child: Container(
+                            height: 32,
+                            width: 90 + (index * 15),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(20),
+                            ),
                           ),
                         );
                       }),
                     ),
                     const SizedBox(height: 40),
-                    // Logout button skeleton
-                    Container(
-                      width: double.infinity,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(16),
+                    // Logout button skeleton with shimmer
+                    ShimmerEffect(
+                      isLoading: true,
+                      child: Container(
+                        width: double.infinity,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 30),
@@ -851,9 +1132,9 @@ class _HomePageState extends State<HomePage> {
           onPressed: () {
             final currentUser = FirebaseAuth.instance.currentUser;
             if (currentUser != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
+            Navigator.push(
+              context,
+              MaterialPageRoute(
                   builder: (_) => QrScannerPage(source: currentUser.uid), // Pass actual user ID
                 ),
               );
@@ -912,6 +1193,23 @@ class _HomeContentState extends State<_HomeContent> {
     };
     
     return programAbbreviations[program] ?? program;
+  }
+
+  /// Helper function to get ordinal suffix (1st, 2nd, 3rd, 4th)
+  String _getOrdinalSuffix(int number) {
+    if (number >= 11 && number <= 13) {
+      return 'th';
+    }
+    switch (number % 10) {
+      case 1:
+        return 'st';
+      case 2:
+        return 'nd';
+      case 3:
+        return 'rd';
+      default:
+        return 'th';
+    }
   }
 
   /// Filter users based on current filter settings
@@ -995,9 +1293,7 @@ class _HomeContentState extends State<_HomeContent> {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(color: Color(0xFFB41214)),
-          );
+          return const SizedBox.shrink(); // Remove Firebase loading indicator
         }
 
         final docs = snapshot.data?.docs ?? [];
@@ -1082,13 +1378,13 @@ class _HomeContentState extends State<_HomeContent> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Suggested for you",
-                      style: GoogleFonts.montserrat(
-                        fontSize: 18 * textScale,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
+                    "Suggested for you",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 18 * textScale,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
+                  ),
                     if (hasActiveFilters)
                       Text(
                         "${filteredDocs.length} results",
@@ -1107,11 +1403,23 @@ class _HomeContentState extends State<_HomeContent> {
             final data = filteredDocs[docIndex].data() as Map<String, dynamic>? ?? {};
             final docUid = data['uid'] as String? ?? filteredDocs[docIndex].id;
             final displayName = data['displayName'] as String? ?? "Unknown";
-            final yearLevel = data['yearLevel']?.toString() ?? "";
+            final yearLevel = data['yearLevel'];
             final program = data['program'] as String? ?? "";
             final department = data['department'] as String? ?? "";
             final abbreviatedProgram = _abbreviateProgram(program);
-            final nameAndCourse = "$yearLevel${abbreviatedProgram.isNotEmpty ? ', $abbreviatedProgram' : ''}";
+            
+            // Format year level properly
+            String formattedYearLevel = "";
+            if (yearLevel != null) {
+              if (yearLevel is int) {
+                formattedYearLevel = "${yearLevel}${_getOrdinalSuffix(yearLevel)} Year";
+              } else if (yearLevel is String) {
+                // If it's already a string, use it as is
+                formattedYearLevel = yearLevel;
+              }
+            }
+            
+            final nameAndCourse = "$formattedYearLevel${abbreviatedProgram.isNotEmpty ? ', $abbreviatedProgram' : ''}";
             final avatarPath = (data['avatarPath'] ?? data['avatar'] ?? '') as String;
             final strengths = (data['strengths'] is List)
                 ? List<String>.from(

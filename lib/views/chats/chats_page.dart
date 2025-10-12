@@ -249,7 +249,7 @@ class _ChatPageState extends State<ChatPage> {
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return _buildConnectionsLoading();
+                      return const SizedBox.shrink(); // Remove Firebase loading
                     }
 
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -294,7 +294,7 @@ class _ChatPageState extends State<ChatPage> {
                   stream: _getSortedChatsStream(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return _buildLoadingState();
+                      return const SizedBox.shrink(); // Remove Firebase loading
                     }
 
                     if (!snapshot.hasData || snapshot.data!.isEmpty) {
