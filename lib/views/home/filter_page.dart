@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class FilterPage extends StatefulWidget {
   final Map<String, dynamic>? initialFilters;
-  
+
   const FilterPage({super.key, this.initialFilters});
 
   @override
@@ -33,23 +33,58 @@ class _FilterPageState extends State<FilterPage> {
 
   final List<String> genders = ["Male", "Female", "Other"];
   final List<Map<String, String>> departments = [
-    {"name": "College of Computing Education", "logo": "assets/ccelogo.png"},
+    {
+      "name": "College of Accounting Education",
+      "logo": "assets/depLogo/caelogo.png",
+    },
+    {
+      "name": "College of Architecture and Fine Arts Education",
+      "logo": "assets/depLogo/cafaelogo.png",
+    },
     {
       "name": "College of Arts and Sciences Education",
-      "logo": "assets/caselogo.png",
+      "logo": "assets/depLogo/caselogo.png",
     },
-    {"name": "College of Engineering Education", "logo": "assets/ceelogo.png"},
+    {
+      "name": "College of Business Administration Education",
+      "logo": "assets/depLogo/cbaelogo.png",
+    },
+    {
+      "name": "College of Computing Education",
+      "logo": "assets/depLogo/ccelogo.png",
+    },
+    {
+      "name": "College of Criminal Justice Education",
+      "logo": "assets/depLogo/ccjelogo.png",
+    },
+    {
+      "name": "College of Engineering Education",
+      "logo": "assets/depLogo/ceelogo.png",
+    },
+    {
+      "name": "College of Hospitality Education",
+      "logo": "assets/depLogo/chelogo.png",
+    },
+    {
+      "name": "College of Health and Sciences Education",
+      "logo": "assets/depLogo/chselogo.png",
+    },
+    {
+      "name": "College of Teachers Education",
+      "logo": "assets/depLogo/ctelogo.png",
+    },
   ];
 
   @override
   void initState() {
     super.initState();
-    
+
     // Initialize with provided filters or defaults
     if (widget.initialFilters != null) {
       selectedGender = widget.initialFilters!['gender'];
       selectedDepartment = widget.initialFilters!['department'];
-      yearRange = widget.initialFilters!['yearRange'] ?? const RangeValues(1, 4);
+      yearRange =
+          widget.initialFilters!['yearRange'] ?? const RangeValues(1, 4);
     }
   }
 
@@ -290,15 +325,28 @@ class _FilterPageState extends State<FilterPage> {
             const SizedBox(height: 8),
 
             // Clear Filters Button (only show if any filters are active)
-            if (selectedGender != null || selectedDepartment != null || yearRange.start > 1 || yearRange.end < 4)
+            if (selectedGender != null ||
+                selectedDepartment != null ||
+                yearRange.start > 1 ||
+                yearRange.end < 4)
               Column(
                 children: [
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.grey[700],
-                        side: BorderSide(color: Colors.grey[400]!),
+                    child: TextButton.icon(
+                      icon: const Icon(
+                        Icons.refresh,
+                        size: 20,
+                      ), // Add a clear/reset icon
+                      label: Text(
+                        "Clear All Filters",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: TextButton.styleFrom(
+                        foregroundColor: Colors.grey.shade700, // Subtler color
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -311,13 +359,6 @@ class _FilterPageState extends State<FilterPage> {
                           yearRange = const RangeValues(1, 4);
                         });
                       },
-                      child: Text(
-                        "Clear All Filters",
-                        style: GoogleFonts.montserrat(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
                     ),
                   ),
                   const SizedBox(height: 16),

@@ -17,6 +17,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   bool showLogin = true;
   bool _obscurePassword = true;
+  bool _isGoogleSigningIn = false;
 
   @override
   Widget build(BuildContext context) {
@@ -253,60 +254,99 @@ class _LoginPageState extends State<LoginPage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                       ),
-                      onPressed: () async {
-                        final user = await AuthService().signInWithGoogle();
-                        if (user != null) {
-                          print("Signed in as ${user.displayName}");
+                      onPressed: _isGoogleSigningIn ? null : () async {
+                        setState(() {
+                          _isGoogleSigningIn = true;
+                        });
 
-                          final snapshot = await FirebaseFirestore.instance
-                              .collection('users')
-                              .doc(user.uid)
-                              .get();
+                        try {
+                          final user = await AuthService().signInWithGoogle();
+                          if (user != null) {
+                            print("Signed in as ${user.displayName}");
 
-                          final data = snapshot.data();
-                          final profileComplete =
-                              data?['profileComplete'] ?? false;
+                            final snapshot = await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .get();
 
-                          if (profileComplete) {
-                            // If profile is complete
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HomePage(),
-                              ),
-                            );
+                            final data = snapshot.data();
+                            final profileComplete =
+                                data?['profileComplete'] ?? false;
+
+                            if (profileComplete) {
+                              // If profile is complete
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const HomePage(),
+                                ),
+                              );
+                            } else {
+                              // If profile is not complete
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const SelectionPage(),
+                                ),
+                              );
+                            }
                           } else {
-                            // If profile is not complete
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SelectionPage(),
-                              ),
-                            );
+                            print("Sign-in failed or cancelled");
                           }
-                        } else {
-                          print("Sign-in failed or cancelled");
+                        } catch (e) {
+                          print("Google Sign-In error: $e");
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _isGoogleSigningIn = false;
+                            });
+                          }
                         }
                       },
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Image.asset(
-                            "assets/google icon.png",
-                            height: 20,
-                            width: 20,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            "Continue with Google",
-                            style: GoogleFonts.montserrat(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black,
+                      child: _isGoogleSigningIn
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      const Color(0xFFB41214),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  "Signing in...",
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Image.asset(
+                                  "assets/google icon.png",
+                                  height: 20,
+                                  width: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  "Continue with Google",
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
                   ),
 

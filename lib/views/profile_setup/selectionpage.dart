@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// Ensure these imports point to the correct file locations in your project
 import 'package:unimind/views/profile_setup/program_year.dart';
-import 'package:unimind/views/profile_setup/selectavatar.dart'; // Corrected import path
+import 'package:unimind/views/profile_setup/selectavatar.dart'; 
 import 'package:unimind/views/profile_setup/strengths.dart';
 import 'package:unimind/views/profile_setup/weaknesses.dart';
 import 'package:unimind/views/profile_setup/gender.dart';
@@ -21,7 +20,7 @@ class SelectionPage extends StatefulWidget {
 class _SelectionPageState extends State<SelectionPage> {
   int _currentStep = 0;
   String? _selectedGender;
-  String? _selectedCollege; // Holds department code (e.g., 'CCE')
+  String? _selectedCollege; 
   String? _selectedProgram;
   String? _selectedProgramAcronym;
   int? _selectedYear;
@@ -29,7 +28,6 @@ class _SelectionPageState extends State<SelectionPage> {
   List<String> _selectedStrengths = [];
   List<String> _selectedWeaknesses = [];
 
-  // ✅ 1. CHANGE: Replaced File? with String? to hold the asset path or the IBB URL.
   String? _selectedAvatarPathOrUrl;
 
   @override
@@ -53,7 +51,6 @@ class _SelectionPageState extends State<SelectionPage> {
       case 4: // Weaknesses
         return _selectedWeaknesses.isNotEmpty;
       case 5: // Avatar
-        // ✅ 2. CHANGE: Check the new String variable instead of the old File variable.
         return _selectedAvatarPathOrUrl != null;
       default:
         return false;
@@ -76,7 +73,6 @@ class _SelectionPageState extends State<SelectionPage> {
 
     if (_canContinue()) {
       if (_currentStep < 5) {
-        // The last step is 5
         setState(() => _currentStep++);
       } else {
         _saveProfileData();
@@ -101,9 +97,7 @@ class _SelectionPageState extends State<SelectionPage> {
           'updatedAt': FieldValue.serverTimestamp(),
         };
 
-        // ✅ 3. CHANGE: Use the correct variable to save the path/URL to Firestore.
         if (_selectedAvatarPathOrUrl != null) {
-          // This will save either "assets/avatar/cceavatar.png" OR "https://i.ibb.co/..."
           profileData['avatarPath'] = _selectedAvatarPathOrUrl;
         }
 
@@ -275,7 +269,7 @@ class _SelectionPageState extends State<SelectionPage> {
                   ),
                 ),
 
-                Expanded(child: steps[_currentStep]),
+                  Expanded(child: steps[_currentStep]),
 
                 Padding(
                   padding: EdgeInsets.symmetric(

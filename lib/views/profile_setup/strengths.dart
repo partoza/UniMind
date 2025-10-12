@@ -22,7 +22,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
 
   final List<String> _selectedSkills = [];
   
-  // 💡 Controller and flags for the scroll indicator logic
+  //  Controller and flags for the scroll indicator logic
   final ScrollController _scrollController = ScrollController();
   bool _showRightFade = true;
 
@@ -71,7 +71,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
   Widget _buildSelectedSkillsSection(Size size) {
     if (_selectedSkills.isEmpty) {
       return Padding(
-        // 💡 Ensure padding aligns with the main content area
+        // Ensure padding aligns with the main content area
         padding: EdgeInsets.only(left: size.width * 0.075),
         child: Text(
           "Select your top 3 strengths from the list above.",
@@ -85,14 +85,13 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
     }
 
     return Column(
-      // 💡 Align title and content to the start (left)
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Title fixed to the left
+        // Title 
         Padding(
           padding: EdgeInsets.only(left: size.width * 0.075, right: size.width * 0.075),
           child: Text(
-            "My Top Skills:", // 💡 This title is now left-aligned
+            "My Top Skills:", 
             style: GoogleFonts.montserrat(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -142,7 +141,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // 🔹 Title
+          // Title
           Text(
             "Strengths",
             style: GoogleFonts.montserrat(
@@ -181,7 +180,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
 
           const SizedBox(height: 10),
 
-          // 🔹 Skills list Container (Scrollable Content with Identifier)
+          // Skills list Container (Scrollable Content with Identifier)
           Center(
             child: Container(
               width: size.width * 0.85,
@@ -191,7 +190,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
                 borderRadius: BorderRadius.circular(10),
                 color: Colors.white,
               ),
-              child: Stack( // 💡 Use Stack for the scroll indicator fade effect
+              child: Stack( 
                 children: [
                   // Scrollable Content
                   SingleChildScrollView(
@@ -236,7 +235,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
                     ),
                   ),
 
-                  // 💡 Scroll Indicator (Right Fade)
+                  //  Scroll Indicator
                   if (_showRightFade)
                     Positioned(
                       right: 0,
@@ -264,7 +263,7 @@ class _StrengthsSelectState extends State<StrengthsSelect> {
 
           const SizedBox(height: 30),
 
-          // 🔹 Selected Skills Display (Aligned to the left)
+          // Selected Skills Display
           _buildSelectedSkillsSection(size),
           
           const SizedBox(height: 20),

@@ -52,6 +52,7 @@ class _GenderSelectionPageState extends State<GenderSelectionPage> {
     return Column(
       children: [
         const SizedBox(height: 40),
+        //Title
         Text(
           "Choose your Gender",
           style: GoogleFonts.montserrat(

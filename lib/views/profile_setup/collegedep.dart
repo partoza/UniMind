@@ -13,6 +13,7 @@ class CollegeDepSelect extends StatefulWidget {
 class _CollegeDepSelectState extends State<CollegeDepSelect> {
   String _selectedDepartment = "";
 
+  //Widget for reusable department option
   Widget _buildDepartmentOption(String label, String imagePath, String value) {
     final isSelected = _selectedDepartment == value;
 
@@ -22,7 +23,7 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
           _selectedDepartment = value;
         });
         if (widget.onSelect != null) {
-          widget.onSelect!(value); // 👈 notify parent (SelectionPage)
+          widget.onSelect!(value); // 
         }
         debugPrint("$label selected");
       },
@@ -41,11 +42,11 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
         ),
         child: Row(
           children: [
-            // 🔹 Department logo
+            //  Department logo
             Image.asset(imagePath, width: 36, height: 36, fit: BoxFit.cover),
             const SizedBox(width: 12),
 
-            // 🔹 Department name
+            //  Department name
             Expanded(
               child: Text(
                 label,
@@ -57,7 +58,7 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
               ),
             ),
 
-            // 🔹 Circle (check when selected, empty when not)
+            // Circle (check when selected, empty when not)
             Icon(
               isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
               color: isSelected ? Colors.white : Colors.black,
@@ -72,7 +73,6 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
   @override
   Widget build(BuildContext context) {
     return Column(
-      // Keep the main Column as is
       children: [
         const SizedBox(height: 20),
 
@@ -162,7 +162,6 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                   "assets/depLogo/ctelogo.png",
                   "CTE",
                 ),
-                // Added for bottom padding when scrolling
                 const SizedBox(height: 30),
               ],
             ),

@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:dropdown_button2/dropdown_button2.dart';
+
+
+const Color textPrimary = Colors.black87;
+const Color primaryRed = Color(0xFFB41214); // Your primary red
+const Color textSecondary = Colors.grey;
+const Color surfaceColor = Colors.white; // Dropdown background color
 
 class ProgramYearSelect extends StatefulWidget {
-  // 💡 Updated callback to include programAcronym and automatically determined place
   final Function(String?, String?, int?, String?) onSelect;
-  final String departmentCode; 
+  final String departmentCode;
 
   const ProgramYearSelect({
     super.key,
@@ -19,11 +23,11 @@ class ProgramYearSelect extends StatefulWidget {
 
 class _ProgramYearSelectState extends State<ProgramYearSelect> {
   String? selectedProgram;
-  String? selectedProgramAcronym; // 💡 New state for the acronym
+  String? selectedProgramAcronym;
   int? selectedYear;
-  String? selectedPlace; // 💡 New state for the place (auto-determined)
+  String? selectedPlace;
 
-  // 💡 Comprehensive map updated with 'place' and restructured 'programs' to include acronyms
+  // --- Department Data (Unchanged) ---
   final Map<String, Map<String, dynamic>> _departmentData = {
     "CAE": {
       "name": "College of Accounting Education",
@@ -33,7 +37,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Accounting Information System": "BSAIS",
         "Bachelor of Science in Internal Audit": "BSIA",
         "Bachelor of Science in Management Accounting": "BSMA",
-      }
+      },
     },
     "CAFAE": {
       "name": "College of Architecture and Fine Arts Education",
@@ -43,20 +47,24 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Fine Arts (Major in Painting)": "BFA",
         "Bachelor of Science in Urban and Regional Planning": "BSURP",
         "Bachelor of Science in Interior Design": "BSID",
-      }
+      },
     },
     "CBAE": {
       "name": "College of Business Administration Education",
       "place": "Bolton Campus",
       "programs": {
-        "Bachelor of Science in Business Administration Major in Financial Management": "BSBA-FM",
-        "Bachelor of Science in Business Administration Major in Human Resource Management": "BSBA-HRM",
-        "Bachelor of Science in Business Administration Major in Marketing Management": "BSBA-MM",
-        "Bachelor of Science in Business Administration Major in Business Economics": "BSBA-BE",
+        "Bachelor of Science in Business Administration Major in Financial Management":
+            "BSBA-FM",
+        "Bachelor of Science in Business Administration Major in Human Resource Management":
+            "BSBA-HRM",
+        "Bachelor of Science in Business Administration Major in Marketing Management":
+            "BSBA-MM",
+        "Bachelor of Science in Business Administration Major in Business Economics":
+            "BSBA-BE",
         "Bachelor of Science in Entrepreneurship": "BSEnt",
         "Bachelor of Science in Legal Management": "BSLM",
         "Bachelor of Science in Real Estate Management": "BSREM",
-      }
+      },
     },
     "CCE": {
       "name": "College of Computing Education",
@@ -65,11 +73,13 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Information Technology": "BSIT",
         "Bachelor of Science in Information Systems": "BSIS",
         "Bachelor of Science in Computer Science": "BSCS",
-        "Bachelor of Science in Entertainment and Multimedia Computing (Game Development)": "BSEMC-GD",
-        "Bachelor of Science in Entertainment and Multimedia Computing (Digital Animation Technology)": "BSEMC-DA",
+        "Bachelor of Science in Entertainment and Multimedia Computing (Game Development)":
+            "BSEMC-GD",
+        "Bachelor of Science in Entertainment and Multimedia Computing (Digital Animation Technology)":
+            "BSEMC-DA",
         "Bachelor of Library and Information Science": "BLIS",
         "Bachelor of Multimedia Arts": "BMA",
-      }
+      },
     },
     "CHE": {
       "name": "College of Hospitality Education",
@@ -77,7 +87,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
       "programs": {
         "Bachelor of Science in Hospitality Management": "BSHM",
         "Bachelor of Science in Tourism Management": "BSTM",
-      }
+      },
     },
     "CCJE": {
       "name": "College of Criminal Justice Education",
@@ -85,7 +95,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
       "programs": {
         "Bachelor of Science in Criminology": "BSCrim",
         "Bachelor of Science in Industrial Security": "BSISec",
-      }
+      },
     },
     "CASE": {
       "name": "College of Arts and Sciences Education",
@@ -101,10 +111,11 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Environmental Science": "BS EnvSci",
         "Bachelor of Science in Forestry": "BS Forestry",
         "Bachelor of Science in Agroforestry": "BS Agroforestry",
-        "Bachelor of Science in Biology": "BS Bio", // Removed majors for simplicity in the list
+        "Bachelor of Science in Biology":
+            "BS Bio", // Removed majors for simplicity in the list
         "Bachelor of Science in Mathematics": "BS Math",
         "Bachelor of Science in Social Work": "BSSW",
-      }
+      },
     },
     "CEE": {
       "name": "College of Engineering Education",
@@ -116,7 +127,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Electrical Engineering": "BSEE",
         "Bachelor of Science in Electronics Engineering": "BSECE",
         "Bachelor of Science in Mechanical Engineering": "BSME",
-      }
+      },
     },
     "CHSE": {
       "name": "College of Health Sciences Education",
@@ -126,7 +137,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Nursing": "BSN",
         "Bachelor of Science in Nutrition and Dietetics": "BSND",
         "Bachelor of Science in Pharmacy": "BSP",
-      }
+      },
     },
     "CTE": {
       "name": "College of Teacher Education",
@@ -137,14 +148,14 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Secondary Education": "BSEd",
         "Bachelor of Special Education": "BSEd-SPED",
         "Bachelor of Physical Education": "BPEd",
-      }
+      },
     },
     "CLE": {
       "name": "College of Legal Education",
       "place": "PS Building",
       "programs": {
         "Juris Doctor": "JD", // Assuming a placeholder for CLE
-      }
+      },
     },
   };
 
@@ -154,16 +165,15 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
     "3rd Year College",
     "4th Year College",
   ];
+  // --- End Department Data ---
 
   @override
   void initState() {
     super.initState();
-    // Initialize the place based on the departmentCode immediately
     selectedPlace = _departmentData[widget.departmentCode]?["place"];
   }
 
   void _updateSelection() {
-    // 💡 Notify parent with all four pieces of data
     widget.onSelect(
       selectedProgram,
       selectedProgramAcronym,
@@ -172,20 +182,146 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
     );
   }
 
-  String get _departmentName => _departmentData[widget.departmentCode]?["name"] ?? "College Department";
-  
-  Map<String, String> get _departmentPrograms => _departmentData[widget.departmentCode]?["programs"]?.cast<String, String>() ?? {};
-  
-  String get _logoPath => "assets/depLogo/${widget.departmentCode.toLowerCase()}logo.png";
+  String get _departmentName =>
+      _departmentData[widget.departmentCode]?["name"] ?? "College Department";
+
+  Map<String, String> get _departmentPrograms =>
+      _departmentData[widget.departmentCode]?["programs"]
+              ?.cast<String, String>() ??
+          {};
+
+  String get _logoPath =>
+      "assets/depLogo/${widget.departmentCode.toLowerCase()}logo.png";
 
   String _getProgramLabel(String programName, String acronym) {
     return "$programName ($acronym)";
+  }
+
+  // 💡 MODIFIED _buildDropdown widget implementation for text wrapping
+  Widget _buildDropdown(
+    String label,
+    List<String> items,
+    String? selectedValue, // Current selected item (can be null)
+    Function(String?) onChanged,
+    String hintText, // Hint text for the null item
+  ) {
+    // 1. Create DropdownMenuItem list, allowing null value
+    final List<DropdownMenuItem<String?>> dropdownItems = items
+        .map((item) => DropdownMenuItem<String?>(
+              value: item,
+              // Child text in the dropdown list already has maxLines: 2, this is fine.
+              child: Text(
+                item,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ))
+        .toList();
+
+    // 2. Prepend the placeholder/hint item with a null value
+    dropdownItems.insert(
+      0,
+      DropdownMenuItem<String?>(
+        value: null,
+        enabled: false,
+        child: Text(
+          hintText,
+          style: GoogleFonts.montserrat(
+            fontSize: 14,
+            color: textSecondary.withOpacity(0.8),
+          ),
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.montserrat(
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            color: textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String?>(
+          value: selectedValue,
+          isExpanded: true,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: primaryRed, width: 2),
+            ),
+            // Use HINT for unselected state. This text is displayed in the field when value is null.
+            hint: Text(
+              hintText,
+              style: GoogleFonts.montserrat(
+                fontSize: 14,
+                color: textSecondary.withOpacity(0.8),
+              ),
+              maxLines: 2, // Ensure the hint wraps too, if necessary
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          dropdownColor: surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          menuMaxHeight: MediaQuery.of(context).size.height * 0.7,
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: textSecondary),
+          style: GoogleFonts.montserrat(fontSize: 14, color: textPrimary),
+          
+          items: dropdownItems,
+          
+          // 💡 Solution for selected item text wrapping: selectedItemBuilder
+          selectedItemBuilder: (context) {
+            return items.map((item) {
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  item,
+                  style: GoogleFonts.montserrat(fontSize: 14, color: textPrimary),
+                  softWrap: true,
+                  maxLines: 2, // Allow up to 2 lines for wrapping
+                  overflow: TextOverflow.ellipsis,
+                ),
+              );
+            }).toList();
+          },
+
+          onChanged: (String? value) => onChanged(value),
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final filteredPrograms = _departmentPrograms;
+
+    // Create the list of program labels for the dropdown items
+    final programItems = filteredPrograms.entries
+        .map((entry) => _getProgramLabel(entry.key, entry.value))
+        .toList();
+
+    // Determine the current selected program label to match the list item format
+    String? currentProgramLabel;
+    if (selectedProgram != null && selectedProgramAcronym != null) {
+      currentProgramLabel = _getProgramLabel(selectedProgram!, selectedProgramAcronym!);
+    }
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: size.width * 0.1),
@@ -200,7 +336,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
               style: GoogleFonts.montserrat(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFFB41214),
+                color: primaryRed,
               ),
             ),
             const SizedBox(height: 10),
@@ -215,18 +351,23 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
             ),
             const SizedBox(height: 30),
 
-            // Department Badge - Now dynamic
+            // Department Badge (Unchanged)
             Container(
               width: size.width * 0.8,
               height: 55,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFFB41214),
+                color: primaryRed,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
                 children: [
-                  Image.asset(_logoPath, width: 36, height: 36, fit: BoxFit.cover), 
+                  Image.asset(
+                    _logoPath,
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.cover,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -241,8 +382,8 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
                 ],
               ),
             ),
-            
-            // 💡 Display the auto-determined place
+
+            // Automatic Place
             if (selectedPlace != null) ...[
               const SizedBox(height: 10),
               Text(
@@ -257,113 +398,56 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
 
             const SizedBox(height: 30),
 
-            // 1. Year Dropdown (First position)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Select a Year Level",
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonHideUnderline(
-              child: DropdownButton2<String>(
-                isExpanded: true,
-                hint: Text("Choose Year",
-                    style: GoogleFonts.montserrat(
-                        fontSize: 14, color: Colors.grey[600])),
-                value: selectedYear != null ? years[selectedYear! - 1] : null,
-                items: years.map((year) {
-                  return DropdownMenuItem<String>(
-                    value: year,
-                    child: Text(year,
-                        style: GoogleFonts.montserrat(
-                            fontSize: 14, color: Colors.black)),
-                  );
-                }).toList(),
-                onChanged: (String? value) {
-                  setState(() {
-                    selectedYear = value != null ? years.indexOf(value) + 1 : null;
-                  });
-                  _updateSelection();
-                },
-                buttonStyleData: ButtonStyleData(
-                  height: 55,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFB41214)),
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+            // 1. Year Level Dropdown 
+            _buildDropdown(
+              "Select a Year Level",
+              years,
+              selectedYear != null ? years[selectedYear! - 1] : null,
+              (String? value) {
+                setState(() {
+                  selectedYear = value != null ? years.indexOf(value) + 1 : null;
+                });
+                _updateSelection();
+              },
+              'e.g., 2nd Year College', // Hint text
             ),
 
             const SizedBox(height: 25),
 
-            // 2. Program Dropdown (Second position)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                "Select a Program",
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonHideUnderline(
-              child: DropdownButton2<String>(
-                isExpanded: true,
-                hint: Text("Choose Program",
-                    style: GoogleFonts.montserrat(
-                        fontSize: 14, color: Colors.grey[600])),
-                value: selectedProgram,
-                items: filteredPrograms.entries.map((entry) {
-                  final programName = entry.key;
-                  final acronym = entry.value;
-                  return DropdownMenuItem<String>(
-                    value: programName,
-                    child: Text(_getProgramLabel(programName, acronym),
-                        style: GoogleFonts.montserrat(
-                            fontSize: 14, color: Colors.black)),
-                  );
-                }).toList(),
-                onChanged: (String? value) {
+            // 2. Program Dropdown 
+            _buildDropdown(
+              "Select a Program",
+              programItems, // Use the list of program labels
+              currentProgramLabel,
+              (String? value) {
+                if (value != null) {
+                  final parts = value.split('(');
+                  final programName = parts[0].trim();
+
+                  String? acronym;
+                  for (var entry in filteredPrograms.entries) {
+                    if (entry.key == programName) {
+                      acronym = entry.value;
+                      break;
+                    }
+                  }
+
                   setState(() {
-                    selectedProgram = value;
-                    // 💡 Store the acronym when the program is selected
-                    selectedProgramAcronym = value != null ? filteredPrograms[value] : null;
+                    selectedProgram = programName;
+                    selectedProgramAcronym = acronym;
                   });
                   _updateSelection();
-                },
-                buttonStyleData: ButtonStyleData(
-                  height: 55,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFB41214)),
-                    color: Colors.white,
-                  ),
-                ),
-                menuItemStyleData: const MenuItemStyleData(
-                  height: 40,
-                ),
-                dropdownStyleData: DropdownStyleData(
-                  maxHeight: 200,
-                  padding: null,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: Colors.white,
-                  ),
-                ),
-              ),
+                } else {
+                  setState(() {
+                    selectedProgram = null;
+                    selectedProgramAcronym = null;
+                  });
+                  _updateSelection();
+                }
+              },
+              'e.g., Bachelor of Science in Information Technology (BSIT)', // Hint text
             ),
-            
+
             const SizedBox(height: 40),
           ],
         ),

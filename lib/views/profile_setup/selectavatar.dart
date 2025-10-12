@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart' as img_picker;
 import 'dart:io';
-// 💡 Import the new service file
-import 'package:unimind/services/ibb_service.dart'; // Adjust path as needed
+import 'package:unimind/services/ibb_service.dart'; 
 
 class AvatarSelect extends StatefulWidget {
-  // 💡 Added departmentCode to determine the default avatar asset
+  // Added departmentCode to determine the default avatar asset
   const AvatarSelect({
     super.key, 
     required this.onSelect, 
@@ -14,7 +13,7 @@ class AvatarSelect extends StatefulWidget {
   });
 
   // The parent (SelectionPage) expects the final path/URL: 
-  // String for default asset path OR String for uploaded URL.
+  // String for default asset path OR for uploaded URL.
   final ValueChanged<String?> onSelect;
   final String departmentCode;
 
@@ -23,33 +22,30 @@ class AvatarSelect extends StatefulWidget {
 }
 
 class _AvatarSelectState extends State<AvatarSelect> {
-  // Use a string to hold the final path/URL selected by the user
+  // hold the final path/URL 
   String? _selectedImagePathOrUrl; 
   
-  // Use a temporary File to hold the local image picked from the gallery
+  // temporary File to hold the local image from the gallery
   File? _tempPickedFile; 
   
   final img_picker.ImagePicker _picker = img_picker.ImagePicker();
   
-  // 💡 Getter for the current default avatar path based on departmentCode
+  // Getter for the current default avatar path based on departmentCode
   String get _defaultAvatarPath {
-    // Uses the file structure you provided: assets/avatar/cceavatar.png
     return "assets/avatar/${widget.departmentCode.toLowerCase()}avatar.png";
   }
 
   @override
   void initState() {
     super.initState();
-    // 💡 Initialize with the department's default avatar asset path
     _selectedImagePathOrUrl = _defaultAvatarPath;
 
-    // Notify parent that default avatar is selected initially
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onSelect(_selectedImagePathOrUrl);
     });
   }
 
-  // 💡 Updates to select the default avatar
+  // Updates to select the default avatar
   void _selectDefaultAvatar() {
     setState(() {
       _selectedImagePathOrUrl = _defaultAvatarPath;
@@ -58,7 +54,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
     widget.onSelect(_selectedImagePathOrUrl);
   }
 
-  // 💡 Updates for image upload using the API service
+  // Updates for image upload using the API service
   Future<void> _uploadImage() async {
     try {
       final img_picker.XFile? image = await _picker.pickImage(
@@ -71,7 +67,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
       if (image != null) {
         final pickedFile = File(image.path);
         
-        // 1. Show the picked image locally while uploading
+        // Show the picked image locally while uploading
         setState(() {
           _tempPickedFile = pickedFile;
         });
@@ -80,15 +76,13 @@ class _AvatarSelectState extends State<AvatarSelect> {
           const SnackBar(content: Text('Uploading image...')),
         );
         
-        // 2. Call the IBB Service to upload
+        // Call the IBB Service to upload
         final imageUrl = await IBBService.uploadImage(pickedFile);
 
         if (imageUrl != null) {
-          // 3. Update state with the final URL from IBB
+          //  Update state with the final URL from IBB
           setState(() {
             _selectedImagePathOrUrl = imageUrl;
-            // Note: _tempPickedFile remains non-null to display the image 
-            // until the parent widget handles navigation.
           });
           
           ScaffoldMessenger.of(context).showSnackBar(
@@ -242,7 +236,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
               ],
             ),
 
-            // Default Avatar Section (Now a simple button to revert)
+            // Default Avatar Section 
             Column(
               children: [
                 SizedBox(height: isSmallScreen ? 15 : 20),
@@ -267,7 +261,6 @@ class _AvatarSelectState extends State<AvatarSelect> {
                             offset: const Offset(0, 2),
                           ),
                         ],
-                        // 💡 Use the computed default path
                         image: DecorationImage(
                           image: AssetImage(_defaultAvatarPath),
                           fit: BoxFit.cover,
@@ -295,7 +288,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
     );
   }
 
-  // 💡 Updated to handle local file (during upload) or the final URL/Asset path
+  // Updated to handle local file (during upload) or the final URL/Asset path
   Widget _buildResponsiveSelectedAvatar(Size size) {
     final isVerySmallScreen = size.height < 600;
     final isSmallScreen = size.height < 700;
@@ -326,7 +319,7 @@ class _AvatarSelectState extends State<AvatarSelect> {
         radius: avatarRadius,
       );
     }
-    // Fallback (Should not happen if initialized correctly)
+    // Fallback
     else {
       return Container(
         width: avatarRadius * 2,
