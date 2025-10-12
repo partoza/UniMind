@@ -12,17 +12,86 @@ Future<void> signOutUser(BuildContext context) async {
   // Navigate to full-screen signing out page
   Navigator.pushReplacement(
     context,
-    MaterialPageRoute(
-      builder: (context) => const _SignOutPage(),
-    ),
+    MaterialPageRoute(builder: (context) => const _SignOutPage()),
   );
 
   // The sign out logic will be handled in the _SignOutPage widget
 }
 
+// A class to handle all department-related data and logic.
+class DepartmentData {
+  // Department color map
+  static const Map<String, String> _colorHexMap = {
+    'CAE': '#30E8FD',
+    'CAFAE': '#6D6D6D',
+    'CBAE': '#FFDD00',
+    'CCE': '#FFDE00',
+    'CHE': '#AA00FF',
+    'CCJE': '#FF3700',
+    'CASE': '#299504',
+    'CEE': '#FF9D00',
+    'CHSE': '#75B8FF',
+    'CTE': '#1E05FF',
+  };
+
+  // Converts a hex string to a Flutter Color object.
+  static Color _hexToColor(String hexString) {
+    final hex = hexString.replaceFirst('#', '');
+    return Color(int.parse('FF$hex', radix: 16));
+  }
+
+  // Generates a lighter shade of the primary color for the gradient end.
+  static Color _getLighterShade(Color color) {
+    return Color.fromARGB(
+      255,
+      (color.red + (255 - color.red) * 0.5).round(),
+      (color.green + (255 - color.green) * 0.5).round(),
+      (color.blue + (255 - color.blue) * 0.5).round(),
+    );
+  }
+
+  // Returns the start and end colors for the LinearGradient.
+  static List<Color> getGradientColors(String department) {
+    final hexColor =
+        _colorHexMap[department.toUpperCase()] ?? '#B0B0B0'; // Default gray
+    final primaryColor = _hexToColor(hexColor);
+    final lightColor = _getLighterShade(primaryColor);
+    return [primaryColor, lightColor];
+  }
+
+  // Returns the asset path for the department logo.
+  static String getDepartmentLogoPath(String department) {
+    final String code = department.toUpperCase();
+    switch (code) {
+      case 'CAE':
+        return 'assets/depLogo/caelogo.png';
+      case 'CAFAE':
+        return 'assets/depLogo/cafaelogo.png';
+      case 'CBAE':
+        return 'assets/depLogo/cbaelogo.png';
+      case 'CCE':
+        return 'assets/depLogo/ccelogo.png';
+      case 'CHE':
+        return 'assets/depLogo/chelogo.png';
+      case 'CCJE':
+        return 'assets/depLogo/ccjelogo.png';
+      case 'CASE':
+        return 'assets/depLogo/caselogo.png';
+      case 'CEE':
+        return 'assets/depLogo/ceelogo.png';
+      case 'CHSE':
+        return 'assets/depLogo/chselogo.png';
+      case 'CTE':
+        return 'assets/depLogo/ctelogo.png';
+      default:
+        return 'assets/depLogo/defaultlogo.png'; // Fallback
+    }
+  }
+}
+
 class ProfilePage extends StatefulWidget {
   final String? userId; // If null, shows current user's profile
-  
+
   const ProfilePage({super.key, this.userId});
 
   @override
@@ -32,25 +101,13 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  
+
   // Use provided userId or current user's ID
   String get _targetUserId => widget.userId ?? _auth.currentUser!.uid;
-  bool get _isCurrentUser => widget.userId == null || widget.userId == _auth.currentUser?.uid;
-  
+  bool get _isCurrentUser =>
+      widget.userId == null || widget.userId == _auth.currentUser?.uid;
+
   User? get currentUser => _auth.currentUser;
-  
-  // Add this method to get department logo
-  String _getDepartmentLogo(String department) {
-    switch (department) {
-      case 'CEE':
-        return 'assets/ceelogo.png';
-      case 'CASE':
-        return 'assets/caselogo.png';
-      case 'CCE':
-      default:
-        return 'assets/ccelogo.png';
-    }
-  }
 
   String _getYearLevelString(dynamic yearLevel) {
     try {
@@ -66,12 +123,16 @@ class _ProfilePageState extends State<ProfilePage> {
       }
 
       switch (level) {
-        case 1: return '1st Year Student';
-        case 2: return '2nd Year Student';
-        case 3: return '3rd Year Student';
-        case 4: return '4th Year Student';
-        case 5: return '5th Year Student';
-        default: return 'Student';
+        case 1:
+          return '1st Year Student';
+        case 2:
+          return '2nd Year Student';
+        case 3:
+          return '3rd Year Student';
+        case 4:
+          return '4th Year Student';
+        default:
+          return 'Student';
       }
     } catch (e) {
       print("Error parsing year level: $e");
@@ -80,7 +141,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // Helper method to safely get data from Firestore
-  dynamic _getUserData(Map<String, dynamic>? userData, String key, {dynamic defaultValue}) {
+  dynamic _getUserData(
+    Map<String, dynamic>? userData,
+    String key, {
+    dynamic defaultValue,
+  }) {
     if (userData == null || !userData.containsKey(key)) {
       return defaultValue;
     }
@@ -90,7 +155,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.of(context).textScaleFactor;
-    
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
@@ -110,9 +175,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 color: const Color(0xFFB41214),
                 child: StreamBuilder<DocumentSnapshot>(
-                  stream: _firestore.collection('users').doc(_targetUserId).snapshots(),
+                  stream: _firestore
+                      .collection('users')
+                      .doc(_targetUserId)
+                      .snapshots(),
                   builder: (context, snapshot) {
-                    print("StreamBuilder snapshot state: ${snapshot.connectionState}");
+                    print(
+                      "StreamBuilder snapshot state: ${snapshot.connectionState}",
+                    );
                     print("StreamBuilder has data: ${snapshot.hasData}");
                     if (snapshot.hasError) {
                       print("StreamBuilder error: ${snapshot.error}");
@@ -126,7 +196,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       return _buildHeaderPlaceholder();
                     }
 
-                    final userData = snapshot.data!.data() as Map<String, dynamic>?;
+                    final userData =
+                        snapshot.data!.data() as Map<String, dynamic>?;
                     print("User data received: $userData");
                     return _buildHeaderContent(userData, context);
                   },
@@ -135,7 +206,10 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
 
             StreamBuilder<DocumentSnapshot>(
-              stream: _firestore.collection('users').doc(_targetUserId).snapshots(),
+              stream: _firestore
+                  .collection('users')
+                  .doc(_targetUserId)
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return _buildBodyLoading();
@@ -181,17 +255,9 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 150,
-                    height: 20,
-                    color: Colors.white24,
-                  ),
+                  Container(width: 150, height: 20, color: Colors.white24),
                   const SizedBox(height: 8),
-                  Container(
-                    width: 100,
-                    height: 16,
-                    color: Colors.white24,
-                  ),
+                  Container(width: 100, height: 16, color: Colors.white24),
                   const SizedBox(height: 8),
                   // Only show edit button for current user
                   if (_isCurrentUser)
@@ -252,7 +318,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _isCurrentUser ? (currentUser?.email ?? "Guest User") : "User",
+                    _isCurrentUser
+                        ? (currentUser?.email ?? "Guest User")
+                        : "User",
                     style: GoogleFonts.montserrat(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -307,10 +375,23 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildHeaderContent(Map<String, dynamic>? userData, BuildContext context) {
-    final displayName = _getUserData(userData, 'displayName', defaultValue: _isCurrentUser ? (currentUser?.email ?? "Unknown User") : "Unknown User");
+  Widget _buildHeaderContent(
+    Map<String, dynamic>? userData,
+    BuildContext context,
+  ) {
+    final displayName = _getUserData(
+      userData,
+      'displayName',
+      defaultValue: _isCurrentUser
+          ? (currentUser?.email ?? "Unknown User")
+          : "Unknown User",
+    );
     final yearLevel = _getUserData(userData, 'yearLevel', defaultValue: 1);
-    final avatarPath = _getUserData(userData, 'avatarPath', defaultValue: "assets/cce_male.jpg");
+    final avatarPath = _getUserData(
+      userData,
+      'avatarPath',
+      defaultValue: "assets/cce_male.jpg",
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,10 +408,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            CircleAvatar(
-              radius: 45,
-              backgroundImage: AssetImage(avatarPath),
-            ),
+            CircleAvatar(radius: 45, backgroundImage: AssetImage(avatarPath)),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -462,6 +540,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildBodyPlaceholder() {
+    // This is the card that needs dynamic content for the placeholder state
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
       child: Column(
@@ -475,12 +554,13 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
+              // FIX: Use a neutral gradient for placeholder
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color.fromARGB(255, 227, 224, 41),
-                  Color(0xfff7f9e8),
+                  Color(0xFFCCCCCC), // Neutral Gray
+                  Color(0xFFEEEEEE), // Very Light Gray
                 ],
               ),
               boxShadow: [
@@ -499,7 +579,11 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Image.asset("assets/ccelogo.png", height: 36),
+                  // FIX: Use a default placeholder image/icon
+                  child: Image.asset(
+                    "assets/depLogo/defaultlogo.png",
+                    height: 36,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -507,7 +591,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _isCurrentUser ? "Complete your profile" : "User profile",
+                        _isCurrentUser
+                            ? "Complete your profile"
+                            : "User profile",
                         style: GoogleFonts.montserrat(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -516,7 +602,9 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _isCurrentUser ? "Add your department and program" : "Profile information",
+                        _isCurrentUser
+                            ? "Add your department and program"
+                            : "Profile information",
                         style: GoogleFonts.montserrat(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -531,7 +619,11 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 15),
           _sectionTitle("My Bio"),
-          _infoCard(_isCurrentUser ? "No bio yet. You can add one by editing your profile." : "No bio available"),
+          _infoCard(
+            _isCurrentUser
+                ? "No bio yet. You can add one by editing your profile."
+                : "No bio available",
+          ),
           // Only show logout button for current user
           if (_isCurrentUser) ...[
             const SizedBox(height: 40),
@@ -543,23 +635,58 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildBodyContent(Map<String, dynamic>? userData, BuildContext context) {
-    final department = _getUserData(userData, 'department', defaultValue: "Department not set");
-    final program = _getUserData(userData, 'program', defaultValue: "Program not set");
-    final gender = _getUserData(userData, 'gender', defaultValue: "Not set");
-    final strengths = _getUserData(userData, 'strengths', defaultValue: <String>[]);
-    final weaknesses = _getUserData(userData, 'weaknesses', defaultValue: <String>[]);
-    final bio = _getUserData(userData, 'bio', defaultValue: _isCurrentUser ? "No bio yet. You can add one by editing your profile." : "No bio available");
+  // NOTE: Removed the separate getDepartmentPrimaryColor function as its logic
+  // is now contained in the DepartmentData class for a cleaner structure.
 
-    // FIX: Get the correct department logo
-    final departmentLogo = _getDepartmentLogo(department.toString());
+  Widget _buildBodyContent(
+    Map<String, dynamic>? userData,
+    BuildContext context,
+  ) {
+    final department = _getUserData(
+      userData,
+      'department',
+      defaultValue: "Department not set",
+    );
+    final program = _getUserData(
+      userData,
+      'program',
+      defaultValue: "Program not set",
+    );
+    final gender = _getUserData(userData, 'gender', defaultValue: "Not set");
+    final place = _getUserData(userData, 'place', defaultValue: "Not set");
+    final strengths = _getUserData(
+      userData,
+      'strengths',
+      defaultValue: <String>[],
+    );
+    final weaknesses = _getUserData(
+      userData,
+      'weaknesses',
+      defaultValue: <String>[],
+    );
+    final bio = _getUserData(
+      userData,
+      'bio',
+      defaultValue: _isCurrentUser
+          ? "No bio yet. You can add one by editing your profile."
+          : "No bio available",
+    );
+
+    // FIX: Get the correct department logo path dynamically
+    final departmentLogo = DepartmentData.getDepartmentLogoPath(
+      department.toString(),
+    );
+    // FIX: Get the dynamic gradient colors
+    final departmentColors = DepartmentData.getGradientColors(
+      department.toString(),
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildQuickInfoSectionWithData(gender.toString()),
+          _buildQuickInfoSectionWithData(gender.toString(), place.toString()),
           const SizedBox(height: 2),
           _sectionTitle("College Department"),
           const SizedBox(height: 8),
@@ -567,13 +694,11 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              gradient: const LinearGradient(
+              // FIX: Use dynamic colors from DepartmentData
+              gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color.fromARGB(255, 227, 224, 41),
-                  Color(0xfff7f9e8),
-                ],
+                colors: departmentColors,
               ),
               boxShadow: [
                 BoxShadow(
@@ -591,7 +716,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  // FIX: Use dynamic department logo instead of hardcoded CCE logo
+                  // FIX: Use dynamic department logo path
                   child: Image.asset(departmentLogo, height: 36),
                 ),
                 const SizedBox(width: 16),
@@ -604,7 +729,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         style: GoogleFonts.montserrat(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Colors.grey[800],
+                          color: const Color.fromARGB(255, 255, 255, 255),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -612,7 +737,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         program.toString(),
                         style: GoogleFonts.montserrat(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: const Color.fromARGB(255, 255, 255, 255),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -688,10 +813,7 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildQuickInfoItemLoading(),
-          _buildQuickInfoItemLoading(),
-        ],
+        children: [_buildQuickInfoItemLoading(), _buildQuickInfoItemLoading()],
       ),
     );
   }
@@ -708,22 +830,14 @@ class _ProfilePageState extends State<ProfilePage> {
           child: const Icon(Icons.help_outline, size: 20, color: Colors.grey),
         ),
         const SizedBox(height: 8),
-        Container(
-          width: 60,
-          height: 16,
-          color: Colors.grey[300],
-        ),
+        Container(width: 60, height: 16, color: Colors.grey[300]),
         const SizedBox(height: 4),
-        Container(
-          width: 40,
-          height: 12,
-          color: Colors.grey[300],
-        ),
+        Container(width: 40, height: 12, color: Colors.grey[300]),
       ],
     );
   }
 
-  Widget _buildQuickInfoSectionWithData(String gender) {
+  Widget _buildQuickInfoSectionWithData(String gender, String place) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -741,7 +855,7 @@ class _ProfilePageState extends State<ProfilePage> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildQuickInfoItem("Gender", gender, Icons.person),
-          _buildQuickInfoItem("Building", "PS Building", Icons.apartment),
+          _buildQuickInfoItem("Building", place, Icons.apartment),
         ],
       ),
     );
@@ -871,7 +985,6 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 // Keep the rest of your existing methods (buildLogoutButton, _showLogoutConfirmation, _HeaderClipper)
-// They remain exactly the same as in your original code...
 
 Widget buildLogoutButton(BuildContext context) {
   return Container(
@@ -1109,9 +1222,9 @@ class _SignOutPageState extends State<_SignOutPage> {
               width: 80,
               height: 80,
             ),
-            
+
             const SizedBox(height: 32),
-            
+
             // Simple loading indicator
             const SizedBox(
               width: 28,
@@ -1121,9 +1234,9 @@ class _SignOutPageState extends State<_SignOutPage> {
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB41214)),
               ),
             ),
-            
+
             const SizedBox(height: 20),
-            
+
             // Simple text
             Text(
               "Signing out",

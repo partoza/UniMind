@@ -122,12 +122,11 @@ class FollowPage extends StatelessWidget {
                         children: [
                           // Illustrative Image for no requests
                           Image.asset(
-                            'assets/images/no_requests.png', // Replace with your image path
+                            'assets/illustrations/follow_request.png', // Replace with your image path
                             width: 200, 
                             height: 200,
                             fit: BoxFit.contain,
                           ),
-                          const SizedBox(height: 20),
                           // Engaging Message with Line Break
                           Text.rich(
                             TextSpan(
