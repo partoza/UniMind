@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+// Ensure these imports point to the correct file locations in your project
 import 'package:unimind/views/profile_setup/program_year.dart';
-import 'package:unimind/views/profile_setup/selectavatar.dart';
+import 'package:unimind/views/profile_setup/selectavatar.dart'; // Corrected import path
 import 'package:unimind/views/profile_setup/strengths.dart';
 import 'package:unimind/views/profile_setup/weaknesses.dart';
 import 'package:unimind/views/profile_setup/gender.dart';
@@ -22,66 +21,22 @@ class SelectionPage extends StatefulWidget {
 class _SelectionPageState extends State<SelectionPage> {
   int _currentStep = 0;
   String? _selectedGender;
-  String? _selectedCollege;
+  String? _selectedCollege; // Holds department code (e.g., 'CCE')
   String? _selectedProgram;
+  String? _selectedProgramAcronym;
   int? _selectedYear;
+  String? _selectedPlace;
   List<String> _selectedStrengths = [];
   List<String> _selectedWeaknesses = [];
-  File? _hasSelectedAvatar; // Default avatar is auto-selected
 
-  late final List<Widget> _steps;
+  // ✅ 1. CHANGE: Replaced File? with String? to hold the asset path or the IBB URL.
+  String? _selectedAvatarPathOrUrl;
 
   @override
   void initState() {
     super.initState();
-    _steps = [
-      GenderSelectionPage(
-        onSelect: (gender) {
-          setState(() {
-            _selectedGender = gender;
-          });
-        },
-      ),
-      CollegeDepSelect(
-        onSelect: (college) {
-          setState(() {
-            _selectedCollege = college;
-          });
-        },
-      ),
-      ProgramYearSelect(
-        onSelect: (program, year) { // Change to accept two separate parameters
-          setState(() {
-            _selectedProgram = program;
-            _selectedYear = year;
-          });
-        },
-      ),
-      StrengthsSelect(
-        onSelect: (strengths) {
-          setState(() {
-            _selectedStrengths = strengths;
-          });
-        },
-      ),
-      WeaknessesSelect(
-        onSelect: (weaknesses) {
-          setState(() {
-            _selectedWeaknesses = weaknesses;
-          });
-        },
-      ),
-      AvatarSelect(
-        onSelect: (hasSelection) {
-          setState(() {
-            _hasSelectedAvatar = hasSelection;
-          });
-        },
-      ),
-    ];
   }
 
-  // Check if current step has valid selection
   bool _canContinue() {
     switch (_currentStep) {
       case 0: // Gender
@@ -89,13 +44,17 @@ class _SelectionPageState extends State<SelectionPage> {
       case 1: // College
         return _selectedCollege != null;
       case 2: // Program & Year
-        return _selectedProgram != null && _selectedYear != null;
+        return _selectedProgram != null &&
+            _selectedProgramAcronym != null &&
+            _selectedYear != null &&
+            _selectedPlace != null;
       case 3: // Strengths
         return _selectedStrengths.isNotEmpty;
       case 4: // Weaknesses
         return _selectedWeaknesses.isNotEmpty;
       case 5: // Avatar
-        return _hasSelectedAvatar != null;
+        // ✅ 2. CHANGE: Check the new String variable instead of the old File variable.
+        return _selectedAvatarPathOrUrl != null;
       default:
         return false;
     }
@@ -108,8 +67,16 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   void _goNext() {
+    if (_currentStep == 1) {
+      _selectedProgram = null;
+      _selectedProgramAcronym = null;
+      _selectedYear = null;
+      _selectedPlace = null;
+    }
+
     if (_canContinue()) {
-      if (_currentStep < _steps.length - 1) {
+      if (_currentStep < 5) {
+        // The last step is 5
         setState(() => _currentStep++);
       } else {
         _saveProfileData();
@@ -121,42 +88,46 @@ class _SelectionPageState extends State<SelectionPage> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        // Prepare data to save
         Map<String, dynamic> profileData = {
           'gender': _selectedGender,
           'department': _selectedCollege,
           'program': _selectedProgram,
+          'programAcronym': _selectedProgramAcronym,
           'yearLevel': _selectedYear,
+          'place': _selectedPlace,
           'strengths': _selectedStrengths,
           'weaknesses': _selectedWeaknesses,
           'profileComplete': true,
           'updatedAt': FieldValue.serverTimestamp(),
         };
 
-        // Save avatar path if selected
-        if (_hasSelectedAvatar != null) {
-          profileData['avatarPath'] = 'assets/CCE_default_avatar.png'; // Default avatar path
+        // ✅ 3. CHANGE: Use the correct variable to save the path/URL to Firestore.
+        if (_selectedAvatarPathOrUrl != null) {
+          // This will save either "assets/avatar/cceavatar.png" OR "https://i.ibb.co/..."
+          profileData['avatarPath'] = _selectedAvatarPathOrUrl;
         }
 
-        // Save to Firebase
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
             .update(profileData);
 
-        debugPrint("🎉 Profile data saved successfully!");
+        debugPrint("Profile data saved successfully!");
 
-        // Navigate to home page
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
-        );
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomePage()),
+          );
+        }
       }
     } catch (e) {
       debugPrint("Error saving profile data: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving profile: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
+      }
     }
   }
 
@@ -164,30 +135,73 @@ class _SelectionPageState extends State<SelectionPage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
+    final List<Widget> steps = [
+      GenderSelectionPage(
+        onSelect: (gender) {
+          setState(() => _selectedGender = gender);
+        },
+      ),
+      CollegeDepSelect(
+        onSelect: (college) {
+          setState(() => _selectedCollege = college);
+        },
+      ),
+      ProgramYearSelect(
+        departmentCode: _selectedCollege ?? 'CCE',
+        onSelect: (program, acronym, year, place) {
+          setState(() {
+            _selectedProgram = program;
+            _selectedProgramAcronym = acronym;
+            _selectedYear = year;
+            _selectedPlace = place;
+          });
+        },
+      ),
+      StrengthsSelect(
+        onSelect: (strengths) {
+          setState(() => _selectedStrengths = strengths);
+        },
+      ),
+      WeaknessesSelect(
+        disabledWeaknesses: _selectedStrengths, 
+        onSelect: (weaknesses) {
+          setState(() => _selectedWeaknesses = weaknesses);
+        },
+      ),
+
+      AvatarSelect(
+        departmentCode:
+            _selectedCollege ?? 'CCE', 
+        onSelect: (pathOrUrl) {
+          setState(() {
+            _selectedAvatarPathOrUrl =
+                pathOrUrl;
+          });
+        },
+      ),
+    ];
+
     return Scaffold(
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset(
-              "assets/background1.jpg",
-              fit: BoxFit.cover,
-            ),
+            child: Image.asset("assets/background1.jpg", fit: BoxFit.cover),
           ),
 
           SafeArea(
             child: Column(
               children: [
-                // 🔴 App Bar
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(24, 10, 10, 10),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                  ),
+                  decoration: const BoxDecoration(color: Colors.white),
                   child: Row(
                     children: [
-                      Image.asset("assets/icon/logoIconMaroon.png",
-                          width: 40, height: 40),
+                      Image.asset(
+                        "assets/icon/logoIconMaroon.png",
+                        width: 40,
+                        height: 40,
+                      ),
                       const SizedBox(width: 8),
                       RichText(
                         text: TextSpan(
@@ -233,9 +247,11 @@ class _SelectionPageState extends State<SelectionPage> {
 
                 const SizedBox(height: 10),
 
-                // 🔴 Progress bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(5),
                     child: Stack(
@@ -249,7 +265,9 @@ class _SelectionPageState extends State<SelectionPage> {
                           duration: const Duration(milliseconds: 500),
                           curve: Curves.easeInOut,
                           height: 6,
-                          width: (size.width - 48) * ((_currentStep + 1) / _steps.length),
+                          width:
+                              (size.width - 48) *
+                              ((_currentStep + 1) / steps.length),
                           color: const Color(0xFFB41214),
                         ),
                       ],
@@ -257,13 +275,13 @@ class _SelectionPageState extends State<SelectionPage> {
                   ),
                 ),
 
-                // 🔴 Step content
-                Expanded(child: _steps[_currentStep]),
-                
-                // 🔴 Navigation buttons
+                Expanded(child: steps[_currentStep]),
+
                 Padding(
                   padding: EdgeInsets.symmetric(
-                      horizontal: size.width * 0.1, vertical: 20),
+                    horizontal: size.width * 0.1,
+                    vertical: 20,
+                  ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -279,8 +297,11 @@ class _SelectionPageState extends State<SelectionPage> {
                         onPressed: _currentStep == 0 ? null : _goBack,
                         child: Row(
                           children: [
-                            const Icon(Icons.arrow_back,
-                                size: 18, color: Color(0xFFB41214)),
+                            const Icon(
+                              Icons.arrow_back,
+                              size: 18,
+                              color: Color(0xFFB41214),
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               "Back",
@@ -297,8 +318,8 @@ class _SelectionPageState extends State<SelectionPage> {
                       // Continue Button
                       ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _canContinue() 
-                              ? const Color(0xFFB41214) 
+                          backgroundColor: _canContinue()
+                              ? const Color(0xFFB41214)
                               : Colors.grey[400],
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
@@ -309,20 +330,24 @@ class _SelectionPageState extends State<SelectionPage> {
                         child: Row(
                           children: [
                             Text(
-                              _currentStep == _steps.length - 1
+                              _currentStep == steps.length - 1
                                   ? "Finish"
                                   : "Continue",
                               style: GoogleFonts.montserrat(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: _canContinue() ? Colors.white : Colors.grey[600],
+                                color: _canContinue()
+                                    ? Colors.white
+                                    : Colors.grey[600],
                               ),
                             ),
                             const SizedBox(width: 6),
                             Icon(
                               Icons.arrow_forward,
                               size: 18,
-                              color: _canContinue() ? Colors.white : Colors.grey[600],
+                              color: _canContinue()
+                                  ? Colors.white
+                                  : Colors.grey[600],
                             ),
                           ],
                         ),

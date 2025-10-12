@@ -44,6 +44,7 @@ dependencies:
   qr_flutter: ^4.1.0
   path_provider: ^2.1.5
   share_plus: ^12.0.0
+  http: ^1.2.1
   
 
 dev_dependencies:
@@ -94,6 +95,7 @@ flutter:
     - assets/
     - assets/icon/
     - assets/avatar/
+    - assets/depLogo/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

@@ -42,12 +42,7 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
         child: Row(
           children: [
             // 🔹 Department logo
-            Image.asset(
-              imagePath,
-              width: 36,
-              height: 36,
-              fit: BoxFit.cover,
-            ),
+            Image.asset(imagePath, width: 36, height: 36, fit: BoxFit.cover),
             const SizedBox(width: 12),
 
             // 🔹 Department name
@@ -77,8 +72,9 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
   @override
   Widget build(BuildContext context) {
     return Column(
+      // Keep the main Column as is
       children: [
-        const SizedBox(height: 40),
+        const SizedBox(height: 20),
 
         // Title
         Text(
@@ -103,26 +99,74 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
         const SizedBox(height: 30),
 
         // Department Options
-        Column(
-          children: [
-            _buildDepartmentOption(
-              "College of Computing Education",
-              "assets/ccelogo.png",
-              "CCE",
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                _buildDepartmentOption(
+                  "College of Accounting Education",
+                  "assets/depLogo/caelogo.png",
+                  "CAE",
+                ),
+                const SizedBox(height: 10),
+                _buildDepartmentOption(
+                  "College of Architecture and Fine Arts Education",
+                  "assets/depLogo/cafaelogo.png",
+                  "CAFAE",
+                ),
+                const SizedBox(height: 10),
+                _buildDepartmentOption(
+                  "College of Arts and Science Education",
+                  "assets/depLogo/caselogo.png",
+                  "CASE",
+                ),
+                const SizedBox(height: 10),
+                _buildDepartmentOption(
+                  "College of Business Administration Education",
+                  "assets/depLogo/cbaelogo.png",
+                  "CBAE",
+                ),
+                const SizedBox(height: 10),
+                _buildDepartmentOption(
+                  "College of Computing Education",
+                  "assets/depLogo/ccelogo.png",
+                  "CCE",
+                ),
+                const SizedBox(height: 10),
+                _buildDepartmentOption(
+                  "College of Criminal Justice Education",
+                  "assets/depLogo/ccjelogo.png",
+                  "CCJE",
+                ),
+                const SizedBox(height: 10),
+                _buildDepartmentOption(
+                  "College of Engineering Education",
+                  "assets/depLogo/ceelogo.png",
+                  "CEE",
+                ),
+                const SizedBox(height: 10),
+                _buildDepartmentOption(
+                  "College of Hopitality Education",
+                  "assets/depLogo/chelogo.png",
+                  "CHE",
+                ),
+                const SizedBox(height: 10),
+                _buildDepartmentOption(
+                  "College of Health and Sciences Education",
+                  "assets/depLogo/chselogo.png",
+                  "CHSE",
+                ),
+                const SizedBox(height: 10),
+                _buildDepartmentOption(
+                  "College of Teacher Education",
+                  "assets/depLogo/ctelogo.png",
+                  "CTE",
+                ),
+                // Added for bottom padding when scrolling
+                const SizedBox(height: 30),
+              ],
             ),
-            const SizedBox(height: 15),
-            _buildDepartmentOption(
-              "College of Arts and Science Education",
-              "assets/caselogo.png",
-              "CAS",
-            ),
-            const SizedBox(height: 15),
-            _buildDepartmentOption(
-              "College of Engineering Education",
-              "assets/ceelogo.png",
-              "CEE",
-            ),
-          ],
+          ),
         ),
       ],
     );
