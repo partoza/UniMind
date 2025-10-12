@@ -9,25 +9,15 @@ import 'package:google_sign_in/google_sign_in.dart';
 Future<void> signOutUser(BuildContext context) async {
   final googleSignIn = GoogleSignIn();
 
-  try {
-    // Sign out from Firebase
-    await FirebaseAuth.instance.signOut();
-
-    // Disconnect Google account (forces account picker next time)
-    await googleSignIn.disconnect();
-    await googleSignIn.signOut();
-
-    print("User logged out and disconnected from Google.");
-  } catch (e) {
-    print("Error during logout: $e");
-  }
-
-  // Redirect to login page after logout
-  Navigator.pushAndRemoveUntil(
+  // Navigate to full-screen signing out page
+  Navigator.pushReplacement(
     context,
-    MaterialPageRoute(builder: (_) => const LoginPage()),
-    (Route<dynamic> route) => false,
+    MaterialPageRoute(
+      builder: (context) => const _SignOutPage(),
+    ),
   );
+
+  // The sign out logic will be handled in the _SignOutPage widget
 }
 
 class ProfilePage extends StatefulWidget {
@@ -1059,4 +1049,93 @@ class _HeaderClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
+}
+
+/// Full-screen Sign Out Page - Facebook style
+class _SignOutPage extends StatefulWidget {
+  const _SignOutPage();
+
+  @override
+  State<_SignOutPage> createState() => _SignOutPageState();
+}
+
+class _SignOutPageState extends State<_SignOutPage> {
+  @override
+  void initState() {
+    super.initState();
+    _performSignOut();
+  }
+
+  Future<void> _performSignOut() async {
+    final googleSignIn = GoogleSignIn();
+
+    try {
+      // Add a small delay to show the loading screen
+      await Future.delayed(const Duration(milliseconds: 1500));
+
+      // Sign out from Firebase
+      await FirebaseAuth.instance.signOut();
+
+      // Disconnect Google account (forces account picker next time)
+      await googleSignIn.disconnect();
+      await googleSignIn.signOut();
+
+      print("User logged out and disconnected from Google.");
+    } catch (e) {
+      print("Error during logout: $e");
+    }
+
+    // Navigate to login page after logout
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginPage()),
+        (Route<dynamic> route) => false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // App Logo
+            Image.asset(
+              "assets/icon/logoIconMaroon.png",
+              width: 80,
+              height: 80,
+            ),
+            
+            const SizedBox(height: 32),
+            
+            // Simple loading indicator
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB41214)),
+              ),
+            ),
+            
+            const SizedBox(height: 20),
+            
+            // Simple text
+            Text(
+              "Signing out",
+              style: GoogleFonts.montserrat(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                color: const Color(0xFF374151),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
