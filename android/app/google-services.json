@@ -30,6 +30,14 @@
           }
         },
         {
+          "client_id": "803662410623-ou42ad0ij6bfmgv9ulohsg233necinic.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.unimind",
+            "certificate_hash": "a928badd3b73ff1e0c03894e7575eca465054041"
+          }
+        },
+        {
           "client_id": "803662410623-puf7f9hm1iie8aighek3nrrd08r9moen.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

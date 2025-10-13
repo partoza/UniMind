@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:unimind/views/profile/profile_page.dart'; // Add this import
+import 'package:unimind/views/chats/message_profile_view.dart';
 
 class MessageScreen extends StatefulWidget {
   final String peerUid;
@@ -51,7 +51,11 @@ class _MessageScreenState extends State<MessageScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => ProfilePage(userId: widget.peerUid),
+        builder: (context) => MessageProfileView(
+          peerUid: widget.peerUid,
+          peerName: widget.peerName,
+          peerAvatar: widget.peerAvatar,
+        ),
       ),
     );
   }
@@ -506,6 +510,7 @@ class _MessageScreenState extends State<MessageScreen> {
       );
     }
   }
+
 
   @override
   void dispose() {

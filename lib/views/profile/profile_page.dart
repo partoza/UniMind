@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:unimind/views/auth/login_page.dart';
+import 'package:unimind/views/follow_request/follow_page.dart';
 import 'package:unimind/views/profile/edit_profile.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -89,6 +90,88 @@ class DepartmentData {
   }
 }
 
+// Helper widget to build consistent, modern text fields with a toggle eye icon
+// NOTE: This must be defined inside your _EditProfilePageState class or as a private stateful widget.
+
+class _PasswordTextFieldWithToggle extends StatefulWidget {
+  final TextEditingController controller;
+  final String labelText;
+  final String? Function(String?)? validator;
+
+  const _PasswordTextFieldWithToggle({
+    required this.controller,
+    required this.labelText,
+    this.validator,
+  });
+
+  @override
+  __PasswordTextFieldWithToggleState createState() =>
+      __PasswordTextFieldWithToggleState();
+}
+
+class __PasswordTextFieldWithToggleState
+    extends State<_PasswordTextFieldWithToggle> {
+  // State to manage password visibility
+  bool _isObscure = true;
+
+  // Hardcoded colors
+  static const Color primaryRed = Color(0xFFB41214);
+  static const Color textPrimary = Color(0xFF1A1D1F);
+  static const Color textSecondary = Color(0xFF6F767E);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15.0),
+      child: TextFormField(
+        controller: widget.controller,
+        // Use the local state to determine obscurity
+        obscureText: _isObscure,
+        validator: widget.validator,
+        style: GoogleFonts.montserrat(color: textPrimary, fontSize: 14),
+        decoration: InputDecoration(
+          labelText: widget.labelText,
+          labelStyle: GoogleFonts.montserrat(color: textSecondary),
+          filled: true,
+          fillColor: Colors.white,
+          // 1. SMALLER PLACEHOLDER: Reduced vertical padding from 14 to 10
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.grey.shade300, width: 1),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: primaryRed, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: Colors.red, width: 1),
+          ),
+          // 2. FUNCTIONAL EYE ICON: Trailing widget to toggle visibility
+          suffixIcon: IconButton(
+            icon: Icon(
+              _isObscure
+                  ? Icons.visibility_off_rounded
+                  : Icons.visibility_rounded,
+              color: textSecondary,
+              size: 20,
+            ),
+            onPressed: () {
+              setState(() {
+                _isObscure = !_isObscure;
+              });
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class ProfilePage extends StatefulWidget {
   final String? userId; // If null, shows current user's profile
 
@@ -101,6 +184,8 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  // ADDED: GoogleSignIn instance for account linking
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Use provided userId or current user's ID
   String get _targetUserId => widget.userId ?? _auth.currentUser!.uid;
@@ -109,23 +194,43 @@ class _ProfilePageState extends State<ProfilePage> {
 
   User? get currentUser => _auth.currentUser;
 
-  // Follow state management
+  // ADDED: State management for follow functionality
   bool _isFollowing = false;
   bool _isFollowLoading = false;
+
+  // ADDED: State management for account linking and password changes
+  bool _isLinkingGoogle = false;
+  bool _isSettingPassword = false;
+  bool _isChangingPassword = false;
+
+  // ADDED: Getter to check if user has a password provider
+  bool get _hasPasswordProvider {
+    if (currentUser == null) return false;
+    return currentUser!.providerData.any(
+      (provider) => provider.providerId == 'password',
+    );
+  }
+
+  // ADDED: Getter to check if user has a Google provider
+  bool get _hasGoogleProvider {
+    if (currentUser == null) return false;
+    return currentUser!.providerData.any(
+      (provider) => provider.providerId == 'google.com',
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    // Check if current user is following the target user
+    // ADDED: Check follow status if viewing another user's profile
     if (!_isCurrentUser && currentUser != null) {
       _checkFollowStatus();
     }
   }
 
-  // Check if current user is following the target user
+  // ADDED: Function to check if the current user is following the target user
   Future<void> _checkFollowStatus() async {
     if (currentUser == null) return;
-
     try {
       final followDoc = await _firestore
           .collection('users')
@@ -133,7 +238,6 @@ class _ProfilePageState extends State<ProfilePage> {
           .collection('following')
           .doc(_targetUserId)
           .get();
-
       setState(() {
         _isFollowing = followDoc.exists;
       });
@@ -142,33 +246,733 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // Toggle follow/unfollow
+  // ADDED: Function to link a Google account
+  Future<void> _linkGoogleAccount() async {
+    if (_isLinkingGoogle || currentUser == null) return;
+    setState(() => _isLinkingGoogle = true);
+
+    try {
+      await _googleSignIn.signOut();
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        setState(() => _isLinkingGoogle = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      await currentUser!.linkWithCredential(credential);
+
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .get();
+      final Map<String, dynamic>? currentUserData = userDoc.data();
+
+      Map<String, dynamic> updateData = {};
+
+      final currentDisplayName = currentUserData?['displayName'] as String?;
+      if (currentDisplayName == null || currentDisplayName.isEmpty) {
+        updateData['displayName'] =
+            currentUser!.displayName ?? googleUser.displayName;
+      }
+
+      final currentAvatarPath = currentUserData?['avatarPath'] as String?;
+      if (currentAvatarPath == null || currentAvatarPath.isEmpty) {
+        updateData['avatarPath'] = currentUser!.photoURL ?? googleUser.photoUrl;
+      }
+
+      if (updateData.isNotEmpty) {
+        await _firestore
+            .collection('users')
+            .doc(currentUser!.uid)
+            .update(updateData);
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google account linked successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Failed to link Google account.';
+      if (e.code == 'provider-already-linked') {
+        errorMessage = 'This Google account is already linked to another user.';
+      } else if (e.code == 'credential-already-in-use') {
+        errorMessage = 'This Google account is already in use by another user.';
+      }
+      await _googleSignIn.signOut();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        );
+      }
+    } catch (e) {
+      print("Error linking Google account: $e");
+      await _googleSignIn.signOut();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to link Google account. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLinkingGoogle = false);
+      }
+    }
+  }
+
+  // ADDED: Function to set a password for a Google-only user
+  Future<void> _setPassword() async {
+    if (_isSettingPassword || currentUser == null) return;
+    final TextEditingController passwordController = TextEditingController();
+    final TextEditingController confirmPasswordController =
+        TextEditingController();
+
+    bool? result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Set Password',
+          style: GoogleFonts.montserrat(
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFFB41214),
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Set a password to enable email/password login for your account.',
+              style: GoogleFonts.montserrat(),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'New Password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Confirm Password',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (passwordController.text.isEmpty ||
+                  confirmPasswordController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please fill in all fields')),
+                );
+                return;
+              }
+              if (passwordController.text != confirmPasswordController.text) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Passwords do not match')),
+                );
+                return;
+              }
+              if (passwordController.text.length < 6) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Password must be at least 6 characters'),
+                  ),
+                );
+                return;
+              }
+              Navigator.pop(context, true);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFB41214),
+            ),
+            child: const Text('Set Password'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true) {
+      setState(() => _isSettingPassword = true);
+      try {
+        final AuthCredential credential = EmailAuthProvider.credential(
+          email: currentUser!.email!,
+          password: passwordController.text,
+        );
+        await currentUser!.linkWithCredential(credential);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Password set successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        String errorMessage = 'Failed to set password.';
+        if (e.code == 'provider-already-linked') {
+          errorMessage = 'Password is already set for this account.';
+        } else if (e.code == 'email-already-in-use') {
+          errorMessage = 'This email is already in use by another account.';
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+          );
+        }
+      } catch (e) {
+        print("Error setting password: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to set password. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isSettingPassword = false);
+        }
+      }
+    }
+  }
+
+  Future<void> _changePassword() async {
+    // NOTE: Hardcoded colors used throughout the function.
+    const Color primaryRed = Color(0xFFB41214);
+    const Color textPrimary = Color(0xFF1A1D1F);
+    const Color textSecondary = Color(0xFF6F767E);
+    const Color backgroundColor = Color(0xFFF8F9FA);
+
+    if (_isChangingPassword || currentUser == null || !_hasPasswordProvider) {
+      return;
+    }
+
+    final TextEditingController currentPasswordController =
+        TextEditingController();
+    final TextEditingController newPasswordController = TextEditingController();
+    final TextEditingController confirmPasswordController =
+        TextEditingController();
+
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+    // NOTE: The _buildPasswordTextField helper is replaced by the stateful
+    // _PasswordTextFieldWithToggle widget defined above.
+
+    bool? result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: viewInsets),
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
+            ),
+            decoration: const BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(25),
+                topRight: Radius.circular(25),
+              ),
+            ),
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 15),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+
+                    Text(
+                      'Change Your Password',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: primaryRed,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Text(
+                      'You must re-authenticate with your current password for security before setting a new one.',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        color: textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+
+                    // 1. Current Password Field (using the new widget)
+                    _PasswordTextFieldWithToggle(
+                      controller: currentPasswordController,
+                      labelText: 'Current Password',
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your current password.';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    // 2. New Password Field (using the new widget)
+                    _PasswordTextFieldWithToggle(
+                      controller: newPasswordController,
+                      labelText: 'New Password',
+                      validator: (value) {
+                        if (value == null || value.length < 6) {
+                          return 'New password must be at least 6 characters.';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    // 3. Confirm New Password Field (using the new widget)
+                    _PasswordTextFieldWithToggle(
+                      controller: confirmPasswordController,
+                      labelText: 'Confirm New Password',
+                      validator: (value) {
+                        if (value != newPasswordController.text) {
+                          return 'Passwords do not match.';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            style: TextButton.styleFrom(
+                              foregroundColor: textSecondary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.montserrat(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (formKey.currentState!.validate()) {
+                                Navigator.pop(context, true);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryRed,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              'Update Password',
+                              style: GoogleFonts.montserrat(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    // ... (rest of the Firebase logic remains the same)
+    if (result == true) {
+      setState(() => _isChangingPassword = true);
+      try {
+        final AuthCredential credential = EmailAuthProvider.credential(
+          email: currentUser!.email!,
+          password: currentPasswordController.text,
+        );
+        await currentUser!.reauthenticateWithCredential(credential);
+
+        await currentUser!.updatePassword(newPasswordController.text);
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Password changed successfully!'),
+              backgroundColor: Color(0xFF4CAF50),
+            ),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        String errorMessage = 'Failed to change password.';
+        // ... (error handling logic)
+
+        if (e.code == 'wrong-password') {
+          errorMessage = 'The current password you entered is incorrect.';
+        } else if (e.code == 'weak-password') {
+          errorMessage = 'The new password is too weak.';
+        } else if (e.code == 'requires-recent-login') {
+          errorMessage = 'Please log in again to change your password.';
+        }
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(errorMessage), backgroundColor: primaryRed),
+          );
+        }
+      } catch (e) {
+        print("Error changing password: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('An unexpected error occurred. Please try again.'),
+              backgroundColor: primaryRed,
+            ),
+          );
+        }
+      } finally {
+        currentPasswordController.dispose();
+        newPasswordController.dispose();
+        confirmPasswordController.dispose();
+        if (mounted) {
+          setState(() => _isChangingPassword = false);
+        }
+      }
+    }
+  }
+
+  // --- START: New Helper Widget for UI Consistency (Color Hardcoded) ---
+  Widget _buildSecurityOption({
+    required IconData icon,
+    required String title,
+    required VoidCallback? onPressed,
+    String? statusText,
+    int? statusColorValue, // Use int for Color(value)
+    bool isLoading = false,
+    Widget? leadingWidget,
+  }) {
+    // NOTE: These colors are hardcoded as requested.
+    final Color primaryRed = const Color(0xFFB41214);
+    final Color textPrimary = const Color(0xFF1A1D1F);
+    final Color textSecondary = const Color(0xFF6F767E);
+    final Color surfaceColor = Colors.white;
+
+    final Color statusColor = statusColorValue != null
+        ? Color(statusColorValue)
+        : textSecondary;
+
+    return Padding(
+      // Added vertical padding here to space out the individual "cards"
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(
+          15,
+        ), // Slightly larger radius for the ink well effect
+        child: Material(
+          color: surfaceColor,
+          // Using slight elevation to give a modern "lifted" card effect
+          elevation: 1.0,
+          borderRadius: BorderRadius.circular(15),
+          shadowColor: Colors.black.withOpacity(0.1),
+          child: Container(
+            // Adjusted padding to be symmetrical inside the card
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(15),
+              // Light border when enabled, stronger border if disabled or error state (optional)
+              border: Border.all(
+                color: onPressed == null
+                    ? Colors.grey.shade200
+                    : Colors
+                          .transparent, // Border is usually removed when elevation is used
+                width: 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                // Leading Icon or Widget
+                leadingWidget ??
+                    Icon(
+                      icon,
+                      color: onPressed == null ? Colors.grey : primaryRed,
+                      size: 24,
+                    ),
+                const SizedBox(width: 16),
+
+                // Title and Status
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.montserrat(
+                          fontWeight: FontWeight.w600,
+                          color: textPrimary,
+                          fontSize: 15,
+                        ),
+                      ),
+                      if (statusText != null)
+                        Text(
+                          statusText,
+                          style: GoogleFonts.montserrat(
+                            color: statusColor,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+
+                // Trailing Indicator (Loading or Arrow)
+                isLoading
+                    ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(primaryRed),
+                        ),
+                      )
+                    : Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: onPressed == null
+                            ? Colors.grey[400]
+                            : textSecondary,
+                        size: 16,
+                      ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  // --- END: New Helper Widget ---
+
+  // ADDED: Function to build the entire account linking UI section
+  // NOTE: This version removes the dependency on the external _buildCard widget.
+  Widget _buildAccountLinkingSection() {
+    // NOTE: These colors are hardcoded as requested.
+    final Color primaryRed = const Color(0xFFB41214);
+    final Color textPrimary = const Color(0xFF1A1D1F);
+    final Color textSecondary = const Color(0xFF6F767E);
+
+    // Use a simplified version of _sectionTitle for consistency
+    Widget _sectionTitle(String title) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12.0),
+        child: Text(
+          title,
+          style: GoogleFonts.montserrat(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: textPrimary,
+          ),
+        ),
+      );
+    }
+
+    if (!_isCurrentUser || currentUser == null) return const SizedBox();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 20),
+        _sectionTitle("Account Security & Linking"),
+
+        // 1. Change Password (for email/password users)
+        if (_hasPasswordProvider)
+          _buildSecurityOption(
+            icon: Icons.lock_reset_rounded,
+            title: "Change Password",
+            statusText: "Update your current login password",
+            onPressed: _isChangingPassword ? null : _changePassword,
+            isLoading: _isChangingPassword,
+          ),
+
+        // 2. Link Google Account (for email/password users)
+        if (!_hasGoogleProvider && _hasPasswordProvider)
+          _buildSecurityOption(
+            icon: Icons.link_rounded,
+            title: "Link Google Account",
+            statusText: "Enable one-tap login with Google",
+            statusColorValue: 0xFF4285F4, // Google Blue
+            onPressed: _isLinkingGoogle ? null : _linkGoogleAccount,
+            isLoading: _isLinkingGoogle,
+            // Use the custom leading widget for the Google icon
+            leadingWidget: Image.asset(
+              "assets/google icon.png",
+              height: 24,
+              width: 24,
+            ),
+          ),
+
+        // 3. Set Password (for Google users)
+        if (!_hasPasswordProvider && _hasGoogleProvider)
+          _buildSecurityOption(
+            icon: Icons.lock_outline_rounded,
+            title: "Set Password",
+            statusText: "Add a password for email login access",
+            onPressed: _isSettingPassword ? null : _setPassword,
+            isLoading: _isSettingPassword,
+          ),
+
+        // 4. Show current linked providers (Enhanced visualization)
+        if (_hasGoogleProvider || _hasPasswordProvider)
+          Padding(
+            // Use padding to separate this info block from the buttons above
+            padding: const EdgeInsets.only(top: 10.0, bottom: 8.0),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                // Use a very light background to distinguish it from the elevated buttons
+                color: const Color(0xFFF8F9FA),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Active Login Methods:",
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  if (_hasPasswordProvider)
+                    Padding(
+                      padding: EdgeInsets.only(
+                        bottom: _hasGoogleProvider ? 6.0 : 0.0,
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.email_rounded,
+                            size: 20,
+                            color: FollowPage.primaryRed,
+                          ), // Green for Email
+                          const SizedBox(width: 8),
+                          Text(
+                            "Email/Password",
+                            style: GoogleFonts.montserrat(
+                              fontSize: 13,
+                              color: textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  if (_hasGoogleProvider)
+                    Row(
+                      children: [
+                        Image.asset(
+                          "assets/google icon.png",
+                          height: 20,
+                          width: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Google Account",
+                          style: GoogleFonts.montserrat(
+                            fontSize: 13,
+                            color: textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  // ADDED: Function to toggle follow/unfollow status
   Future<void> _toggleFollow() async {
     if (currentUser == null) return;
-
     setState(() {
       _isFollowLoading = true;
     });
-
     try {
-      final currentUserRef = _firestore.collection('users').doc(currentUser!.uid);
+      final currentUserRef = _firestore
+          .collection('users')
+          .doc(currentUser!.uid);
       final targetUserRef = _firestore.collection('users').doc(_targetUserId);
-      final followRef = currentUserRef.collection('following').doc(_targetUserId);
+      final followRef = currentUserRef
+          .collection('following')
+          .doc(_targetUserId);
 
       if (_isFollowing) {
         // Unfollow
         await followRef.delete();
-        
-        // Update follower count for target user
-        await targetUserRef.update({
-          'followerCount': FieldValue.increment(-1),
-        });
-
-        // Update following count for current user
+        await targetUserRef.update({'followerCount': FieldValue.increment(-1)});
         await currentUserRef.update({
           'followingCount': FieldValue.increment(-1),
         });
-
         setState(() {
           _isFollowing = false;
         });
@@ -178,24 +982,16 @@ class _ProfilePageState extends State<ProfilePage> {
           'followedAt': FieldValue.serverTimestamp(),
           'targetUserId': _targetUserId,
         });
-
-        // Update follower count for target user
-        await targetUserRef.update({
-          'followerCount': FieldValue.increment(1),
-        });
-
-        // Update following count for current user
+        await targetUserRef.update({'followerCount': FieldValue.increment(1)});
         await currentUserRef.update({
           'followingCount': FieldValue.increment(1),
         });
-
         setState(() {
           _isFollowing = true;
         });
       }
     } catch (e) {
       print("Error toggling follow: $e");
-      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -209,7 +1005,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // Build follow button for other users' profiles
+  // ADDED: Function to build the follow/following button
   Widget _buildFollowButton() {
     return _isFollowLoading
         ? Container(
@@ -231,10 +1027,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               backgroundColor: _isFollowing ? Colors.white : Colors.transparent,
               foregroundColor: _isFollowing ? Colors.black : Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 6,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -249,7 +1042,7 @@ class _ProfilePageState extends State<ProfilePage> {
           );
   }
 
-  // Build back button
+  // ADDED: Function to build the back button
   Widget _buildBackButton() {
     return IconButton(
       icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -261,7 +1054,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   String _getYearLevelString(dynamic yearLevel) {
     try {
-      // Handle both int and string types
       int level;
       if (yearLevel is int) {
         level = yearLevel;
@@ -290,7 +1082,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // Helper method to safely get data from Firestore
   dynamic _getUserData(
     Map<String, dynamic>? userData,
     String key, {
@@ -302,10 +1093,17 @@ class _ProfilePageState extends State<ProfilePage> {
     return userData[key];
   }
 
+  // ADDED: Helper method to handle both network and asset images for the avatar
+  ImageProvider _getAvatarImageProvider(String path) {
+    if (path.startsWith('http') || path.startsWith('https')) {
+      return NetworkImage(path);
+    } else {
+      return AssetImage(path);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final textScale = MediaQuery.of(context).textScaleFactor;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
@@ -330,31 +1128,19 @@ class _ProfilePageState extends State<ProfilePage> {
                       .doc(_targetUserId)
                       .snapshots(),
                   builder: (context, snapshot) {
-                    print(
-                      "StreamBuilder snapshot state: ${snapshot.connectionState}",
-                    );
-                    print("StreamBuilder has data: ${snapshot.hasData}");
-                    if (snapshot.hasError) {
-                      print("StreamBuilder error: ${snapshot.error}");
-                    }
-
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return _buildHeaderLoading();
                     }
-
                     if (!snapshot.hasData || !snapshot.data!.exists) {
                       return _buildHeaderPlaceholder();
                     }
-
                     final userData =
                         snapshot.data!.data() as Map<String, dynamic>?;
-                    print("User data received: $userData");
                     return _buildHeaderContent(userData, context);
                   },
                 ),
               ),
             ),
-
             StreamBuilder<DocumentSnapshot>(
               stream: _firestore
                   .collection('users')
@@ -364,11 +1150,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return _buildBodyLoading();
                 }
-
                 if (!snapshot.hasData || !snapshot.data!.exists) {
                   return _buildBodyPlaceholder();
                 }
-
                 final userData = snapshot.data!.data() as Map<String, dynamic>?;
                 return _buildBodyContent(userData, context);
               },
@@ -383,10 +1167,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Add back button for non-current users
-        if (!_isCurrentUser)
-          _buildBackButton(),
-        
+        // MODIFIED: Conditionally show back button
+        if (!_isCurrentUser) _buildBackButton(),
         Text(
           _isCurrentUser ? "My Profile" : "Profile",
           style: GoogleFonts.montserrat(
@@ -413,7 +1195,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 8),
                   Container(width: 100, height: 16, color: Colors.white24),
                   const SizedBox(height: 8),
-                  // Show edit button for current user, follow button for others
+                  // MODIFIED: Conditionally show edit/follow button
                   if (_isCurrentUser)
                     OutlinedButton(
                       onPressed: null,
@@ -452,10 +1234,8 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Add back button for non-current users
-        if (!_isCurrentUser)
-          _buildBackButton(),
-          
+        // MODIFIED: Conditionally show back button
+        if (!_isCurrentUser) _buildBackButton(),
         Text(
           _isCurrentUser ? "My Profile" : "Profile",
           style: GoogleFonts.montserrat(
@@ -495,7 +1275,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Show edit button for current user, follow button for others
+                  // MODIFIED: Conditionally show edit/follow button
                   if (_isCurrentUser)
                     OutlinedButton(
                       onPressed: () {
@@ -537,16 +1317,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  ImageProvider _getAvatarImageProvider(String path) {
-    if (path.startsWith('http') || path.startsWith('https')) {
-      // It's a network URL (e.g., from Google Sign-In or Firebase Storage)
-      return NetworkImage(path);
-    } else {
-      // It's a local asset path
-      return AssetImage(path);
-    }
-  }
-
   Widget _buildHeaderContent(
     Map<String, dynamic>? userData,
     BuildContext context,
@@ -564,14 +1334,12 @@ class _ProfilePageState extends State<ProfilePage> {
       'avatarPath',
       defaultValue: "assets/cce_male.jpg",
     );
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Add back button for non-current users
-        if (!_isCurrentUser)
-          _buildBackButton(),
-          
+        // MODIFIED: Conditionally show back button
+        if (!_isCurrentUser) _buildBackButton(),
         Text(
           _isCurrentUser ? "My Profile" : "Profile",
           style: GoogleFonts.montserrat(
@@ -584,6 +1352,7 @@ class _ProfilePageState extends State<ProfilePage> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            // MODIFIED: Use the helper for cleaner code
             CircleAvatar(
               radius: 45,
               backgroundImage: _getAvatarImageProvider(avatarPath.toString()),
@@ -609,7 +1378,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Show edit button for current user, follow button for others
+                  // MODIFIED: Conditionally show edit/follow button
                   if (_isCurrentUser)
                     OutlinedButton(
                       onPressed: () {
@@ -709,7 +1478,6 @@ class _ProfilePageState extends State<ProfilePage> {
               color: Colors.grey[200],
             ),
           ),
-          // Only show logout button for current user
           if (_isCurrentUser) ...[
             const SizedBox(height: 40),
             buildLogoutButton(context),
@@ -721,7 +1489,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildBodyPlaceholder() {
-    // This is the card that needs dynamic content for the placeholder state
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
       child: Column(
@@ -735,14 +1502,10 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              // FIX: Use a neutral gradient for placeholder
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFCCCCCC), // Neutral Gray
-                  Color(0xFFEEEEEE), // Very Light Gray
-                ],
+                colors: [Color(0xFFCCCCCC), Color(0xFFEEEEEE)],
               ),
               boxShadow: [
                 BoxShadow(
@@ -760,7 +1523,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  // FIX: Use a default placeholder image/icon
                   child: Image.asset(
                     "assets/depLogo/defaultlogo.png",
                     height: 36,
@@ -805,7 +1567,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ? "No bio yet. You can add one by editing your profile."
                 : "No bio available",
           ),
-          // Only show logout button for current user
           if (_isCurrentUser) ...[
             const SizedBox(height: 40),
             buildLogoutButton(context),
@@ -815,9 +1576,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
-  // NOTE: Removed the separate getDepartmentPrimaryColor function as its logic
-  // is now contained in the DepartmentData class for a cleaner structure.
 
   Widget _buildBodyContent(
     Map<String, dynamic>? userData,
@@ -845,19 +1603,13 @@ class _ProfilePageState extends State<ProfilePage> {
       'weaknesses',
       defaultValue: <String>[],
     );
-    final bio = _getUserData(
-      userData,
-      'bio',
-      defaultValue: _isCurrentUser
-          ? "No bio yet. You can add one by editing your profile."
-          : "No bio available",
-    );
-
-    // FIX: Get the correct department logo path dynamically
+    final rawBio = _getUserData(userData, 'bio');
+    final bio = (rawBio == null || rawBio.trim().isEmpty)
+        ? 'No Bio Added'
+        : rawBio;
     final departmentLogo = DepartmentData.getDepartmentLogoPath(
       department.toString(),
     );
-    // FIX: Get the dynamic gradient colors
     final departmentColors = DepartmentData.getGradientColors(
       department.toString(),
     );
@@ -875,7 +1627,6 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              // FIX: Use dynamic colors from DepartmentData
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -897,7 +1648,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  // FIX: Use dynamic department logo path
                   child: Image.asset(departmentLogo, height: 36),
                 ),
                 const SizedBox(width: 16),
@@ -928,16 +1678,10 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
           ),
-
           const SizedBox(height: 15),
-
-          /// Bio Section - Always show this
           _sectionTitle("My Bio"),
           _infoCard(bio.toString()),
-
           const SizedBox(height: 15),
-
-          /// Strengths Section
           if (strengths is List && strengths.isNotEmpty)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -951,8 +1695,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 15),
               ],
             ),
-
-          /// Weaknesses Section
           if (weaknesses is List && weaknesses.isNotEmpty)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -966,8 +1708,8 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 15),
               ],
             ),
-
-          // Only show logout button for current user
+          // MODIFIED: Conditionally show account linking section
+          if (_isCurrentUser) _buildAccountLinkingSection(),
           if (_isCurrentUser) ...[
             const SizedBox(height: 40),
             buildLogoutButton(context),
@@ -1042,7 +1784,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Keep all your existing helper methods
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1164,8 +1905,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 }
-
-// Keep the rest of your existing methods (buildLogoutButton, _showLogoutConfirmation, _HeaderClipper)
 
 Widget buildLogoutButton(BuildContext context) {
   return Container(
@@ -1345,7 +2084,7 @@ class _HeaderClipper extends CustomClipper<Path> {
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
 }
 
-/// Full-screen Sign Out Page - Facebook style
+/// ADDED: Full-screen Sign Out Page
 class _SignOutPage extends StatefulWidget {
   const _SignOutPage();
 
@@ -1364,22 +2103,15 @@ class _SignOutPageState extends State<_SignOutPage> {
     final googleSignIn = GoogleSignIn();
 
     try {
-      // Add a small delay to show the loading screen
       await Future.delayed(const Duration(milliseconds: 1500));
-
-      // Sign out from Firebase
       await FirebaseAuth.instance.signOut();
-
-      // Disconnect Google account (forces account picker next time)
       await googleSignIn.disconnect();
       await googleSignIn.signOut();
-
       print("User logged out and disconnected from Google.");
     } catch (e) {
       print("Error during logout: $e");
     }
 
-    // Navigate to login page after logout
     if (mounted) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -1397,16 +2129,12 @@ class _SignOutPageState extends State<_SignOutPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // App Logo
             Image.asset(
               "assets/icon/logoIconMaroon.png",
               width: 80,
               height: 80,
             ),
-
             const SizedBox(height: 32),
-
-            // Simple loading indicator
             const SizedBox(
               width: 28,
               height: 28,
@@ -1415,10 +2143,7 @@ class _SignOutPageState extends State<_SignOutPage> {
                 valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB41214)),
               ),
             ),
-
             const SizedBox(height: 20),
-
-            // Simple text
             Text(
               "Signing out",
               style: GoogleFonts.montserrat(

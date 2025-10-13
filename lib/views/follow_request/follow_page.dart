@@ -273,11 +273,17 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
 
   // Accept Follow Request: completes the follow, deletes pending requests
   Future<void> _acceptRequest() async {
-    if (_isProcessing) return;
+    print('🔥🔥🔥 ACCEPT REQUEST METHOD CALLED 🔥🔥🔥');
+    if (_isProcessing) {
+      print('🔥🔥🔥 ALREADY PROCESSING, RETURNING 🔥🔥🔥');
+      return;
+    }
     setState(() => _isProcessing = true);
+    print('🔥🔥🔥 SET PROCESSING TO TRUE 🔥🔥🔥');
     try {
       final currentUid = FirebaseAuth.instance.currentUser!.uid;
       final fromUid = widget.uid;
+      print('🔥🔥🔥 GOT UIDS: currentUid=$currentUid, fromUid=$fromUid 🔥🔥🔥');
       final batch = FirebaseFirestore.instance.batch();
 
       // 1. Delete all pending requests between users
@@ -304,13 +310,16 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       // You're in their followers
       batch.set(fromUserRef.collection('followers').doc(currentUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
 
+      print('🔥🔥🔥 ABOUT TO COMMIT BATCH 🔥🔥🔥');
       await batch.commit();
+      print('🔥🔥🔥 BATCH COMMITTED SUCCESSFULLY 🔥🔥🔥');
 
+      // Let the home page handle the matched page display
+      print('🚀🚀🚀 FOLLOW PAGE: Batch committed, home page will handle matched page 🚀🚀🚀');
+      
       if (mounted) {
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("You are now following ${widget.name}!"), backgroundColor: Colors.green));
-        
-        // Show matched page after accepting follow request
-        _showMatchedPage(fromUid);
       }
     } catch (e) {
       if (mounted) {
@@ -342,9 +351,13 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
 
   Future<void> _showMatchedPage(String targetUid) async {
     try {
+      print('DEBUG: _showMatchedPage called for targetUid: $targetUid');
       // Get current user data
       final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) return;
+      if (currentUser == null) {
+        print('DEBUG: Current user is null, cannot show matched page');
+        return;
+      }
 
       final currentUserDoc = await FirebaseFirestore.instance
           .collection('users')
@@ -360,9 +373,10 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
         final currentUserData = currentUserDoc.data()!;
         final targetUserData = targetUserDoc.data()!;
 
-        if (mounted) {
-          Navigator.push(
-            context,
+        print('DEBUG: Both user documents exist, attempting to navigate to matched page');
+        try {
+          // Use Navigator.of(context, rootNavigator: true) to ensure navigation works even if widget is unmounted
+          await Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute(
               builder: (context) => MatchedPage(
                 currentUserAvatar: currentUserData['avatarPath'] ?? currentUserData['avatar'],
@@ -380,7 +394,12 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
               ),
             ),
           );
+          print('DEBUG: Matched page navigation completed successfully');
+        } catch (e) {
+          print('DEBUG: Error during navigation: $e');
         }
+      } else {
+        print('DEBUG: User documents do not exist - currentUserDoc.exists: ${currentUserDoc.exists}, targetUserDoc.exists: ${targetUserDoc.exists}');
       }
     } catch (e) {
       debugPrint('Error showing matched page: $e');
