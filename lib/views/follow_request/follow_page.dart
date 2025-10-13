@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/profile/profile_page.dart';
 import 'package:unimind/views/match/matched.dart';
+import 'package:unimind/widgets/custom_snackbar.dart';
 
 
 String getYearLevelString(dynamic yearLevel) {
@@ -319,11 +320,11 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       
       if (mounted) {
         // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("You are now following ${widget.name}!"), backgroundColor: Colors.green));
+        SnackBarHelper.showFollowSuccess(context, "You are now following ${widget.name}!");
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error accepting request: ${e.toString()}"), backgroundColor: primaryRed));
+        SnackBarHelper.showError(context, "Error accepting request: ${e.toString()}");
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -338,11 +339,11 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       await FirebaseFirestore.instance.collection('followRequests').doc(widget.requestDocId).delete();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Rejected follow request from ${widget.name}."), backgroundColor: textColorSecondary));
+        SnackBarHelper.showInfo(context, "Rejected follow request from ${widget.name}.");
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error rejecting request: ${e.toString()}"), backgroundColor: primaryRed));
+        SnackBarHelper.showError(context, "Error rejecting request: ${e.toString()}");
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);

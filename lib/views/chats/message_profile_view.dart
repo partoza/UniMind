@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:unimind/widgets/custom_snackbar.dart';
 
 // A class to handle all department-related data and logic.
 class DepartmentData {
@@ -325,7 +326,12 @@ class _MessageProfileViewState extends State<MessageProfileView> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            CircleAvatar(radius: 45, backgroundImage: AssetImage(avatarPath)),
+            CircleAvatar(
+              radius: 45,
+              backgroundImage: avatarPath.toString().startsWith('http')
+                  ? NetworkImage(avatarPath.toString()) as ImageProvider
+                  : AssetImage(avatarPath.toString()),
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(
@@ -938,22 +944,12 @@ class _MessageProfileViewState extends State<MessageProfileView> {
         });
         
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Follow request sent!"),
-              backgroundColor: Colors.green,
-            ),
-          );
+          SnackBarHelper.showPendingRequest(context, "Follow request sent!");
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error sending follow request: ${e.toString()}"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, "Error sending follow request: ${e.toString()}");
       }
     }
   }
@@ -1017,21 +1013,11 @@ class _MessageProfileViewState extends State<MessageProfileView> {
       await batch.commit();
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Unfollowed successfully"),
-            backgroundColor: Colors.orange,
-          ),
-        );
+        SnackBarHelper.showUnfollowSuccess(context, "Unfollowed successfully");
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error unfollowing: ${e.toString()}"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, "Error unfollowing: ${e.toString()}");
       }
     }
   }
@@ -1077,21 +1063,11 @@ class _MessageProfileViewState extends State<MessageProfileView> {
       await batch.commit();
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("You are now following each other!"),
-            backgroundColor: Colors.green,
-          ),
-        );
+        SnackBarHelper.showFollowSuccess(context, "You are now following each other!");
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error accepting request: ${e.toString()}"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        SnackBarHelper.showError(context, "Error accepting request: ${e.toString()}");
       }
     }
   }

@@ -408,7 +408,12 @@ class _ProfilePageState extends State<ProfilePage> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            CircleAvatar(radius: 45, backgroundImage: AssetImage(avatarPath)),
+            CircleAvatar(
+              radius: 45,
+              backgroundImage: avatarPath.toString().startsWith('http')
+                  ? NetworkImage(avatarPath.toString()) as ImageProvider
+                  : AssetImage(avatarPath.toString()),
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

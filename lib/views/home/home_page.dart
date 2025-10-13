@@ -12,6 +12,7 @@ import 'package:unimind/views/profile/qr_scanner_page.dart';
 import 'package:unimind/views/home/filter_page.dart';
 import 'package:unimind/views/match/matched.dart';
 import 'package:unimind/widgets/loading_widget.dart';
+import 'package:unimind/widgets/custom_snackbar.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -1436,12 +1437,7 @@ class _HomePageState extends State<HomePage> {
                 ),
               );
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Please log in to view QR code'),
-                  backgroundColor: Colors.red,
-                ),
-              );
+              SnackBarHelper.showError(context, 'Please log in to view QR code');
             }
           },
         );
