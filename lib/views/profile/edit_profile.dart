@@ -464,7 +464,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       final currentUser = _auth.currentUser;
       if (currentUser != null) {
-        // 🛑 1. Get the program acronym before preparing data
         final String programAcronym = _getProgramAcronym(selectedDepartment!, selectedProgram!);
 
         // 2. Prepare update data
@@ -474,8 +473,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
           'yearLevel': _getYearNumber(selectedYear!),
           'department': selectedDepartment,
           'program': selectedProgram,
-          'programAcronym': programAcronym, // 🛑 ADDED: Program Acronym
-          'place': selectedBuilding, // 🛑 Confirmed: This saves the 'place' value (e.g., "PS Building")
+          'programAcronym': programAcronym, 
+          'place': selectedBuilding, 
           'bio': _bioController.text.trim(),
           'strengths': selectedSkills,
           'weaknesses': selectedBetterSkills,
@@ -621,7 +620,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             "My Top Skills (Strengths) (Max 3)", // Updated label
                             allSkills,
                             selectedSkills,
-                            // 🛑 UPDATED LOGIC FOR MAXIMUM 3 SKILLS
                             (skill, selected) {
                               setState(() {
                                 if (selected) {
@@ -877,7 +875,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               _buildModalOption(
                 icon: Icons.upload_file_rounded,
                 title: "Upload Photo",
-                subtitle: "Upload from your gallery (uses IBB service)",
+                subtitle: "Upload from your gallery",
                 onTap: _handleImageUpload,
               ),
               SizedBox(height: 10),
@@ -1231,7 +1229,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 // Update program
                 selectedProgram = _getDefaultProgram(val);
                 
-                // 🛑 Avatar synchronization logic
                 if (oldDepartment != null) {
                   final String oldAvatarPath = _getDefaultAvatarPath(oldDepartment);
                   final String newAvatarPath = _getDefaultAvatarPath(val);

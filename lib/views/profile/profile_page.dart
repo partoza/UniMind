@@ -375,6 +375,16 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  ImageProvider _getAvatarImageProvider(String path) {
+    if (path.startsWith('http') || path.startsWith('https')) {
+      // It's a network URL (e.g., from Google Sign-In or Firebase Storage)
+      return NetworkImage(path);
+    } else {
+      // It's a local asset path
+      return AssetImage(path);
+    }
+  }
+
   Widget _buildHeaderContent(
     Map<String, dynamic>? userData,
     BuildContext context,
@@ -392,7 +402,6 @@ class _ProfilePageState extends State<ProfilePage> {
       'avatarPath',
       defaultValue: "assets/cce_male.jpg",
     );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -408,7 +417,10 @@ class _ProfilePageState extends State<ProfilePage> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            CircleAvatar(radius: 45, backgroundImage: AssetImage(avatarPath)),
+            CircleAvatar(
+              radius: 45,
+              backgroundImage: _getAvatarImageProvider(avatarPath.toString()),
+            ),
             const SizedBox(width: 16),
             Expanded(
               child: Column(

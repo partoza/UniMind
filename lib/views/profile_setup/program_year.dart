@@ -3,7 +3,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
 
 class ProgramYearSelect extends StatefulWidget {
-  // 💡 Updated callback to include programAcronym and automatically determined place
   final Function(String?, String?, int?, String?) onSelect;
   final String departmentCode;
 
@@ -19,11 +18,10 @@ class ProgramYearSelect extends StatefulWidget {
 
 class _ProgramYearSelectState extends State<ProgramYearSelect> {
   String? selectedProgram;
-  String? selectedProgramAcronym; // 💡 New state for the acronym
+  String? selectedProgramAcronym;
   int? selectedYear;
-  String? selectedPlace; // 💡 New state for the place (auto-determined)
+  String? selectedPlace;
 
-  // 💡 Comprehensive map updated with 'place' and restructured 'programs' to include acronyms
   final Map<String, Map<String, dynamic>> _departmentData = {
     "CAE": {
       "name": "College of Accounting Education",
@@ -33,7 +31,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Accounting Information System": "BSAIS",
         "Bachelor of Science in Internal Audit": "BSIA",
         "Bachelor of Science in Management Accounting": "BSMA",
-      }
+      },
     },
     "CAFAE": {
       "name": "College of Architecture and Fine Arts Education",
@@ -43,20 +41,24 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Fine Arts (Major in Painting)": "BFA",
         "Bachelor of Science in Urban and Regional Planning": "BSURP",
         "Bachelor of Science in Interior Design": "BSID",
-      }
+      },
     },
     "CBAE": {
       "name": "College of Business Administration Education",
       "place": "Bolton Campus",
       "programs": {
-        "Bachelor of Science in Business Administration Major in Financial Management": "BSBA-FM",
-        "Bachelor of Science in Business Administration Major in Human Resource Management": "BSBA-HRM",
-        "Bachelor of Science in Business Administration Major in Marketing Management": "BSBA-MM",
-        "Bachelor of Science in Business Administration Major in Business Economics": "BSBA-BE",
+        "Bachelor of Science in Business Administration Major in Financial Management":
+            "BSBA-FM",
+        "Bachelor of Science in Business Administration Major in Human Resource Management":
+            "BSBA-HRM",
+        "Bachelor of Science in Business Administration Major in Marketing Management":
+            "BSBA-MM",
+        "Bachelor of Science in Business Administration Major in Business Economics":
+            "BSBA-BE",
         "Bachelor of Science in Entrepreneurship": "BSEnt",
         "Bachelor of Science in Legal Management": "BSLM",
         "Bachelor of Science in Real Estate Management": "BSREM",
-      }
+      },
     },
     "CCE": {
       "name": "College of Computing Education",
@@ -65,11 +67,13 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Information Technology": "BSIT",
         "Bachelor of Science in Information Systems": "BSIS",
         "Bachelor of Science in Computer Science": "BSCS",
-        "Bachelor of Science in Entertainment and Multimedia Computing (Game Development)": "BSEMC-GD",
-        "Bachelor of Science in Entertainment and Multimedia Computing (Digital Animation Technology)": "BSEMC-DA",
+        "Bachelor of Science in Entertainment and Multimedia Computing (Game Development)":
+            "BSEMC-GD",
+        "Bachelor of Science in Entertainment and Multimedia Computing (Digital Animation Technology)":
+            "BSEMC-DA",
         "Bachelor of Library and Information Science": "BLIS",
         "Bachelor of Multimedia Arts": "BMA",
-      }
+      },
     },
     "CHE": {
       "name": "College of Hospitality Education",
@@ -77,7 +81,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
       "programs": {
         "Bachelor of Science in Hospitality Management": "BSHM",
         "Bachelor of Science in Tourism Management": "BSTM",
-      }
+      },
     },
     "CCJE": {
       "name": "College of Criminal Justice Education",
@@ -85,7 +89,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
       "programs": {
         "Bachelor of Science in Criminology": "BSCrim",
         "Bachelor of Science in Industrial Security": "BSISec",
-      }
+      },
     },
     "CASE": {
       "name": "College of Arts and Sciences Education",
@@ -101,10 +105,10 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Environmental Science": "BS EnvSci",
         "Bachelor of Science in Forestry": "BS Forestry",
         "Bachelor of Science in Agroforestry": "BS Agroforestry",
-        "Bachelor of Science in Biology": "BS Bio", // Removed majors for simplicity in the list
+        "Bachelor of Science in Biology": "BS Bio",
         "Bachelor of Science in Mathematics": "BS Math",
         "Bachelor of Science in Social Work": "BSSW",
-      }
+      },
     },
     "CEE": {
       "name": "College of Engineering Education",
@@ -116,7 +120,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Electrical Engineering": "BSEE",
         "Bachelor of Science in Electronics Engineering": "BSECE",
         "Bachelor of Science in Mechanical Engineering": "BSME",
-      }
+      },
     },
     "CHSE": {
       "name": "College of Health Sciences Education",
@@ -126,7 +130,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Science in Nursing": "BSN",
         "Bachelor of Science in Nutrition and Dietetics": "BSND",
         "Bachelor of Science in Pharmacy": "BSP",
-      }
+      },
     },
     "CTE": {
       "name": "College of Teacher Education",
@@ -137,7 +141,7 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
         "Bachelor of Secondary Education": "BSEd",
         "Bachelor of Special Education": "BSEd-SPED",
         "Bachelor of Physical Education": "BPEd",
-      }
+      },
     },
   };
 
@@ -151,12 +155,10 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
   @override
   void initState() {
     super.initState();
-    // Initialize the place based on the departmentCode immediately
     selectedPlace = _departmentData[widget.departmentCode]?["place"];
   }
 
   void _updateSelection() {
-    // 💡 Notify parent with all four pieces of data
     widget.onSelect(
       selectedProgram,
       selectedProgramAcronym,
@@ -165,11 +167,16 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
     );
   }
 
-  String get _departmentName => _departmentData[widget.departmentCode]?["name"] ?? "College Department";
+  String get _departmentName =>
+      _departmentData[widget.departmentCode]?["name"] ?? "College Department";
 
-  Map<String, String> get _departmentPrograms => _departmentData[widget.departmentCode]?["programs"]?.cast<String, String>() ?? {};
+  Map<String, String> get _departmentPrograms =>
+      _departmentData[widget.departmentCode]?["programs"]
+          ?.cast<String, String>() ??
+      {};
 
-  String get _logoPath => "assets/depLogo/${widget.departmentCode.toLowerCase()}logo.png";
+  String get _logoPath =>
+      "assets/depLogo/${widget.departmentCode.toLowerCase()}logo.png";
 
   String _getProgramLabel(String programName, String acronym) {
     return "$programName ($acronym)";
@@ -180,12 +187,14 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
     final size = MediaQuery.of(context).size;
     final filteredPrograms = _departmentPrograms;
 
-    // Define the shared dropdown styles
     final buttonStyle = ButtonStyleData(
       height: 55,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Color(0xFFB41214)),
+        border: Border.all(
+          color: const Color.fromARGB(255, 179, 179, 179),
+          width: 1,
+        ),
         color: Colors.white,
       ),
     );
@@ -199,10 +208,11 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
       ),
     );
 
-    const menuItemStyle = MenuItemStyleData(
-      height: 50,
-    );
+    const menuItemStyle = MenuItemStyleData(height: 50);
 
+    const iconStyle = IconStyleData(
+      icon: Icon(Icons.arrow_drop_down, color: Color.fromARGB(255, 0, 0, 0)),
+    );
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: size.width * 0.1),
@@ -243,7 +253,12 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
               ),
               child: Row(
                 children: [
-                  Image.asset(_logoPath, width: 36, height: 36, fit: BoxFit.cover),
+                  Image.asset(
+                    _logoPath,
+                    width: 36,
+                    height: 36,
+                    fit: BoxFit.cover,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
@@ -290,29 +305,38 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
             DropdownButtonHideUnderline(
               child: DropdownButton2<String>(
                 isExpanded: true,
-                hint: Text("Choose Year",
-                    style: GoogleFonts.montserrat(
-                        fontSize: 14, color: Colors.grey[600])),
+                hint: Text(
+                  "Choose Year",
+                  style: GoogleFonts.montserrat(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                ),
                 value: selectedYear != null ? years[selectedYear! - 1] : null,
                 items: years.map((year) {
                   return DropdownMenuItem<String>(
                     value: year,
-                    child: Text(year,
-                        style: GoogleFonts.montserrat(
-                            fontSize: 14, color: Colors.black)),
+                    child: Text(
+                      year,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        color: Colors.black,
+                      ),
+                    ),
                   );
                 }).toList(),
                 onChanged: (String? value) {
                   setState(() {
-                    selectedYear = value != null ? years.indexOf(value) + 1 : null;
+                    selectedYear = value != null
+                        ? years.indexOf(value) + 1
+                        : null;
                   });
                   _updateSelection();
                 },
-                // Applied common button style
                 buttonStyleData: buttonStyle,
-                // Added common menu item and dropdown styles
                 menuItemStyleData: menuItemStyle,
                 dropdownStyleData: menuStyle,
+                iconStyleData: iconStyle,
               ),
             ),
 
@@ -334,33 +358,99 @@ class _ProgramYearSelectState extends State<ProgramYearSelect> {
             DropdownButtonHideUnderline(
               child: DropdownButton2<String>(
                 isExpanded: true,
-                hint: Text("Choose Program",
-                    style: GoogleFonts.montserrat(
-                        fontSize: 14, color: Colors.grey[600])),
+                hint: SizedBox(
+                  height: 60,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Choose Program",
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
                 value: selectedProgram,
+                selectedItemBuilder: (context) {
+                  return filteredPrograms.entries.map((entry) {
+                    final programName = entry.key;
+                    final acronym = entry.value;
+                    final programLabel = _getProgramLabel(programName, acronym);
+
+                    return SizedBox(
+                      height: 60,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          programLabel,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.montserrat(
+                            fontSize: 14,
+                            color: Colors.black,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList();
+                },
+
                 items: filteredPrograms.entries.map((entry) {
                   final programName = entry.key;
                   final acronym = entry.value;
                   return DropdownMenuItem<String>(
                     value: programName,
-                    child: Text(_getProgramLabel(programName, acronym),
-                        style: GoogleFonts.montserrat(
-                            fontSize: 14, color: Colors.black)),
+                    child: Text(
+                      _getProgramLabel(programName, acronym),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        color: Colors.black,
+                        height: 1.2,
+                      ),
+                    ),
                   );
                 }).toList(),
+
                 onChanged: (String? value) {
                   setState(() {
                     selectedProgram = value;
-                    // Store Program Acronym
-                    selectedProgramAcronym = value != null ? filteredPrograms[value] : null;
+                    selectedProgramAcronym = value != null
+                        ? filteredPrograms[value]
+                        : null;
                   });
                   _updateSelection();
                 },
-                // Applied common button style
-                buttonStyleData: buttonStyle,
-                // Using common menu item and dropdown styles
-                menuItemStyleData: menuItemStyle,
+
+                // FIX 1: ButtonStyleData *does* have copyWith, so this is correct.
+                buttonStyleData: ButtonStyleData(
+                  height: 60, // <-- Set the new height here
+                  width: buttonStyle.width,
+                  padding: buttonStyle.padding,
+                  decoration: buttonStyle.decoration,
+                  elevation: buttonStyle.elevation,
+                  overlayColor: buttonStyle.overlayColor,
+                ),
+
+                // FIX 2: Manually create a new MenuItemStyleData object.
+                menuItemStyleData: MenuItemStyleData(
+                  height: 60, // <-- Set the new height here
+                  // Manually copy other properties if they were set on menuItemStyle
+                  padding: menuItemStyle.padding,
+                  overlayColor: menuItemStyle.overlayColor,
+                  customHeights: menuItemStyle.customHeights,
+                  selectedMenuItemBuilder:
+                      menuItemStyle.selectedMenuItemBuilder,
+                ),
+
                 dropdownStyleData: menuStyle,
+                iconStyleData: iconStyle,
               ),
             ),
 

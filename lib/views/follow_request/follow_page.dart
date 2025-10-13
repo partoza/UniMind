@@ -4,12 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/profile/profile_page.dart';
 
-
 String getYearLevelString(dynamic yearLevel) {
   if (yearLevel == null) return '';
 
   // Handle both String and int types that might come from Firestore
-  final int level = (yearLevel is String) ? int.tryParse(yearLevel) ?? 0 : (yearLevel is int ? yearLevel : 0);
+  final int level = (yearLevel is String)
+      ? int.tryParse(yearLevel) ?? 0
+      : (yearLevel is int ? yearLevel : 0);
 
   switch (level) {
     case 1:
@@ -24,7 +25,6 @@ String getYearLevelString(dynamic yearLevel) {
       return 'Year Level Unknown';
   }
 }
-
 
 class FollowPage extends StatelessWidget {
   const FollowPage({super.key});
@@ -100,7 +100,7 @@ class FollowPage extends StatelessWidget {
                 );
               },
             ),
-            
+
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -109,9 +109,12 @@ class FollowPage extends StatelessWidget {
                     .where("status", isEqualTo: "pending")
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+                  if (snapshot.hasError)
+                    return Center(child: Text('Error: ${snapshot.error}'));
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator(color: primaryRed));
+                    return const Center(
+                      child: CircularProgressIndicator(color: primaryRed),
+                    );
                   }
 
                   final requests = snapshot.data!.docs;
@@ -123,7 +126,7 @@ class FollowPage extends StatelessWidget {
                           // Illustrative Image for no requests
                           Image.asset(
                             'assets/illustrations/follow_request.png', // Replace with your image path
-                            width: 200, 
+                            width: 200,
                             height: 200,
                             fit: BoxFit.contain,
                           ),
@@ -132,17 +135,17 @@ class FollowPage extends StatelessWidget {
                             TextSpan(
                               text: "All caught up!\n", // Line Break added here
                               style: GoogleFonts.montserrat(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                color: textColorPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600, // Slightly bolder
+                                color: Colors.grey.shade700,
                               ),
                               children: [
                                 TextSpan(
                                   text: "No new follow requests.",
                                   style: GoogleFonts.montserrat(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                    color: textColorSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                    color: Colors.grey.shade500,
                                   ),
                                 ),
                               ],
@@ -158,32 +161,44 @@ class FollowPage extends StatelessWidget {
                     itemCount: requests.length,
                     itemBuilder: (context, index) {
                       final request = requests[index];
-                      final requestData = request.data() as Map<String, dynamic>? ?? {};
+                      final requestData =
+                          request.data() as Map<String, dynamic>? ?? {};
                       final fromUid = requestData['fromUid'] as String? ?? '';
                       if (fromUid.isEmpty) return const SizedBox.shrink();
 
                       // Fetch sender details
                       return StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance.collection("users").doc(fromUid).snapshots(),
+                        stream: FirebaseFirestore.instance
+                            .collection("users")
+                            .doc(fromUid)
+                            .snapshots(),
                         builder: (context, userSnap) {
-                          if (!userSnap.hasData || !userSnap.data!.exists) return const SizedBox.shrink();
-                          final userData = userSnap.data!.data() as Map<String, dynamic>? ?? {};
+                          if (!userSnap.hasData || !userSnap.data!.exists)
+                            return const SizedBox.shrink();
+                          final userData =
+                              userSnap.data!.data() as Map<String, dynamic>? ??
+                              {};
 
                           // *** APPLY THE YEAR LEVEL CONVERSION HERE ***
-                          final String displayYearLevel = getYearLevelString(userData['yearLevel']);
-                          final String programAcronym = userData['programAcronym'] ?? '';
-                          
-                          final String displayYearCourse = displayYearLevel.isNotEmpty && programAcronym.isNotEmpty
-                            ? "$displayYearLevel, $programAcronym"
-                            : displayYearLevel.isNotEmpty
-                                ? displayYearLevel
-                                : programAcronym;
+                          final String displayYearLevel = getYearLevelString(
+                            userData['yearLevel'],
+                          );
+                          final String programAcronym =
+                              userData['programAcronym'] ?? '';
 
+                          final String displayYearCourse =
+                              displayYearLevel.isNotEmpty &&
+                                  programAcronym.isNotEmpty
+                              ? "$displayYearLevel, $programAcronym"
+                              : displayYearLevel.isNotEmpty
+                              ? displayYearLevel
+                              : programAcronym;
 
                           return FollowRequestCard(
                             uid: userData['uid'] ?? '',
                             name: userData['displayName'] ?? 'Unknown User',
-                            yearCourse: displayYearCourse, // Use the converted string
+                            yearCourse:
+                                displayYearCourse, // Use the converted string
                             imagePath: userData['avatarPath'] ?? '',
                             requestDocId: request.id,
                           );
@@ -200,7 +215,6 @@ class FollowPage extends StatelessWidget {
     );
   }
 }
-
 
 class FollowRequestCard extends StatefulWidget {
   final String uid;
@@ -236,12 +250,15 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
     final defaultAvatar = Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(color: textColorSecondary.withOpacity(0.2), shape: BoxShape.circle),
+      decoration: BoxDecoration(
+        color: textColorSecondary.withOpacity(0.2),
+        shape: BoxShape.circle,
+      ),
       child: Icon(Icons.person, color: textColorSecondary, size: size * 0.6),
     );
 
     if (path.isEmpty) return defaultAvatar;
-    
+
     if (path.startsWith('http')) {
       return Image.network(
         path,
@@ -251,7 +268,7 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
         errorBuilder: (c, e, s) => defaultAvatar,
       );
     }
-    
+
     return Image.asset(
       path,
       width: size,
@@ -264,9 +281,7 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
   void _navigateToProfile() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => ProfilePage(userId: widget.uid),
-      ),
+      MaterialPageRoute(builder: (context) => ProfilePage(userId: widget.uid)),
     );
   }
 
@@ -280,7 +295,8 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       final batch = FirebaseFirestore.instance.batch();
 
       // 1. Delete all pending requests between users
-      final pendingRequests = await FirebaseFirestore.instance.collection('followRequests')
+      final pendingRequests = await FirebaseFirestore.instance
+          .collection('followRequests')
           .where('fromUid', whereIn: [currentUid, fromUid])
           .where('toUid', whereIn: [currentUid, fromUid])
           .where('status', isEqualTo: 'pending')
@@ -290,22 +306,48 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       }
 
       // 2. Establish mutual follow relationship
-      final currentUserRef = FirebaseFirestore.instance.collection('users').doc(currentUid);
-      final fromUserRef = FirebaseFirestore.instance.collection('users').doc(fromUid);
+      final currentUserRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid);
+      final fromUserRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(fromUid);
 
-      batch.set(currentUserRef.collection('following').doc(fromUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
-      batch.set(currentUserRef.collection('followers').doc(fromUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
-      batch.set(fromUserRef.collection('following').doc(currentUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
-      batch.set(fromUserRef.collection('followers').doc(currentUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
+      batch.set(
+        currentUserRef.collection('following').doc(fromUid),
+        <String, dynamic>{'timestamp': FieldValue.serverTimestamp()},
+      );
+      batch.set(
+        currentUserRef.collection('followers').doc(fromUid),
+        <String, dynamic>{'timestamp': FieldValue.serverTimestamp()},
+      );
+      batch.set(
+        fromUserRef.collection('following').doc(currentUid),
+        <String, dynamic>{'timestamp': FieldValue.serverTimestamp()},
+      );
+      batch.set(
+        fromUserRef.collection('followers').doc(currentUid),
+        <String, dynamic>{'timestamp': FieldValue.serverTimestamp()},
+      );
 
       await batch.commit();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("You are now following ${widget.name}!"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("You are now following ${widget.name}!"),
+            backgroundColor: Colors.green,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error accepting request: ${e.toString()}"), backgroundColor: primaryRed));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error accepting request: ${e.toString()}"),
+            backgroundColor: primaryRed,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -317,14 +359,27 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
     try {
-      await FirebaseFirestore.instance.collection('followRequests').doc(widget.requestDocId).delete();
+      await FirebaseFirestore.instance
+          .collection('followRequests')
+          .doc(widget.requestDocId)
+          .delete();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Rejected follow request from ${widget.name}."), backgroundColor: textColorSecondary));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Rejected follow request from ${widget.name}."),
+            backgroundColor: textColorSecondary,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error rejecting request: ${e.toString()}"), backgroundColor: primaryRed));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error rejecting request: ${e.toString()}"),
+            backgroundColor: primaryRed,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
@@ -340,8 +395,8 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cardBackground, 
-        borderRadius: BorderRadius.circular(16), 
+        color: cardBackground,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
@@ -362,7 +417,10 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
               height: avatarSize,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: primaryRed.withOpacity(0.5), width: 1.5),
+                border: Border.all(
+                  color: primaryRed.withOpacity(0.5),
+                  width: 1.5,
+                ),
               ),
               child: ClipOval(
                 child: _buildAvatar(widget.imagePath, avatarSize),
@@ -370,7 +428,7 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
             ),
           ),
           const SizedBox(width: 16),
-          
+
           // Right: Info (Name/Course) and Buttons (Vertical Layout)
           Expanded(
             child: Column(
@@ -393,7 +451,9 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        widget.yearCourse.trim().isNotEmpty ? widget.yearCourse : 'Details unavailable',
+                        widget.yearCourse.trim().isNotEmpty
+                            ? widget.yearCourse
+                            : 'Details unavailable',
                         style: GoogleFonts.montserrat(
                           fontSize: 12 * textScale,
                           color: textColorSecondary,
@@ -418,18 +478,26 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
                             foregroundColor: Colors.white,
                             elevation: 2,
                             padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           onPressed: _isProcessing ? null : _acceptRequest,
                           child: _isProcessing
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : Text(
                                   "Accept",
-                                  style: GoogleFonts.montserrat(fontSize: 12 * textScale, fontWeight: FontWeight.w600),
+                                  style: GoogleFonts.montserrat(
+                                    fontSize: 12 * textScale,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
                         ),
                       ),
@@ -442,15 +510,23 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
                         height: 36,
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: primaryRed, width: 1.5),
+                            side: const BorderSide(
+                              color: primaryRed,
+                              width: 1.5,
+                            ),
                             foregroundColor: primaryRed,
                             padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                           onPressed: _isProcessing ? null : _rejectRequest,
                           child: Text(
                             "Remove",
-                            style: GoogleFonts.montserrat(fontSize: 12 * textScale, fontWeight: FontWeight.w600),
+                            style: GoogleFonts.montserrat(
+                              fontSize: 12 * textScale,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),

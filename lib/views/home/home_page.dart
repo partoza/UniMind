@@ -1134,13 +1134,24 @@ class _HomePageState extends State<HomePage> {
         return IconButton(
           icon: const Icon(Icons.qr_code, color: Colors.black, size: 30),
           onPressed: () {
-            // This should navigate to the DiscoverPage (scanner), not QrScannerPage (QR display)
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => const DiscoverPage(), // Change to DiscoverPage
-              ),
-            );
+            final currentUser = FirebaseAuth.instance.currentUser;
+            if (currentUser != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => QrScannerPage(
+                    source: currentUser.uid,
+                  ), // Pass actual user ID
+                ),
+              );
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Please log in to view QR code'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           },
         );
       case 4: // Profile - QR icon (source: profile)
@@ -1359,11 +1370,11 @@ class _HomeContentState extends State<_HomeContent> {
                           ), // Increased spacing for better visual separation
                           Text(
                             hasActiveFilters
-                                ? "Oops! No results found for your filters."
+                                ? "Oops!\nNo results found for your filters."
                                 : "No users found yet.", // Slightly softer message
                             textAlign: TextAlign.center, // Center-align text
                             style: GoogleFonts.montserrat(
-                              fontSize: 18, // Slightly larger font size
+                              fontSize: 16, // Slightly larger font size
                               fontWeight: FontWeight.w600, // Slightly bolder
                               color: Colors
                                   .grey
@@ -1371,7 +1382,7 @@ class _HomeContentState extends State<_HomeContent> {
                             ),
                           ),
                           const SizedBox(
-                            height: 8,
+                            height: 2,
                           ), // Added a small space for a sub-message
                           Text(
                             hasActiveFilters
@@ -1379,7 +1390,7 @@ class _HomeContentState extends State<_HomeContent> {
                                 : "It looks like there are no users to display.", // Helper text
                             textAlign: TextAlign.center,
                             style: GoogleFonts.montserrat(
-                              fontSize: 14,
+                              fontSize: 12,
                               fontWeight: FontWeight.w400,
                               color: Colors.grey.shade500,
                             ),
