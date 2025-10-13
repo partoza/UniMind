@@ -142,6 +142,23 @@ class _MessageProfileViewState extends State<MessageProfileView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFB41214),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          "Profile",
+          style: GoogleFonts.montserrat(
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,7 +169,7 @@ class _MessageProfileViewState extends State<MessageProfileView> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.only(
-                  top: 30,
+                  top: 20,
                   left: 20,
                   right: 20,
                   bottom: 60,
@@ -205,91 +222,63 @@ class _MessageProfileViewState extends State<MessageProfileView> {
   }
 
   Widget _buildHeaderLoading() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          "Profile",
-          style: GoogleFonts.montserrat(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
+        const CircleAvatar(
+          radius: 45,
+          backgroundColor: Colors.white24,
+          child: Icon(Icons.person, size: 40, color: Colors.white),
         ),
-        const SizedBox(height: 20),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const CircleAvatar(
-              radius: 45,
-              backgroundColor: Colors.white24,
-              child: Icon(Icons.person, size: 40, color: Colors.white),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(width: 150, height: 20, color: Colors.white24),
-                  const SizedBox(height: 8),
-                  Container(width: 100, height: 16, color: Colors.white24),
-                  const SizedBox(height: 8),
-                  _buildFollowButton(),
-                ],
-              ),
-            ),
-          ],
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(width: 150, height: 20, color: Colors.white24),
+              const SizedBox(height: 8),
+              Container(width: 100, height: 16, color: Colors.white24),
+              const SizedBox(height: 8),
+              _buildFollowButton(),
+            ],
+          ),
         ),
       ],
     );
   }
 
   Widget _buildHeaderPlaceholder() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          "Profile",
-          style: GoogleFonts.montserrat(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
+        const CircleAvatar(
+          radius: 45,
+          backgroundImage: AssetImage("assets/cce_male.jpg"),
         ),
-        const SizedBox(height: 20),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const CircleAvatar(
-              radius: 45,
-              backgroundImage: AssetImage("assets/cce_male.jpg"),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.peerName,
-                    style: GoogleFonts.montserrat(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    "User profile",
-                    style: GoogleFonts.montserrat(
-                      fontSize: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildFollowButton(),
-                ],
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.peerName,
+                style: GoogleFonts.montserrat(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
+              Text(
+                "User profile",
+                style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildFollowButton(),
+            ],
+          ),
         ),
       ],
     );
@@ -311,53 +300,39 @@ class _MessageProfileViewState extends State<MessageProfileView> {
       defaultValue: "assets/cce_male.jpg",
     );
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          "Profile",
-          style: GoogleFonts.montserrat(
-            fontSize: 28,
-            fontWeight: FontWeight.w700,
-            color: Colors.white,
-          ),
+        CircleAvatar(
+          radius: 45,
+          backgroundImage: avatarPath.toString().startsWith('http')
+              ? NetworkImage(avatarPath.toString()) as ImageProvider
+              : AssetImage(avatarPath.toString()),
         ),
-        const SizedBox(height: 20),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              radius: 45,
-              backgroundImage: avatarPath.toString().startsWith('http')
-                  ? NetworkImage(avatarPath.toString()) as ImageProvider
-                  : AssetImage(avatarPath.toString()),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    displayName.toString(),
-                    style: GoogleFonts.montserrat(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  Text(
-                    _getYearLevelString(yearLevel),
-                    style: GoogleFonts.montserrat(
-                      fontSize: 14,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildFollowButton(),
-                ],
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                displayName.toString(),
+                style: GoogleFonts.montserrat(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
+              Text(
+                _getYearLevelString(yearLevel),
+                style: GoogleFonts.montserrat(
+                  fontSize: 14,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildFollowButton(),
+            ],
+          ),
         ),
       ],
     );
