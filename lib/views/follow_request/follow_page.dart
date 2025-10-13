@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/profile/profile_page.dart';
+import 'package:unimind/views/match/matched.dart';
 
 
 String getYearLevelString(dynamic yearLevel) {
@@ -132,7 +133,7 @@ class FollowPage extends StatelessWidget {
                             TextSpan(
                               text: "All caught up!\n", // Line Break added here
                               style: GoogleFonts.montserrat(
-                                fontSize: 18,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: textColorPrimary,
                               ),
@@ -140,7 +141,7 @@ class FollowPage extends StatelessWidget {
                                 TextSpan(
                                   text: "No new follow requests.",
                                   style: GoogleFonts.montserrat(
-                                    fontSize: 16,
+                                    fontSize: 14,
                                     fontWeight: FontWeight.w500,
                                     color: textColorSecondary,
                                   ),
@@ -293,15 +294,23 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       final currentUserRef = FirebaseFirestore.instance.collection('users').doc(currentUid);
       final fromUserRef = FirebaseFirestore.instance.collection('users').doc(fromUid);
 
+      // You're following them
       batch.set(currentUserRef.collection('following').doc(fromUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
+      // They're in your followers
       batch.set(currentUserRef.collection('followers').doc(fromUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
+      
+      // They're following you
       batch.set(fromUserRef.collection('following').doc(currentUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
+      // You're in their followers
       batch.set(fromUserRef.collection('followers').doc(currentUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
 
       await batch.commit();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("You are now following ${widget.name}!"), backgroundColor: Colors.green));
+        
+        // Show matched page after accepting follow request
+        _showMatchedPage(fromUid);
       }
     } catch (e) {
       if (mounted) {
@@ -328,6 +337,53 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _showMatchedPage(String targetUid) async {
+    try {
+      // Get current user data
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      final currentUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+      
+      final targetUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(targetUid)
+          .get();
+
+      if (currentUserDoc.exists && targetUserDoc.exists) {
+        final currentUserData = currentUserDoc.data()!;
+        final targetUserData = targetUserDoc.data()!;
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MatchedPage(
+                currentUserAvatar: currentUserData['avatarPath'] ?? currentUserData['avatar'],
+                currentUserDepartment: currentUserData['department'],
+                currentUserName: currentUserData['displayName'],
+                partnerAvatar: targetUserData['avatarPath'] ?? targetUserData['avatar'],
+                partnerDepartment: targetUserData['department'],
+                partnerName: targetUserData['displayName'],
+                onGoToChat: () {
+                  // Navigate to chat tab
+                  Navigator.pop(context);
+                  // Navigate to home with chat tab
+                  Navigator.pushReplacementNamed(context, '/home', arguments: {'initialIndex': 3});
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error showing matched page: $e');
     }
   }
 

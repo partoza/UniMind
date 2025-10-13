@@ -29,6 +29,7 @@ class _HomePageState extends State<HomePage> {
   
   // Track shown matched pages to prevent duplicates
   Set<String> _shownMatchedPages = {};
+  bool _isShowingMatchedPage = false;
 
   // Add filter state here
   Map<String, dynamic> _currentFilters = {
@@ -77,6 +78,8 @@ class _HomePageState extends State<HomePage> {
       final currentUid = FirebaseAuth.instance.currentUser?.uid;
       if (currentUid == null) return;
 
+      debugPrint('Initializing matched page tracking for existing relationships');
+      
       // Get all users we're following
       final followingSnap = await FirebaseFirestore.instance
           .collection('users')
@@ -100,8 +103,11 @@ class _HomePageState extends State<HomePage> {
           // This is an existing mutual follow - mark as already shown
           final matchedKey = '${currentUid}_$targetUid';
           _shownMatchedPages.add(matchedKey);
+          debugPrint('Marked existing mutual follow as already shown: $matchedKey');
         }
       }
+      
+      debugPrint('Initialized matched page tracking with ${_shownMatchedPages.length} existing relationships');
     } catch (e) {
       debugPrint('Error initializing matched page tracking: $e');
     }
@@ -114,7 +120,10 @@ class _HomePageState extends State<HomePage> {
         timer.cancel();
         return;
       }
-      _checkForNewMutualFollows();
+      // Only check for mutual follows if we're not already showing a matched page
+      if (!_isShowingMatchedPage) {
+        _checkForNewMutualFollows();
+      }
     });
   }
 
@@ -123,6 +132,8 @@ class _HomePageState extends State<HomePage> {
     final currentUid = FirebaseAuth.instance.currentUser?.uid;
     if (currentUid == null) return;
 
+    debugPrint('Starting unfollow detection listeners');
+    
     // Listen to your followers collection
     FirebaseFirestore.instance
         .collection('users')
@@ -131,6 +142,7 @@ class _HomePageState extends State<HomePage> {
         .snapshots()
         .listen((snapshot) {
       if (mounted) {
+        debugPrint('Followers collection changed, refreshing UI');
         // Force refresh the UI when followers change
         setState(() {});
       }
@@ -144,6 +156,7 @@ class _HomePageState extends State<HomePage> {
         .snapshots()
         .listen((snapshot) {
       if (mounted) {
+        debugPrint('Following collection changed, refreshing UI');
         // Force refresh the UI when following changes
         setState(() {});
       }
@@ -182,9 +195,43 @@ class _HomePageState extends State<HomePage> {
           // This is a mutual follow - show matched page only if not shown before
           final matchedKey = '${currentUid}_$targetUid';
           if (!_shownMatchedPages.contains(matchedKey)) {
-            _shownMatchedPages.add(matchedKey);
-            _showMatchedPage(targetUid);
-            break; // Only show one matched page at a time
+            // Check if this mutual follow was initiated by the OTHER user
+            // by comparing timestamps - if their follow timestamp is more recent than ours,
+            // it means they followed us after we followed them (they initiated the mutual follow)
+            final myFollowTimestamp = doc.data()['timestamp'] as Timestamp?;
+            final theirFollowTimestamp = mutualFollowSnap.data()?['timestamp'] as Timestamp?;
+            
+            bool shouldShowMatchedPage = false;
+            
+            if (myFollowTimestamp != null && theirFollowTimestamp != null) {
+              // If they followed us more recently (within last 30 seconds), show matched page
+              final now = Timestamp.now();
+              final timeSinceTheirFollow = now.seconds - theirFollowTimestamp.seconds;
+              final timeSinceMyFollow = now.seconds - myFollowTimestamp.seconds;
+              
+              if (timeSinceTheirFollow < 30 && theirFollowTimestamp.seconds > myFollowTimestamp.seconds) {
+                shouldShowMatchedPage = true;
+                debugPrint('Showing matched page for mutual follow initiated by $targetUid (they followed ${timeSinceTheirFollow}s ago)');
+              } else {
+                debugPrint('Skipping matched page - mutual follow was initiated by current user or too old');
+              }
+            } else {
+              // If timestamps are missing, show matched page (fallback)
+              shouldShowMatchedPage = true;
+              debugPrint('Showing matched page for mutual follow with $targetUid (no timestamp data)');
+            }
+            
+            if (shouldShowMatchedPage) {
+              _shownMatchedPages.add(matchedKey);
+              debugPrint('Showing matched page for new mutual follow with $targetUid (automatic detection)');
+              _showMatchedPage(targetUid);
+              break; // Only show one matched page at a time
+            } else {
+              // Mark as shown to prevent future automatic detection
+              _shownMatchedPages.add(matchedKey);
+            }
+          } else {
+            debugPrint('Matched page already shown for $targetUid, skipping automatic detection');
           }
         }
       }
@@ -201,6 +248,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _showMatchedPage(String targetUid) async {
     try {
+      _isShowingMatchedPage = true;
+      debugPrint('Setting _isShowingMatchedPage to true');
+      
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser == null) return;
 
@@ -236,10 +286,23 @@ class _HomePageState extends State<HomePage> {
               },
             ),
           ),
-        );
+        ).then((_) {
+          // Reset the flag when the matched page is closed
+          _isShowingMatchedPage = false;
+          debugPrint('Matched page closed, setting _isShowingMatchedPage to false');
+          
+          // Mark this relationship as permanently shown to prevent re-showing
+          final currentUid = FirebaseAuth.instance.currentUser?.uid;
+          if (currentUid != null) {
+            final matchedKey = '${currentUid}_$targetUid';
+            _shownMatchedPages.add(matchedKey);
+            debugPrint('Marked matched page as permanently shown: $matchedKey');
+          }
+        });
       }
     } catch (e) {
       debugPrint('Error showing matched page: $e');
+      _isShowingMatchedPage = false;
     }
   }
 
@@ -381,6 +444,14 @@ class _HomePageState extends State<HomePage> {
           filters: _currentFilters,
           onClearFilters: _clearFilters, // Pass the clear function
           onGoToChat: () => _handleTabNavigation(3), // Pass navigation callback
+          shownMatchedPages: _shownMatchedPages,
+          isShowingMatchedPage: _isShowingMatchedPage,
+          onMatchedPageShown: (matchedKey) {
+            _shownMatchedPages.add(matchedKey);
+          },
+          onMatchedPageFlagChanged: (value) {
+            _isShowingMatchedPage = value;
+          },
         );
       case 1:
         return const FollowPage();
@@ -1383,11 +1454,19 @@ class _HomeContent extends StatefulWidget {
   final Map<String, dynamic> filters;
   final VoidCallback onClearFilters;
   final VoidCallback onGoToChat;
+  final Set<String>? shownMatchedPages;
+  final bool? isShowingMatchedPage;
+  final Function(String)? onMatchedPageShown;
+  final Function(bool)? onMatchedPageFlagChanged;
 
   const _HomeContent({
     required this.filters, 
     required this.onClearFilters,
     required this.onGoToChat,
+    this.shownMatchedPages,
+    this.isShowingMatchedPage,
+    this.onMatchedPageShown,
+    this.onMatchedPageFlagChanged,
   });
 
   @override
@@ -1395,6 +1474,41 @@ class _HomeContent extends StatefulWidget {
 }
 
 class _HomeContentState extends State<_HomeContent> {
+  // Add a key to force rebuild when following collection changes
+  Key _filterKey = UniqueKey();
+  
+  @override
+  void initState() {
+    super.initState();
+    // Listen for changes in the current user's following collection
+    _startFollowingChangeListener();
+  }
+  
+  void _startFollowingChangeListener() {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid != null) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid)
+          .collection('following')
+          .snapshots()
+          .listen((snapshot) {
+        // Force rebuild when following collection changes
+        if (mounted) {
+          debugPrint('Following collection changed, refreshing suggested users');
+          // Add a small delay to ensure database changes are propagated
+          Future.delayed(const Duration(milliseconds: 500), () {
+            if (mounted) {
+              setState(() {
+                _filterKey = UniqueKey();
+              });
+            }
+          });
+        }
+      });
+    }
+  }
+  
   /// Helper function to get ordinal suffix (1st, 2nd, 3rd, 4th)
   String _getOrdinalSuffix(int number) {
     if (number >= 11 && number <= 13) {
@@ -1418,6 +1532,7 @@ class _HomeContentState extends State<_HomeContent> {
     String currentUid,
   ) async {
     final filteredDocs = <QueryDocumentSnapshot>[];
+    debugPrint('Filtering ${docs.length} users for currentUid: $currentUid');
     
     for (final doc in docs) {
       final data = doc.data() as Map<String, dynamic>? ?? {};
@@ -1448,8 +1563,11 @@ class _HomeContentState extends State<_HomeContent> {
       
       // If either is following the other, exclude from suggestions
       if (currentUserFollowing.exists || targetUserFollowing.exists) {
+        debugPrint('Excluding user $docUid - following relationship exists');
         continue;
       }
+      
+      debugPrint('Including user $docUid in suggestions');
 
       // Apply gender filter
       if (widget.filters['gender'] != null) {
@@ -1542,7 +1660,8 @@ class _HomeContentState extends State<_HomeContent> {
       // If all filters pass, add to filtered list
       filteredDocs.add(doc);
     }
-    
+
+    debugPrint('Filtered users: ${filteredDocs.length} out of ${docs.length}');
     return filteredDocs;
   }
 
@@ -1564,6 +1683,7 @@ class _HomeContentState extends State<_HomeContent> {
         final docs = snapshot.data?.docs ?? [];
         
         return FutureBuilder<List<QueryDocumentSnapshot>>(
+          key: _filterKey,
           future: _filterUsers(docs, currentUid!),
           builder: (context, filterSnapshot) {
             if (filterSnapshot.connectionState == ConnectionState.waiting) {
@@ -1757,6 +1877,10 @@ class _HomeContentState extends State<_HomeContent> {
               bio: bio,
               location: location,
               onGoToChat: widget.onGoToChat,
+              shownMatchedPages: widget.shownMatchedPages,
+              isShowingMatchedPage: widget.isShowingMatchedPage,
+              onMatchedPageShown: widget.onMatchedPageShown,
+              onMatchedPageFlagChanged: widget.onMatchedPageFlagChanged,
             );
           },
         );
@@ -1783,6 +1907,10 @@ class SuggestedCard extends StatefulWidget {
   final String bio;
   final String location;
   final VoidCallback? onGoToChat;
+  final Set<String>? shownMatchedPages;
+  final bool? isShowingMatchedPage;
+  final Function(String)? onMatchedPageShown;
+  final Function(bool)? onMatchedPageFlagChanged;
 
   const SuggestedCard({
     super.key,
@@ -1796,6 +1924,10 @@ class SuggestedCard extends StatefulWidget {
     required this.bio,
     required this.location,
     this.onGoToChat,
+    this.shownMatchedPages,
+    this.isShowingMatchedPage,
+    this.onMatchedPageShown,
+    this.onMatchedPageFlagChanged,
   });
 
   @override
@@ -2100,6 +2232,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
       }
 
       // 3) FOLLOW OR ACCEPT INCOMING REQUEST
+      debugPrint('isPendingReceived: $isPendingReceived, isFollowing: $isFollowing, isPendingSent: $isPendingSent');
       final batch = FirebaseFirestore.instance.batch();
 
       // Delete pending requests in both directions
@@ -2115,6 +2248,9 @@ class _SuggestedCardState extends State<SuggestedCard> {
           .where('status', isEqualTo: 'pending')
           .get();
 
+      debugPrint('Cleaning up ${pendingA.docs.length} pending requests from current user');
+      debugPrint('Cleaning up ${pendingB.docs.length} pending requests from other user');
+      
       for (var d in pendingA.docs) {
         batch.delete(d.reference);
       }
@@ -2124,6 +2260,22 @@ class _SuggestedCardState extends State<SuggestedCard> {
 
       // When accepting an incoming request
       if (isPendingReceived) {
+        debugPrint('Accepting incoming follow request from ${widget.uid}');
+        
+        // Double-check that there's actually a pending request
+        final actualPendingRequest = await followRequestsRef
+            .where('fromUid', isEqualTo: widget.uid)
+            .where('toUid', isEqualTo: currentUid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+            
+        if (actualPendingRequest.docs.isEmpty) {
+          debugPrint('No actual pending request found, skipping accept logic');
+          return;
+        }
+        
+        debugPrint('Found ${actualPendingRequest.docs.length} actual pending requests to clean up');
+        
         // Check if follow relationships already exist to prevent duplicates
         final myFollowerExists = await currentUserRef
             .collection('followers')
@@ -2170,11 +2322,29 @@ class _SuggestedCardState extends State<SuggestedCard> {
           batch.set(theirFollowingDoc, <String, dynamic>{});
         }
         
+        // Also explicitly delete the specific follow request that was accepted
+        for (var doc in actualPendingRequest.docs) {
+          batch.delete(doc.reference);
+        }
+        
         await batch.commit();
+        debugPrint('Successfully accepted follow request and created mutual follow relationship');
         
         // Navigate to matched page when mutual follow happens
         if (mounted && !_hasNavigatedToMatched) {
           _hasNavigatedToMatched = true;
+          debugPrint('Showing matched page for accepted follow request with ${widget.uid}');
+          
+          // Mark this relationship as shown in the global tracking IMMEDIATELY
+          // This prevents the automatic detection from showing it again
+          final matchedKey = '${currentUid}_${widget.uid}';
+          widget.onMatchedPageShown?.call(matchedKey);
+          debugPrint('Added to shown matched pages: $matchedKey');
+          
+          // Set flag to prevent other matched pages
+          widget.onMatchedPageFlagChanged?.call(true);
+          debugPrint('Setting _isShowingMatchedPage to true for accept');
+          
           // Get current user data
           final currentUser = FirebaseAuth.instance.currentUser;
           if (currentUser != null) {
@@ -2207,7 +2377,16 @@ class _SuggestedCardState extends State<SuggestedCard> {
                           onGoToChat: widget.onGoToChat,
                         ),
                       ),
-                    );
+                    ).then((_) {
+                      // Reset the flag when the matched page is closed
+                      widget.onMatchedPageFlagChanged?.call(false);
+                      debugPrint('Matched page closed from accept, setting _isShowingMatchedPage to false');
+                      
+                      // Mark this relationship as permanently shown to prevent re-showing
+                      final matchedKey = '${currentUid}_${widget.uid}';
+                      widget.onMatchedPageShown?.call(matchedKey);
+                      debugPrint('Marked matched page as permanently shown from accept: $matchedKey');
+                    });
                   }
                 });
               }
@@ -2218,6 +2397,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
       }
 
       // Fresh follow - check if mutual follow should happen
+      debugPrint('Going through Fresh follow path - otherFollowsMe check');
       final otherFollowsMeSnap = await targetUserRef
           .collection('following')
           .doc(currentUid)
@@ -2227,6 +2407,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
       final otherFollowsMe = otherFollowsMeSnap.exists || isFollowingMe;
       
       // If they're already following you, create mutual follow relationship
+      debugPrint('otherFollowsMe: $otherFollowsMe, otherFollowsMeSnap.exists: ${otherFollowsMeSnap.exists}, isFollowingMe: $isFollowingMe');
       if (otherFollowsMe) {
         // Clean up any existing follow requests first
         final cleanupBatch = FirebaseFirestore.instance.batch();
@@ -2283,6 +2464,17 @@ class _SuggestedCardState extends State<SuggestedCard> {
         // Navigate to matched page when mutual follow happens
         if (mounted && !_hasNavigatedToMatched) {
           _hasNavigatedToMatched = true;
+          
+          // Mark this relationship as shown in the global tracking IMMEDIATELY
+          // This prevents the automatic detection from showing it again
+          final matchedKey = '${currentUid}_${widget.uid}';
+          widget.onMatchedPageShown?.call(matchedKey);
+          debugPrint('Added to shown matched pages for fresh follow: $matchedKey');
+          
+          // Set flag to prevent other matched pages
+          widget.onMatchedPageFlagChanged?.call(true);
+          debugPrint('Setting _isShowingMatchedPage to true for fresh follow');
+          
           // Get current user data
           final currentUser = FirebaseAuth.instance.currentUser;
           if (currentUser != null) {
@@ -2315,7 +2507,16 @@ class _SuggestedCardState extends State<SuggestedCard> {
                           onGoToChat: widget.onGoToChat,
                         ),
                       ),
-                    );
+                    ).then((_) {
+                      // Reset the flag when the matched page is closed
+                      widget.onMatchedPageFlagChanged?.call(false);
+                      debugPrint('Matched page closed from fresh follow, setting _isShowingMatchedPage to false');
+                      
+                      // Mark this relationship as permanently shown to prevent re-showing
+                      final matchedKey = '${currentUid}_${widget.uid}';
+                      widget.onMatchedPageShown?.call(matchedKey);
+                      debugPrint('Marked matched page as permanently shown from fresh follow: $matchedKey');
+                    });
                   }
                 });
               }
@@ -2496,6 +2697,8 @@ class _SuggestedCardState extends State<SuggestedCard> {
                         receivedSnap.hasData &&
                         receivedSnap.data != null &&
                         receivedSnap.data!.docs.isNotEmpty;
+                    
+                    debugPrint('Received request check: hasData=${receivedSnap.hasData}, data=${receivedSnap.data != null}, docs=${receivedSnap.data?.docs.length ?? 0}, isPendingReceived=$isPendingReceived');
 
                     return StreamBuilder<DocumentSnapshot>(
                       stream: otherUserFollowingStream(),
@@ -2519,6 +2722,8 @@ class _SuggestedCardState extends State<SuggestedCard> {
                         } else {
                           buttonLabel = "Follow";
                         }
+                        
+                        debugPrint('Button label for ${widget.uid}: $buttonLabel (isFollowing: $isFollowing, isPendingSent: $isPendingSent, isPendingReceived: $isPendingReceived)');
 
                         return _buildCardContent(
                           context,
