@@ -177,7 +177,7 @@ class FollowPage extends StatelessWidget {
                             return const SizedBox.shrink();
                           final userData =
                               userSnap.data!.data() as Map<String, dynamic>? ??
-                              {};
+                                  {};
 
                           // *** APPLY THE YEAR LEVEL CONVERSION HERE ***
                           final String displayYearLevel = getYearLevelString(
@@ -188,11 +188,11 @@ class FollowPage extends StatelessWidget {
 
                           final String displayYearCourse =
                               displayYearLevel.isNotEmpty &&
-                                  programAcronym.isNotEmpty
-                              ? "$displayYearLevel, $programAcronym"
-                              : displayYearLevel.isNotEmpty
-                              ? displayYearLevel
-                              : programAcronym;
+                                      programAcronym.isNotEmpty
+                                  ? "$displayYearLevel, $programAcronym"
+                                  : displayYearLevel.isNotEmpty
+                                      ? displayYearLevel
+                                      : programAcronym;
 
                           return FollowRequestCard(
                             uid: userData['uid'] ?? '',
@@ -201,6 +201,7 @@ class FollowPage extends StatelessWidget {
                                 displayYearCourse, // Use the converted string
                             imagePath: userData['avatarPath'] ?? '',
                             requestDocId: request.id,
+                            fromUid: fromUid,
                           );
                         },
                       );
@@ -222,6 +223,7 @@ class FollowRequestCard extends StatefulWidget {
   final String yearCourse;
   final String imagePath;
   final String requestDocId;
+  final String fromUid;
 
   const FollowRequestCard({
     super.key,
@@ -230,6 +232,7 @@ class FollowRequestCard extends StatefulWidget {
     required this.yearCourse,
     required this.imagePath,
     required this.requestDocId,
+    required this.fromUid,
   });
 
   @override
@@ -245,6 +248,34 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
   static const Color cardBackground = Color(0xFFF9FAFC);
   static const Color textColorPrimary = Color(0xFF1F2937);
   static const Color textColorSecondary = Color(0xFF6B7280);
+
+  // Check if the request is still valid by verifying no follow relationship exists
+  Future<bool> _isRequestStillValid() async {
+    try {
+      final currentUid = FirebaseAuth.instance.currentUser!.uid;
+      
+      // Check if we're already following each other
+      final followingSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid)
+          .collection('following')
+          .doc(widget.fromUid)
+          .get();
+
+      final followersSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.fromUid)
+          .collection('followers')
+          .doc(currentUid)
+          .get();
+
+      // If either follow relationship exists, the request is no longer valid
+      return !followingSnapshot.exists && !followersSnapshot.exists;
+    } catch (e) {
+      print("Error checking request validity: $e");
+      return true; // Assume valid if we can't check
+    }
+  }
 
   Widget _buildAvatar(String path, double size) {
     final defaultAvatar = Container(
@@ -291,8 +322,24 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
     setState(() => _isProcessing = true);
     try {
       final currentUid = FirebaseAuth.instance.currentUser!.uid;
-      final fromUid = widget.uid;
+      final fromUid = widget.fromUid;
       final batch = FirebaseFirestore.instance.batch();
+
+      // First check if the request is still valid
+      final isValid = await _isRequestStillValid();
+      if (!isValid) {
+        // If not valid, just clean up the request and return
+        await _cleanUpRequest();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Follow relationship already exists with ${widget.name}!"),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        return;
+      }
 
       // 1. Delete all pending requests between users
       final pendingRequests = await FirebaseFirestore.instance
@@ -330,6 +377,14 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
         <String, dynamic>{'timestamp': FieldValue.serverTimestamp()},
       );
 
+      // 3. Update follower/following counts
+      batch.update(currentUserRef, {
+        'followingCount': FieldValue.increment(1),
+      });
+      batch.update(fromUserRef, {
+        'followerCount': FieldValue.increment(1),
+      });
+
       await batch.commit();
 
       if (mounted) {
@@ -351,6 +406,18 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  // Clean up request if follow relationship already exists
+  Future<void> _cleanUpRequest() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('followRequests')
+          .doc(widget.requestDocId)
+          .delete();
+    } catch (e) {
+      print("Error cleaning up request: $e");
     }
   }
 
@@ -391,153 +458,168 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
     final textScale = MediaQuery.of(context).textScaleFactor;
     final double avatarSize = 60.0;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cardBackground,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left: Avatar
-          GestureDetector(
-            onTap: _navigateToProfile,
-            child: Container(
-              width: avatarSize,
-              height: avatarSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: primaryRed.withOpacity(0.5),
-                  width: 1.5,
-                ),
-              ),
-              child: ClipOval(
-                child: _buildAvatar(widget.imagePath, avatarSize),
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser!.uid)
+          .collection('following')
+          .doc(widget.fromUid)
+          .snapshots(),
+      builder: (context, followSnapshot) {
+        // If follow relationship exists, don't show this request card
+        if (followSnapshot.hasData && followSnapshot.data!.exists) {
+          return const SizedBox.shrink();
+        }
 
-          // Right: Info (Name/Course) and Buttons (Vertical Layout)
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Info Section
-                GestureDetector(
-                  onTap: _navigateToProfile,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.name,
-                        style: GoogleFonts.montserrat(
-                          fontSize: 16 * textScale,
-                          fontWeight: FontWeight.w700,
-                          color: textColorPrimary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.yearCourse.trim().isNotEmpty
-                            ? widget.yearCourse
-                            : 'Details unavailable',
-                        style: GoogleFonts.montserrat(
-                          fontSize: 12 * textScale,
-                          color: textColorSecondary,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: cardBackground,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left: Avatar
+              GestureDetector(
+                onTap: _navigateToProfile,
+                child: Container(
+                  width: avatarSize,
+                  height: avatarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: primaryRed.withOpacity(0.5),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: ClipOval(
+                    child: _buildAvatar(widget.imagePath, avatarSize),
                   ),
                 ),
-                const SizedBox(height: 12),
+              ),
+              const SizedBox(width: 16),
 
-                // Buttons Section
-                Row(
+              // Right: Info (Name/Course) and Buttons (Vertical Layout)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Accept Button
-                    Expanded(
-                      child: SizedBox(
-                        height: 36,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryRed,
-                            foregroundColor: Colors.white,
-                            elevation: 2,
-                            padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                    // Info Section
+                    GestureDetector(
+                      onTap: _navigateToProfile,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            widget.name,
+                            style: GoogleFonts.montserrat(
+                              fontSize: 16 * textScale,
+                              fontWeight: FontWeight.w700,
+                              color: textColorPrimary,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          onPressed: _isProcessing ? null : _acceptRequest,
-                          child: _isProcessing
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Text(
-                                  "Accept",
-                                  style: GoogleFonts.montserrat(
-                                    fontSize: 12 * textScale,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Remove Button
-                    Expanded(
-                      child: SizedBox(
-                        height: 36,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            side: const BorderSide(
-                              color: primaryRed,
-                              width: 1.5,
-                            ),
-                            foregroundColor: primaryRed,
-                            padding: EdgeInsets.zero,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onPressed: _isProcessing ? null : _rejectRequest,
-                          child: Text(
-                            "Remove",
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.yearCourse.trim().isNotEmpty
+                                ? widget.yearCourse
+                                : 'Details unavailable',
                             style: GoogleFonts.montserrat(
                               fontSize: 12 * textScale,
-                              fontWeight: FontWeight.w600,
+                              color: textColorSecondary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Buttons Section
+                    Row(
+                      children: [
+                        // Accept Button
+                        Expanded(
+                          child: SizedBox(
+                            height: 36,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: primaryRed,
+                                foregroundColor: Colors.white,
+                                elevation: 2,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: _isProcessing ? null : _acceptRequest,
+                              child: _isProcessing
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        color: Colors.white,
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : Text(
+                                      "Accept",
+                                      style: GoogleFonts.montserrat(
+                                        fontSize: 12 * textScale,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+
+                        // Remove Button
+                        Expanded(
+                          child: SizedBox(
+                            height: 36,
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(
+                                  color: primaryRed,
+                                  width: 1.5,
+                                ),
+                                foregroundColor: primaryRed,
+                                padding: EdgeInsets.zero,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              onPressed: _isProcessing ? null : _rejectRequest,
+                              child: Text(
+                                "Remove",
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 12 * textScale,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

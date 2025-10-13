@@ -1609,160 +1609,178 @@ class _SuggestedCardState extends State<SuggestedCard> {
         .snapshots();
   }
 
-  Future<void> _toggleFollow({
-    required bool isFollowing,
-    required bool isPendingSent,
-    required bool isPendingReceived,
-    required bool isFollowingMe,
-  }) async {
-    if (_isLoading) return; // Prevent multiple taps
+ Future<void> _toggleFollow({
+  required bool isFollowing,
+  required bool isPendingSent,
+  required bool isPendingReceived,
+  required bool isFollowingMe,
+}) async {
+  if (_isLoading) return; // Prevent multiple taps
 
-    setState(() => _isLoading = true);
+  setState(() => _isLoading = true);
 
-    final currentUserRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUid);
-    final targetUserRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(widget.uid);
-    final followRequestsRef = FirebaseFirestore.instance.collection(
-      'followRequests',
-    );
+  final currentUserRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(currentUid);
+  final targetUserRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(widget.uid);
+  final followRequestsRef = FirebaseFirestore.instance.collection(
+    'followRequests',
+  );
 
-    try {
-      //  UNFOLLOW
-      if (isFollowing) {
-        final batch = FirebaseFirestore.instance.batch();
-        final myFollowingDoc = currentUserRef
-            .collection('following')
-            .doc(widget.uid);
-        final theirFollowerDoc = targetUserRef
-            .collection('followers')
-            .doc(currentUid);
-
-        batch.delete(myFollowingDoc);
-        batch.delete(theirFollowerDoc);
-
-        await batch.commit();
-
-        // If the other still follows, create a pending request
-        final otherFollowsMe = await targetUserRef
-            .collection('following')
-            .doc(currentUid)
-            .get();
-        if (otherFollowsMe.exists) {
-          await followRequestsRef.add({
-            'fromUid': widget.uid,
-            'toUid': currentUid,
-            'status': 'pending',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-        }
-        return;
-      }
-
-      // 2) CANCEL SENT REQUEST
-      if (isPendingSent) {
-        final sentQuery = await followRequestsRef
-            .where('fromUid', isEqualTo: currentUid)
-            .where('toUid', isEqualTo: widget.uid)
-            .where('status', isEqualTo: 'pending')
-            .get();
-
-        final batch = FirebaseFirestore.instance.batch();
-        for (var d in sentQuery.docs) {
-          batch.delete(d.reference);
-        }
-        await batch.commit();
-        return;
-      }
-
-      // 3) FOLLOW OR ACCEPT INCOMING REQUEST
+  try {
+    // UNFOLLOW
+    if (isFollowing) {
       final batch = FirebaseFirestore.instance.batch();
+      final myFollowingDoc = currentUserRef
+          .collection('following')
+          .doc(widget.uid);
+      final theirFollowerDoc = targetUserRef
+          .collection('followers')
+          .doc(currentUid);
 
-      // Delete pending requests in both directions
-      final pendingA = await followRequestsRef
+      batch.delete(myFollowingDoc);
+      batch.delete(theirFollowerDoc);
+
+      // Update counts
+      batch.update(currentUserRef, {
+        'followingCount': FieldValue.increment(-1),
+      });
+      batch.update(targetUserRef, {
+        'followerCount': FieldValue.increment(-1),
+      });
+
+      await batch.commit();
+
+      // If the other still follows, create a pending request
+      final otherFollowsMe = await targetUserRef
+          .collection('following')
+          .doc(currentUid)
+          .get();
+      if (otherFollowsMe.exists) {
+        await followRequestsRef.add({
+          'fromUid': widget.uid,
+          'toUid': currentUid,
+          'status': 'pending',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+      return;
+    }
+
+    // CANCEL SENT REQUEST
+    if (isPendingSent) {
+      final sentQuery = await followRequestsRef
           .where('fromUid', isEqualTo: currentUid)
           .where('toUid', isEqualTo: widget.uid)
           .where('status', isEqualTo: 'pending')
           .get();
 
-      final pendingB = await followRequestsRef
-          .where('fromUid', isEqualTo: widget.uid)
-          .where('toUid', isEqualTo: currentUid)
-          .where('status', isEqualTo: 'pending')
-          .get();
-
-      for (var d in pendingA.docs) {
+      final batch = FirebaseFirestore.instance.batch();
+      for (var d in sentQuery.docs) {
         batch.delete(d.reference);
       }
-      for (var d in pendingB.docs) {
-        batch.delete(d.reference);
-      }
-
-      // When accepting an incoming request
-      if (isPendingReceived) {
-        final batch = FirebaseFirestore.instance.batch();
-        final myFollowerDoc = currentUserRef
-            .collection('followers')
-            .doc(widget.uid);
-        final myFollowingDoc = currentUserRef
-            .collection('following')
-            .doc(widget.uid);
-        final theirFollowerDoc = targetUserRef
-            .collection('followers')
-            .doc(currentUid);
-        final theirFollowingDoc = targetUserRef
-            .collection('following')
-            .doc(currentUid);
-
-        batch.set(myFollowerDoc, <String, dynamic>{});
-        batch.set(myFollowingDoc, <String, dynamic>{});
-        batch.set(theirFollowerDoc, <String, dynamic>{});
-        batch.set(theirFollowingDoc, <String, dynamic>{});
-        await batch.commit();
-        return;
-      }
-
-      // Fresh follow - check if mutual follow should happen
-      final otherFollowsMeSnap = await targetUserRef
-          .collection('following')
-          .doc(currentUid)
-          .get();
-      if (otherFollowsMeSnap.exists || isFollowingMe) {
-        final batch = FirebaseFirestore.instance.batch();
-        final myFollowingDoc = currentUserRef
-            .collection('following')
-            .doc(widget.uid);
-        final theirFollowerDoc = targetUserRef
-            .collection('followers')
-            .doc(currentUid);
-
-        batch.set(myFollowingDoc, <String, dynamic>{});
-        batch.set(theirFollowerDoc, <String, dynamic>{});
-        await batch.commit();
-        return;
-      }
-
-      // Otherwise, create a follow request
-      await followRequestsRef.add({
-        'fromUid': currentUid,
-        'toUid': widget.uid,
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      debugPrint('Error in _toggleFollow: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
+      await batch.commit();
+      return;
     }
-  }
 
+    // ACCEPT INCOMING REQUEST OR FOLLOW
+    final batch = FirebaseFirestore.instance.batch();
+
+    // Delete ALL pending requests between these users in both directions
+    final pendingRequests = await followRequestsRef
+        .where('fromUid', whereIn: [currentUid, widget.uid])
+        .where('toUid', whereIn: [currentUid, widget.uid])
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    for (var d in pendingRequests.docs) {
+      batch.delete(d.reference);
+    }
+
+    // When accepting an incoming request
+    if (isPendingReceived) {
+      final myFollowerDoc = currentUserRef
+          .collection('followers')
+          .doc(widget.uid);
+      final myFollowingDoc = currentUserRef
+          .collection('following')
+          .doc(widget.uid);
+      final theirFollowerDoc = targetUserRef
+          .collection('followers')
+          .doc(currentUid);
+      final theirFollowingDoc = targetUserRef
+          .collection('following')
+          .doc(currentUid);
+
+      batch.set(myFollowerDoc, {'timestamp': FieldValue.serverTimestamp()});
+      batch.set(myFollowingDoc, {'timestamp': FieldValue.serverTimestamp()});
+      batch.set(theirFollowerDoc, {'timestamp': FieldValue.serverTimestamp()});
+      batch.set(theirFollowingDoc, {'timestamp': FieldValue.serverTimestamp()});
+
+      // Update counts
+      batch.update(currentUserRef, {
+        'followingCount': FieldValue.increment(1),
+        'followerCount': FieldValue.increment(1),
+      });
+      batch.update(targetUserRef, {
+        'followingCount': FieldValue.increment(1),
+        'followerCount': FieldValue.increment(1),
+      });
+
+      await batch.commit();
+      return;
+    }
+
+    // Fresh follow - check if mutual follow should happen
+    final otherFollowsMeSnap = await targetUserRef
+        .collection('following')
+        .doc(currentUid)
+        .get();
+    
+    if (otherFollowsMeSnap.exists || isFollowingMe) {
+      // Mutual follow - create follow relationship directly
+      final myFollowingDoc = currentUserRef
+          .collection('following')
+          .doc(widget.uid);
+      final theirFollowerDoc = targetUserRef
+          .collection('followers')
+          .doc(currentUid);
+
+      batch.set(myFollowingDoc, {'timestamp': FieldValue.serverTimestamp()});
+      batch.set(theirFollowerDoc, {'timestamp': FieldValue.serverTimestamp()});
+
+      // Update counts
+      batch.update(currentUserRef, {
+        'followingCount': FieldValue.increment(1),
+      });
+      batch.update(targetUserRef, {
+        'followerCount': FieldValue.increment(1),
+      });
+
+      await batch.commit();
+      return;
+    }
+
+    // Otherwise, create a follow request
+    await followRequestsRef.add({
+      'fromUid': currentUid,
+      'toUid': widget.uid,
+      'status': 'pending',
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  } catch (e) {
+    debugPrint('Error in _toggleFollow: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+    }
+  } finally {
+    if (mounted) setState(() => _isLoading = false);
+  }
+}
   Widget _buildModernChip(String label, bool isGood, double textScale) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
