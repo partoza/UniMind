@@ -109,6 +109,156 @@ class _ProfilePageState extends State<ProfilePage> {
 
   User? get currentUser => _auth.currentUser;
 
+  // Follow state management
+  bool _isFollowing = false;
+  bool _isFollowLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Check if current user is following the target user
+    if (!_isCurrentUser && currentUser != null) {
+      _checkFollowStatus();
+    }
+  }
+
+  // Check if current user is following the target user
+  Future<void> _checkFollowStatus() async {
+    if (currentUser == null) return;
+
+    try {
+      final followDoc = await _firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('following')
+          .doc(_targetUserId)
+          .get();
+
+      setState(() {
+        _isFollowing = followDoc.exists;
+      });
+    } catch (e) {
+      print("Error checking follow status: $e");
+    }
+  }
+
+  // Toggle follow/unfollow
+  Future<void> _toggleFollow() async {
+    if (currentUser == null) return;
+
+    setState(() {
+      _isFollowLoading = true;
+    });
+
+    try {
+      final currentUserRef = _firestore.collection('users').doc(currentUser!.uid);
+      final targetUserRef = _firestore.collection('users').doc(_targetUserId);
+      final followRef = currentUserRef.collection('following').doc(_targetUserId);
+
+      if (_isFollowing) {
+        // Unfollow
+        await followRef.delete();
+        
+        // Update follower count for target user
+        await targetUserRef.update({
+          'followerCount': FieldValue.increment(-1),
+        });
+
+        // Update following count for current user
+        await currentUserRef.update({
+          'followingCount': FieldValue.increment(-1),
+        });
+
+        setState(() {
+          _isFollowing = false;
+        });
+      } else {
+        // Follow
+        await followRef.set({
+          'followedAt': FieldValue.serverTimestamp(),
+          'targetUserId': _targetUserId,
+        });
+
+        // Update follower count for target user
+        await targetUserRef.update({
+          'followerCount': FieldValue.increment(1),
+        });
+
+        // Update following count for current user
+        await currentUserRef.update({
+          'followingCount': FieldValue.increment(1),
+        });
+
+        setState(() {
+          _isFollowing = true;
+        });
+      }
+    } catch (e) {
+      print("Error toggling follow: $e");
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isFollowLoading = false;
+      });
+    }
+  }
+
+  // Build follow button for other users' profiles
+  Widget _buildFollowButton() {
+    return _isFollowLoading
+        ? Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            child: const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+          )
+        : OutlinedButton(
+            onPressed: _toggleFollow,
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(
+                color: _isFollowing ? Colors.white70 : Colors.white,
+              ),
+              backgroundColor: _isFollowing ? Colors.white : Colors.transparent,
+              foregroundColor: _isFollowing ? Colors.black : Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 6,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: Text(
+              _isFollowing ? "Following" : "Follow",
+              style: GoogleFonts.montserrat(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          );
+  }
+
+  // Build back button
+  Widget _buildBackButton() {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back, color: Colors.white),
+      onPressed: () {
+        Navigator.of(context).pop();
+      },
+    );
+  }
+
   String _getYearLevelString(dynamic yearLevel) {
     try {
       // Handle both int and string types
@@ -233,6 +383,10 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Add back button for non-current users
+        if (!_isCurrentUser)
+          _buildBackButton(),
+        
         Text(
           _isCurrentUser ? "My Profile" : "Profile",
           style: GoogleFonts.montserrat(
@@ -259,7 +413,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 8),
                   Container(width: 100, height: 16, color: Colors.white24),
                   const SizedBox(height: 8),
-                  // Only show edit button for current user
+                  // Show edit button for current user, follow button for others
                   if (_isCurrentUser)
                     OutlinedButton(
                       onPressed: null,
@@ -282,7 +436,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           color: Colors.white70,
                         ),
                       ),
-                    ),
+                    )
+                  else
+                    _buildFollowButton(),
                 ],
               ),
             ),
@@ -296,6 +452,10 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Add back button for non-current users
+        if (!_isCurrentUser)
+          _buildBackButton(),
+          
         Text(
           _isCurrentUser ? "My Profile" : "Profile",
           style: GoogleFonts.montserrat(
@@ -335,7 +495,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Only show edit button for current user
+                  // Show edit button for current user, follow button for others
                   if (_isCurrentUser)
                     OutlinedButton(
                       onPressed: () {
@@ -365,7 +525,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
+                    )
+                  else
+                    _buildFollowButton(),
                 ],
               ),
             ),
@@ -402,9 +564,14 @@ class _ProfilePageState extends State<ProfilePage> {
       'avatarPath',
       defaultValue: "assets/cce_male.jpg",
     );
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Add back button for non-current users
+        if (!_isCurrentUser)
+          _buildBackButton(),
+          
         Text(
           _isCurrentUser ? "My Profile" : "Profile",
           style: GoogleFonts.montserrat(
@@ -442,7 +609,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Only show edit button for current user
+                  // Show edit button for current user, follow button for others
                   if (_isCurrentUser)
                     OutlinedButton(
                       onPressed: () {
@@ -472,7 +639,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
+                    )
+                  else
+                    _buildFollowButton(),
                 ],
               ),
             ),
