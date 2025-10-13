@@ -209,11 +209,17 @@ class _HomePageState extends State<HomePage> {
               final timeSinceTheirFollow = now.seconds - theirFollowTimestamp.seconds;
               final timeSinceMyFollow = now.seconds - myFollowTimestamp.seconds;
               
-              if (timeSinceTheirFollow < 30 && theirFollowTimestamp.seconds > myFollowTimestamp.seconds) {
+              debugPrint('Timestamp comparison for $targetUid: myFollow=${myFollowTimestamp.seconds}, theirFollow=${theirFollowTimestamp.seconds}, timeSinceTheirFollow=$timeSinceTheirFollow');
+              
+              if (timeSinceTheirFollow < 30 && (theirFollowTimestamp.seconds > myFollowTimestamp.seconds || theirFollowTimestamp.seconds == myFollowTimestamp.seconds)) {
                 shouldShowMatchedPage = true;
-                debugPrint('Showing matched page for mutual follow initiated by $targetUid (they followed ${timeSinceTheirFollow}s ago)');
+                if (theirFollowTimestamp.seconds == myFollowTimestamp.seconds) {
+                  debugPrint('Showing matched page for mutual follow with $targetUid (same timestamp - likely follow page acceptance)');
+                } else {
+                  debugPrint('Showing matched page for mutual follow initiated by $targetUid (they followed ${timeSinceTheirFollow}s ago)');
+                }
               } else {
-                debugPrint('Skipping matched page - mutual follow was initiated by current user or too old');
+                debugPrint('Skipping matched page - mutual follow was initiated by current user or too old (timeSinceTheirFollow=$timeSinceTheirFollow)');
               }
             } else {
               // If timestamps are missing, show matched page (fallback)
@@ -227,8 +233,11 @@ class _HomePageState extends State<HomePage> {
               _showMatchedPage(targetUid);
               break; // Only show one matched page at a time
             } else {
-              // Mark as shown to prevent future automatic detection
-              _shownMatchedPages.add(matchedKey);
+              // Only mark as shown if we're not showing the matched page
+              // This prevents marking as shown when we should actually show it
+              if (!shouldShowMatchedPage) {
+                _shownMatchedPages.add(matchedKey);
+              }
             }
           } else {
             debugPrint('Matched page already shown for $targetUid, skipping automatic detection');

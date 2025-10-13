@@ -1,22 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:unimind/views/auth/login_page.dart';
-import 'package:unimind/views/profile/edit_profile.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-
-Future<void> signOutUser(BuildContext context) async {
-  final googleSignIn = GoogleSignIn();
-
-  // Navigate to full-screen signing out page
-  Navigator.pushReplacement(
-    context,
-    MaterialPageRoute(builder: (context) => const _SignOutPage()),
-  );
-
-  // The sign out logic will be handled in the _SignOutPage widget
-}
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 // A class to handle all department-related data and logic.
 class DepartmentData {
@@ -89,25 +74,25 @@ class DepartmentData {
   }
 }
 
-class ProfilePage extends StatefulWidget {
-  final String? userId; // If null, shows current user's profile
+class MessageProfileView extends StatefulWidget {
+  final String peerUid;
+  final String peerName;
+  final String peerAvatar;
 
-  const ProfilePage({super.key, this.userId});
+  const MessageProfileView({
+    Key? key,
+    required this.peerUid,
+    required this.peerName,
+    required this.peerAvatar,
+  }) : super(key: key);
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<MessageProfileView> createState() => _MessageProfileViewState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+class _MessageProfileViewState extends State<MessageProfileView> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-
-  // Use provided userId or current user's ID
-  String get _targetUserId => widget.userId ?? _auth.currentUser!.uid;
-  bool get _isCurrentUser =>
-      widget.userId == null || widget.userId == _auth.currentUser?.uid;
-
-  User? get currentUser => _auth.currentUser;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String _getYearLevelString(dynamic yearLevel) {
     try {
@@ -154,8 +139,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final textScale = MediaQuery.of(context).textScaleFactor;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
@@ -177,17 +160,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: StreamBuilder<DocumentSnapshot>(
                   stream: _firestore
                       .collection('users')
-                      .doc(_targetUserId)
+                      .doc(widget.peerUid)
                       .snapshots(),
                   builder: (context, snapshot) {
-                    print(
-                      "StreamBuilder snapshot state: ${snapshot.connectionState}",
-                    );
-                    print("StreamBuilder has data: ${snapshot.hasData}");
-                    if (snapshot.hasError) {
-                      print("StreamBuilder error: ${snapshot.error}");
-                    }
-
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return _buildHeaderLoading();
                     }
@@ -198,7 +173,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
                     final userData =
                         snapshot.data!.data() as Map<String, dynamic>?;
-                    print("User data received: $userData");
                     return _buildHeaderContent(userData, context);
                   },
                 ),
@@ -208,7 +182,7 @@ class _ProfilePageState extends State<ProfilePage> {
             StreamBuilder<DocumentSnapshot>(
               stream: _firestore
                   .collection('users')
-                  .doc(_targetUserId)
+                  .doc(widget.peerUid)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -234,7 +208,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _isCurrentUser ? "My Profile" : "Profile",
+          "Profile",
           style: GoogleFonts.montserrat(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -259,30 +233,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 8),
                   Container(width: 100, height: 16, color: Colors.white24),
                   const SizedBox(height: 8),
-                  // Only show edit button for current user
-                  if (_isCurrentUser)
-                    OutlinedButton(
-                      onPressed: null,
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.white70),
-                        backgroundColor: Colors.white24,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 6,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        "Edit Profile",
-                        style: GoogleFonts.montserrat(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ),
+                  _buildFollowButton(),
                 ],
               ),
             ),
@@ -297,7 +248,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _isCurrentUser ? "My Profile" : "Profile",
+          "Profile",
           style: GoogleFonts.montserrat(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -318,9 +269,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    _isCurrentUser
-                        ? (currentUser?.email ?? "Guest User")
-                        : "User",
+                    widget.peerName,
                     style: GoogleFonts.montserrat(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -328,44 +277,14 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   Text(
-                    _isCurrentUser ? "Complete your profile" : "User profile",
+                    "User profile",
                     style: GoogleFonts.montserrat(
                       fontSize: 14,
                       color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Only show edit button for current user
-                  if (_isCurrentUser)
-                    OutlinedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EditProfilePage(),
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.white70),
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 6,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        "Edit Profile",
-                        style: GoogleFonts.montserrat(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
+                  _buildFollowButton(),
                 ],
               ),
             ),
@@ -382,9 +301,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final displayName = _getUserData(
       userData,
       'displayName',
-      defaultValue: _isCurrentUser
-          ? (currentUser?.email ?? "Unknown User")
-          : "Unknown User",
+      defaultValue: widget.peerName,
     );
     final yearLevel = _getUserData(userData, 'yearLevel', defaultValue: 1);
     final avatarPath = _getUserData(
@@ -397,7 +314,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _isCurrentUser ? "My Profile" : "Profile",
+          "Profile",
           style: GoogleFonts.montserrat(
             fontSize: 28,
             fontWeight: FontWeight.w700,
@@ -430,37 +347,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // Only show edit button for current user
-                  if (_isCurrentUser)
-                    OutlinedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => EditProfilePage(),
-                          ),
-                        );
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Colors.white70),
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 6,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                      child: Text(
-                        "Edit Profile",
-                        style: GoogleFonts.montserrat(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
+                  _buildFollowButton(),
                 ],
               ),
             ),
@@ -528,19 +415,12 @@ class _ProfilePageState extends State<ProfilePage> {
               color: Colors.grey[200],
             ),
           ),
-          // Only show logout button for current user
-          if (_isCurrentUser) ...[
-            const SizedBox(height: 40),
-            buildLogoutButton(context),
-            const SizedBox(height: 30),
-          ],
         ],
       ),
     );
   }
 
   Widget _buildBodyPlaceholder() {
-    // This is the card that needs dynamic content for the placeholder state
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 25),
       child: Column(
@@ -554,7 +434,6 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              // FIX: Use a neutral gradient for placeholder
               gradient: const LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -579,7 +458,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  // FIX: Use a default placeholder image/icon
                   child: Image.asset(
                     "assets/depLogo/defaultlogo.png",
                     height: 36,
@@ -591,9 +469,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _isCurrentUser
-                            ? "Complete your profile"
-                            : "User profile",
+                        "User profile",
                         style: GoogleFonts.montserrat(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -602,9 +478,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _isCurrentUser
-                            ? "Add your department and program"
-                            : "Profile information",
+                        "Profile information",
                         style: GoogleFonts.montserrat(
                           fontSize: 14,
                           color: Colors.grey[600],
@@ -619,24 +493,11 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
           const SizedBox(height: 15),
           _sectionTitle("My Bio"),
-          _infoCard(
-            _isCurrentUser
-                ? "No bio yet. You can add one by editing your profile."
-                : "No bio available",
-          ),
-          // Only show logout button for current user
-          if (_isCurrentUser) ...[
-            const SizedBox(height: 40),
-            buildLogoutButton(context),
-            const SizedBox(height: 30),
-          ],
+          _infoCard("No bio available"),
         ],
       ),
     );
   }
-
-  // NOTE: Removed the separate getDepartmentPrimaryColor function as its logic
-  // is now contained in the DepartmentData class for a cleaner structure.
 
   Widget _buildBodyContent(
     Map<String, dynamic>? userData,
@@ -667,16 +528,12 @@ class _ProfilePageState extends State<ProfilePage> {
     final bio = _getUserData(
       userData,
       'bio',
-      defaultValue: _isCurrentUser
-          ? "No bio yet. You can add one by editing your profile."
-          : "No bio available",
+      defaultValue: "No bio available",
     );
 
-    // FIX: Get the correct department logo path dynamically
     final departmentLogo = DepartmentData.getDepartmentLogoPath(
       department.toString(),
     );
-    // FIX: Get the dynamic gradient colors
     final departmentColors = DepartmentData.getGradientColors(
       department.toString(),
     );
@@ -694,7 +551,6 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(20),
-              // FIX: Use dynamic colors from DepartmentData
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -716,7 +572,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  // FIX: Use dynamic department logo path
                   child: Image.asset(departmentLogo, height: 36),
                 ),
                 const SizedBox(width: 16),
@@ -785,13 +640,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 15),
               ],
             ),
-
-          // Only show logout button for current user
-          if (_isCurrentUser) ...[
-            const SizedBox(height: 40),
-            buildLogoutButton(context),
-            const SizedBox(height: 30),
-          ],
         ],
       ),
     );
@@ -861,7 +709,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // Keep all your existing helper methods
   Widget _sectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -982,168 +829,273 @@ class _ProfilePageState extends State<ProfilePage> {
       }).toList(),
     );
   }
-}
 
-// Keep the rest of your existing methods (buildLogoutButton, _showLogoutConfirmation, _HeaderClipper)
-
-Widget buildLogoutButton(BuildContext context) {
-  return Container(
-    width: double.infinity,
-    margin: const EdgeInsets.symmetric(horizontal: 4),
-    child: ElevatedButton.icon(
-      onPressed: () async {
-        final confirm = await _showLogoutConfirmation(context);
-        if (confirm == true) {
-          await signOutUser(context);
-        }
+  Widget _buildFollowButton() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _firestore
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .collection('following')
+          .doc(widget.peerUid)
+          .snapshots(),
+      builder: (context, followingSnap) {
+        final isFollowing = followingSnap.hasData && followingSnap.data!.exists;
+        
+        return StreamBuilder<QuerySnapshot>(
+          stream: _firestore
+              .collection('followRequests')
+              .where('fromUid', isEqualTo: _auth.currentUser!.uid)
+              .where('toUid', isEqualTo: widget.peerUid)
+              .where('status', isEqualTo: 'pending')
+              .snapshots(),
+          builder: (context, requestSnap) {
+            final isPendingSent = requestSnap.hasData && requestSnap.data!.docs.isNotEmpty;
+            
+            return StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('followRequests')
+                  .where('fromUid', isEqualTo: widget.peerUid)
+                  .where('toUid', isEqualTo: _auth.currentUser!.uid)
+                  .where('status', isEqualTo: 'pending')
+                  .snapshots(),
+              builder: (context, receivedSnap) {
+                final isPendingReceived = receivedSnap.hasData && receivedSnap.data!.docs.isNotEmpty;
+                
+                String buttonText;
+                Color buttonColor;
+                Color textColor;
+                VoidCallback? onPressed;
+                
+                if (isFollowing) {
+                  buttonText = "Following";
+                  buttonColor = Colors.white;
+                  textColor = Colors.black;
+                  onPressed = () => _unfollowUser();
+                } else if (isPendingSent) {
+                  buttonText = "Pending";
+                  buttonColor = Colors.white24;
+                  textColor = Colors.white70;
+                  onPressed = null;
+                } else if (isPendingReceived) {
+                  buttonText = "Accept";
+                  buttonColor = Colors.white;
+                  textColor = Colors.black;
+                  onPressed = () => _acceptFollowRequest();
+                } else {
+                  buttonText = "Follow";
+                  buttonColor = Colors.white;
+                  textColor = Colors.black;
+                  onPressed = () => _followUser();
+                }
+                
+                return OutlinedButton(
+                  onPressed: onPressed,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white70),
+                    backgroundColor: buttonColor,
+                    foregroundColor: textColor,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 6,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    buttonText,
+                    style: GoogleFonts.montserrat(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
       },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.transparent,
-        foregroundColor: const Color(0xFFDC2626),
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: const Color(0xFFDC2626).withOpacity(0.3),
-            width: 1.5,
-          ),
-        ),
-        elevation: 0,
-        shadowColor: Colors.transparent,
-      ),
-      icon: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: const Color(0xFFDC2626).withOpacity(0.1),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(Icons.logout_rounded, size: 20),
-      ),
-      label: Text(
-        "Sign Out",
-        style: GoogleFonts.montserrat(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          color: const Color(0xFFDC2626),
-        ),
-      ),
-    ),
-  );
-}
+    );
+  }
 
-Future<bool?> _showLogoutConfirmation(BuildContext context) {
-  return showDialog<bool>(
-    context: context,
-    barrierDismissible: true,
-    builder: (BuildContext dialogContext) {
-      return Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.all(24),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 32,
-                offset: const Offset(0, 8),
-              ),
-            ],
+  Future<void> _followUser() async {
+    try {
+      final followRequestsRef = _firestore.collection('followRequests');
+      
+      // Check if request already exists
+      final existingRequest = await followRequestsRef
+          .where('fromUid', isEqualTo: _auth.currentUser!.uid)
+          .where('toUid', isEqualTo: widget.peerUid)
+          .where('status', isEqualTo: 'pending')
+          .get();
+          
+      if (existingRequest.docs.isEmpty) {
+        await followRequestsRef.add({
+          'fromUid': _auth.currentUser!.uid,
+          'toUid': widget.peerUid,
+          'status': 'pending',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Follow request sent!"),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error sending follow request: ${e.toString()}"),
+            backgroundColor: Colors.red,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEE2E2),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(
-                  Icons.logout_rounded,
-                  color: Color(0xFFDC2626),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Sign Out?",
-                style: GoogleFonts.montserrat(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                "Are you sure you want to sign out? You'll need to log in again to access your account.",
-                style: GoogleFonts.montserrat(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black54,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        Navigator.of(dialogContext).pop(false);
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      child: Text(
-                        "Cancel",
-                        style: GoogleFonts.montserrat(
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(dialogContext).pop(true);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFDC2626),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Text(
-                        "Sign Out",
-                        style: GoogleFonts.montserrat(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-}
+        );
+      }
+    }
+  }
 
+  Future<void> _unfollowUser() async {
+    try {
+      final batch = _firestore.batch();
+      
+      // Remove following relationship
+      final myFollowingDoc = _firestore
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .collection('following')
+          .doc(widget.peerUid);
+      final theirFollowerDoc = _firestore
+          .collection('users')
+          .doc(widget.peerUid)
+          .collection('followers')
+          .doc(_auth.currentUser!.uid);
+      
+      batch.delete(myFollowingDoc);
+      batch.delete(theirFollowerDoc);
+      
+      // Check if they're also following you (mutual follow)
+      final theirFollowingDoc = await _firestore
+          .collection('users')
+          .doc(widget.peerUid)
+          .collection('following')
+          .doc(_auth.currentUser!.uid)
+          .get();
+          
+      if (theirFollowingDoc.exists) {
+        // Remove their following relationship too (mutual unfollow)
+        final theirFollowingRef = _firestore
+            .collection('users')
+            .doc(widget.peerUid)
+            .collection('following')
+            .doc(_auth.currentUser!.uid);
+        final myFollowerRef = _firestore
+            .collection('users')
+            .doc(_auth.currentUser!.uid)
+            .collection('followers')
+            .doc(widget.peerUid);
+            
+        batch.delete(theirFollowingRef);
+        batch.delete(myFollowerRef);
+      }
+      
+      // Clean up any pending requests
+      final pendingRequests = await _firestore
+          .collection('followRequests')
+          .where('fromUid', whereIn: [_auth.currentUser!.uid, widget.peerUid])
+          .where('toUid', whereIn: [_auth.currentUser!.uid, widget.peerUid])
+          .where('status', isEqualTo: 'pending')
+          .get();
+          
+      for (var doc in pendingRequests.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      await batch.commit();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Unfollowed successfully"),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error unfollowing: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _acceptFollowRequest() async {
+    try {
+      final batch = _firestore.batch();
+      
+      // Delete all pending requests between users
+      final pendingRequests = await _firestore
+          .collection('followRequests')
+          .where('fromUid', whereIn: [_auth.currentUser!.uid, widget.peerUid])
+          .where('toUid', whereIn: [_auth.currentUser!.uid, widget.peerUid])
+          .where('status', isEqualTo: 'pending')
+          .get();
+          
+      for (var doc in pendingRequests.docs) {
+        batch.delete(doc.reference);
+      }
+      
+      // Establish mutual follow relationship
+      final currentUserRef = _firestore.collection('users').doc(_auth.currentUser!.uid);
+      final targetUserRef = _firestore.collection('users').doc(widget.peerUid);
+      
+      // You're following them
+      batch.set(currentUserRef.collection('following').doc(widget.peerUid), {
+        'timestamp': FieldValue.serverTimestamp()
+      });
+      // They're in your followers
+      batch.set(currentUserRef.collection('followers').doc(widget.peerUid), {
+        'timestamp': FieldValue.serverTimestamp()
+      });
+      
+      // They're following you
+      batch.set(targetUserRef.collection('following').doc(_auth.currentUser!.uid), {
+        'timestamp': FieldValue.serverTimestamp()
+      });
+      // You're in their followers
+      batch.set(targetUserRef.collection('followers').doc(_auth.currentUser!.uid), {
+        'timestamp': FieldValue.serverTimestamp()
+      });
+      
+      await batch.commit();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("You are now following each other!"),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error accepting request: ${e.toString()}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+}
 
 class _HeaderClipper extends CustomClipper<Path> {
   @override
@@ -1163,94 +1115,4 @@ class _HeaderClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(CustomClipper<Path> oldClipper) => false;
-}
-
-/// Full-screen Sign Out Page - Facebook style
-class _SignOutPage extends StatefulWidget {
-  const _SignOutPage();
-
-  @override
-  State<_SignOutPage> createState() => _SignOutPageState();
-}
-
-class _SignOutPageState extends State<_SignOutPage> {
-  @override
-  void initState() {
-    super.initState();
-    _performSignOut();
-  }
-
-  Future<void> _performSignOut() async {
-    final googleSignIn = GoogleSignIn();
-
-    try {
-      // Add a small delay to show the loading screen
-      await Future.delayed(const Duration(milliseconds: 1500));
-
-      // Sign out from Firebase
-      await FirebaseAuth.instance.signOut();
-
-      // Disconnect Google account (forces account picker next time)
-      await googleSignIn.disconnect();
-      await googleSignIn.signOut();
-
-      print("User logged out and disconnected from Google.");
-    } catch (e) {
-      print("Error during logout: $e");
-    }
-
-    // Navigate to login page after logout
-    if (mounted) {
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginPage()),
-        (Route<dynamic> route) => false,
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // App Logo
-            Image.asset(
-              "assets/icon/logoIconMaroon.png",
-              width: 80,
-              height: 80,
-            ),
-
-            const SizedBox(height: 32),
-
-            // Simple loading indicator
-            const SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFB41214)),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Simple text
-            Text(
-              "Signing out",
-              style: GoogleFonts.montserrat(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF374151),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
 }
