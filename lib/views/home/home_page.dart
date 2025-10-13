@@ -1682,7 +1682,32 @@ class _HomeContentState extends State<_HomeContent> {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SizedBox.shrink(); // Remove Firebase loading indicator
+          final textScale = MediaQuery.of(context).textScaleFactor;
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: 6, // 1 header + 5 skeleton cards
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Suggested for you",
+                        style: GoogleFonts.montserrat(
+                          fontSize: 18 * textScale,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SkeletonHomeCard();
+            },
+          );
         }
 
         final docs = snapshot.data?.docs ?? [];
@@ -1692,7 +1717,32 @@ class _HomeContentState extends State<_HomeContent> {
           future: _filterUsers(docs, currentUid!),
           builder: (context, filterSnapshot) {
             if (filterSnapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox.shrink();
+              final textScale = MediaQuery.of(context).textScaleFactor;
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: 6, // 1 header + 5 skeleton cards
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Suggested for you",
+                            style: GoogleFonts.montserrat(
+                              fontSize: 18 * textScale,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SkeletonHomeCard();
+                },
+              );
             }
             
             if (filterSnapshot.hasError) {
