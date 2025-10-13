@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +10,7 @@ import 'package:unimind/views/profile/profile_page.dart';
 import 'package:unimind/views/discover/discover_page.dart';
 import 'package:unimind/views/profile/qr_scanner_page.dart';
 import 'package:unimind/views/home/filter_page.dart';
+import 'package:unimind/views/match/matched.dart';
 import 'package:unimind/widgets/loading_widget.dart';
 
 class HomePage extends StatefulWidget {
@@ -24,6 +26,9 @@ class _HomePageState extends State<HomePage> {
   String _loadingMessage = "";
   int _targetIndex = 0;
   bool _isInitialLoading = true;
+  
+  // Track shown matched pages to prevent duplicates
+  Set<String> _shownMatchedPages = {};
 
   // Add filter state here
   Map<String, dynamic> _currentFilters = {
@@ -36,6 +41,18 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
+    // Reset initial loading state on hot restart
+    _isInitialLoading = true;
+    
+    // Force rebuild to show skeleton loading immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = true;
+        });
+      }
+    });
+
     // Add initial loading delay
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
@@ -44,6 +61,186 @@ class _HomePageState extends State<HomePage> {
         });
       }
     });
+
+    // Initialize matched page tracking with existing mutual follows
+    _initializeMatchedPageTracking();
+    
+    // Check for mutual follows periodically
+    _startMutualFollowCheck();
+    
+    // Listen for changes in followers to detect unfollows
+    _startUnfollowDetection();
+  }
+
+  Future<void> _initializeMatchedPageTracking() async {
+    try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) return;
+
+      // Get all users we're following
+      final followingSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid)
+          .collection('following')
+          .get();
+
+      // Mark existing mutual follows as already shown
+      for (var doc in followingSnap.docs) {
+        final targetUid = doc.id;
+        
+        // Check if they're also following us
+        final mutualFollowSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(targetUid)
+            .collection('following')
+            .doc(currentUid)
+            .get();
+
+        if (mutualFollowSnap.exists) {
+          // This is an existing mutual follow - mark as already shown
+          final matchedKey = '${currentUid}_$targetUid';
+          _shownMatchedPages.add(matchedKey);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error initializing matched page tracking: $e');
+    }
+  }
+
+  void _startMutualFollowCheck() {
+    // Check every 3 seconds for new mutual follows
+    Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      _checkForNewMutualFollows();
+    });
+  }
+
+  void _startUnfollowDetection() {
+    // Listen for changes in followers to detect when someone unfollows you
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == null) return;
+
+    // Listen to your followers collection
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUid)
+        .collection('followers')
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        // Force refresh the UI when followers change
+        setState(() {});
+      }
+    });
+
+    // Also listen to your following collection to detect when you unfollow someone
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUid)
+        .collection('following')
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        // Force refresh the UI when following changes
+        setState(() {});
+      }
+    });
+  }
+
+  Future<void> _checkForNewMutualFollows() async {
+    try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) return;
+
+      // Get all users we're following
+      final followingSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid)
+          .collection('following')
+          .get();
+
+      // Track current mutual follows
+      Set<String> currentMutualFollows = {};
+
+      for (var doc in followingSnap.docs) {
+        final targetUid = doc.id;
+        
+        // Check if they're also following us
+        final mutualFollowSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(targetUid)
+            .collection('following')
+            .doc(currentUid)
+            .get();
+
+        if (mutualFollowSnap.exists) {
+          currentMutualFollows.add(targetUid);
+          
+          // This is a mutual follow - show matched page only if not shown before
+          final matchedKey = '${currentUid}_$targetUid';
+          if (!_shownMatchedPages.contains(matchedKey)) {
+            _shownMatchedPages.add(matchedKey);
+            _showMatchedPage(targetUid);
+            break; // Only show one matched page at a time
+          }
+        }
+      }
+
+      // Clean up tracking for users we're no longer following or who are no longer following us
+      _shownMatchedPages.removeWhere((key) {
+        final targetUid = key.split('_')[1];
+        return !currentMutualFollows.contains(targetUid);
+      });
+    } catch (e) {
+      debugPrint('Error checking for mutual follows: $e');
+    }
+  }
+
+  Future<void> _showMatchedPage(String targetUid) async {
+    try {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      // Get current user data
+      final currentUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      // Get target user data
+      final targetUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(targetUid)
+          .get();
+
+      if (currentUserDoc.exists && targetUserDoc.exists) {
+        final currentUserData = currentUserDoc.data()!;
+        final targetUserData = targetUserDoc.data()!;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MatchedPage(
+              currentUserAvatar: currentUserData['avatarPath'] ?? currentUserData['avatar'],
+              currentUserDepartment: currentUserData['department'],
+              currentUserName: currentUserData['displayName'],
+              partnerAvatar: targetUserData['avatarPath'] ?? targetUserData['avatar'],
+              partnerDepartment: targetUserData['department'],
+              partnerName: targetUserData['displayName'],
+              onGoToChat: () {
+                // Navigate to chat tab
+                _handleTabNavigation(3);
+              },
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error showing matched page: $e');
+    }
   }
 
   void _handleTabNavigation(int index) {
@@ -183,6 +380,7 @@ class _HomePageState extends State<HomePage> {
         return _HomeContent(
           filters: _currentFilters,
           onClearFilters: _clearFilters, // Pass the clear function
+          onGoToChat: () => _handleTabNavigation(3), // Pass navigation callback
         );
       case 1:
         return const FollowPage();
@@ -1184,8 +1382,13 @@ class _HomePageState extends State<HomePage> {
 class _HomeContent extends StatefulWidget {
   final Map<String, dynamic> filters;
   final VoidCallback onClearFilters;
+  final VoidCallback onGoToChat;
 
-  const _HomeContent({required this.filters, required this.onClearFilters});
+  const _HomeContent({
+    required this.filters, 
+    required this.onClearFilters,
+    required this.onGoToChat,
+  });
 
   @override
   State<_HomeContent> createState() => _HomeContentState();
@@ -1210,22 +1413,49 @@ class _HomeContentState extends State<_HomeContent> {
   }
 
   /// Filter users based on current filter settings
-  List<QueryDocumentSnapshot> _filterUsers(
+  Future<List<QueryDocumentSnapshot>> _filterUsers(
     List<QueryDocumentSnapshot> docs,
     String currentUid,
-  ) {
-    return docs.where((doc) {
+  ) async {
+    final filteredDocs = <QueryDocumentSnapshot>[];
+    
+    for (final doc in docs) {
       final data = doc.data() as Map<String, dynamic>? ?? {};
       final docUid = data['uid'] as String? ?? doc.id;
 
       // Exclude current user
-      if (docUid == currentUid) return false;
+      if (docUid == currentUid) continue;
+
+      // Check if users are already following each other (mutual follow)
+      final currentUserRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid);
+      final targetUserRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(docUid);
+      
+      // Check if current user is following target user
+      final currentUserFollowing = await currentUserRef
+          .collection('following')
+          .doc(docUid)
+          .get();
+      
+      // Check if target user is following current user
+      final targetUserFollowing = await targetUserRef
+          .collection('following')
+          .doc(currentUid)
+          .get();
+      
+      // If either is following the other, exclude from suggestions
+      if (currentUserFollowing.exists || targetUserFollowing.exists) {
+        continue;
+      }
 
       // Apply gender filter
       if (widget.filters['gender'] != null) {
         final userGender = data['gender'] as String? ?? '';
         if (userGender != widget.filters['gender']) {
-          return false;
+          continue;
         }
       }
 
@@ -1278,7 +1508,7 @@ class _HomeContentState extends State<_HomeContent> {
         }
 
         if (userDepartmentDisplay != filterDepartment) {
-          return false;
+          continue;
         }
       }
 
@@ -1306,11 +1536,14 @@ class _HomeContentState extends State<_HomeContent> {
       }
 
       if (yearLevel < yearRange.start || yearLevel > yearRange.end) {
-        return false;
+        continue;
       }
 
-      return true;
-    }).toList();
+      // If all filters pass, add to filtered list
+      filteredDocs.add(doc);
+    }
+    
+    return filteredDocs;
   }
 
   @override
@@ -1329,16 +1562,28 @@ class _HomeContentState extends State<_HomeContent> {
         }
 
         final docs = snapshot.data?.docs ?? [];
-        final filteredDocs = _filterUsers(docs, currentUid!);
+        
+        return FutureBuilder<List<QueryDocumentSnapshot>>(
+          future: _filterUsers(docs, currentUid!),
+          builder: (context, filterSnapshot) {
+            if (filterSnapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox.shrink();
+            }
+            
+            if (filterSnapshot.hasError) {
+              return Center(child: Text('Error filtering users: ${filterSnapshot.error}'));
+            }
+            
+            final filteredDocs = filterSnapshot.data ?? [];
 
-        // Show active filters
-        final hasActiveFilters =
-            widget.filters['gender'] != null ||
-            widget.filters['department'] != null ||
-            (widget.filters['yearRange'] as RangeValues).start > 1 ||
-            (widget.filters['yearRange'] as RangeValues).end < 4;
+            // Show active filters
+            final hasActiveFilters =
+                widget.filters['gender'] != null ||
+                widget.filters['department'] != null ||
+                (widget.filters['yearRange'] as RangeValues).start > 1 ||
+                (widget.filters['yearRange'] as RangeValues).end < 4;
 
-        if (filteredDocs.isEmpty) {
+            if (filteredDocs.isEmpty) {
           return Column(
             children: [
               if (hasActiveFilters)
@@ -1511,7 +1756,10 @@ class _HomeContentState extends State<_HomeContent> {
               needImprovements: weaknesses,
               bio: bio,
               location: location,
+              onGoToChat: widget.onGoToChat,
             );
+          },
+        );
           },
         );
       },
@@ -1534,6 +1782,7 @@ class SuggestedCard extends StatefulWidget {
   final List<String> needImprovements;
   final String bio;
   final String location;
+  final VoidCallback? onGoToChat;
 
   const SuggestedCard({
     super.key,
@@ -1546,6 +1795,7 @@ class SuggestedCard extends StatefulWidget {
     required this.needImprovements,
     required this.bio,
     required this.location,
+    this.onGoToChat,
   });
 
   @override
@@ -1554,12 +1804,102 @@ class SuggestedCard extends StatefulWidget {
 
 class _SuggestedCardState extends State<SuggestedCard> {
   bool _isLoading = false;
+  bool _hasNavigatedToMatched = false;
   late final String currentUid;
 
   @override
   void initState() {
     super.initState();
     currentUid = FirebaseAuth.instance.currentUser!.uid;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Force refresh when dependencies change (e.g., when returning from follow request page)
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void didUpdateWidget(SuggestedCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Force refresh when widget updates (e.g., when returning from other screens)
+    if (mounted) {
+      setState(() {});
+    }
+    // Check for new mutual follows when widget updates
+    _checkForNewMutualFollow();
+  }
+
+  Future<void> _checkForNewMutualFollow() async {
+    try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) return;
+
+      // Check if we're following this user
+      final followingSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid)
+          .collection('following')
+          .doc(widget.uid)
+          .get();
+
+      // Check if they're following us
+      final followerSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.uid)
+          .collection('following')
+          .doc(currentUid)
+          .get();
+
+      // If both are following each other and we haven't shown matched page yet
+      if (followingSnap.exists && followerSnap.exists && !_hasNavigatedToMatched) {
+        _hasNavigatedToMatched = true;
+        
+        // Get current user data
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          // Get current user data from Firestore
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get()
+              .then((currentUserDoc) {
+            if (currentUserDoc.exists) {
+              final currentUserData = currentUserDoc.data()!;
+              // Get target user data
+              FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(widget.uid)
+                  .get()
+                  .then((targetUserDoc) {
+                if (targetUserDoc.exists) {
+                  final targetUserData = targetUserDoc.data()!;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MatchedPage(
+                        currentUserAvatar: currentUserData['avatarPath'] ?? currentUserData['avatar'],
+                        currentUserDepartment: currentUserData['department'],
+                        currentUserName: currentUserData['displayName'],
+                        partnerAvatar: targetUserData['avatarPath'] ?? targetUserData['avatar'],
+                        partnerDepartment: targetUserData['department'],
+                        partnerName: targetUserData['displayName'],
+                        onGoToChat: widget.onGoToChat,
+                      ),
+                    ),
+                  );
+                }
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking for mutual follow: $e');
+    }
   }
 
   Stream<DocumentSnapshot> followingStream() {
@@ -1598,6 +1938,16 @@ class _SuggestedCardState extends State<SuggestedCard> {
         .snapshots();
   }
 
+  // Stream to listen to the other user's following collection to detect when they unfollow you
+  Stream<DocumentSnapshot> otherUserFollowingStream() {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.uid)
+        .collection('following')
+        .doc(currentUid)
+        .snapshots();
+  }
+
   Future<void> _toggleFollow({
     required bool isFollowing,
     required bool isPendingSent,
@@ -1607,6 +1957,9 @@ class _SuggestedCardState extends State<SuggestedCard> {
     if (_isLoading) return; // Prevent multiple taps
 
     setState(() => _isLoading = true);
+    
+    // Add a small delay to prevent rapid successive calls
+    await Future.delayed(const Duration(milliseconds: 100));
 
     final currentUserRef = FirebaseFirestore.instance
         .collection('users')
@@ -1619,9 +1972,11 @@ class _SuggestedCardState extends State<SuggestedCard> {
     );
 
     try {
-      //  UNFOLLOW
+      //  UNFOLLOW (when you're following them)
       if (isFollowing) {
         final batch = FirebaseFirestore.instance.batch();
+        
+        // Remove your following relationship
         final myFollowingDoc = currentUserRef
             .collection('following')
             .doc(widget.uid);
@@ -1632,21 +1987,99 @@ class _SuggestedCardState extends State<SuggestedCard> {
         batch.delete(myFollowingDoc);
         batch.delete(theirFollowerDoc);
 
-        await batch.commit();
-
-        // If the other still follows, create a pending request
-        final otherFollowsMe = await targetUserRef
-            .collection('following')
-            .doc(currentUid)
-            .get();
-        if (otherFollowsMe.exists) {
-          await followRequestsRef.add({
-            'fromUid': widget.uid,
-            'toUid': currentUid,
-            'status': 'pending',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
+        // For mutual follow system: if they're also following you, remove that too
+        if (isFollowingMe) {
+          final theirFollowingDoc = targetUserRef
+              .collection('following')
+              .doc(currentUid);
+          final myFollowerDoc = currentUserRef
+              .collection('followers')
+              .doc(widget.uid);
+          
+          batch.delete(theirFollowingDoc);
+          batch.delete(myFollowerDoc);
         }
+
+        // Also clean up any existing follow requests in both directions
+        final pendingA = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUid)
+            .where('toUid', isEqualTo: widget.uid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        final pendingB = await followRequestsRef
+            .where('fromUid', isEqualTo: widget.uid)
+            .where('toUid', isEqualTo: currentUid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        for (var d in pendingA.docs) {
+          batch.delete(d.reference);
+        }
+        for (var d in pendingB.docs) {
+          batch.delete(d.reference);
+        }
+
+        await batch.commit();
+        return;
+      }
+
+      // UNFOLLOW (when they're following you - remove them from your followers)
+      if (isFollowingMe && !isFollowing && !isPendingSent && !isPendingReceived) {
+        final batch = FirebaseFirestore.instance.batch();
+        
+        // Remove them from your followers
+        final myFollowerDoc = currentUserRef
+            .collection('followers')
+            .doc(widget.uid);
+        final theirFollowingDoc = targetUserRef
+            .collection('following')
+            .doc(currentUid);
+
+        batch.delete(myFollowerDoc);
+        batch.delete(theirFollowingDoc);
+
+        // For mutual follow system: if you're also following them, remove that too
+        // Check if you're following them (this might be a mutual follow)
+        final myFollowingDoc = currentUserRef
+            .collection('following')
+            .doc(widget.uid);
+        final theirFollowerDoc = targetUserRef
+            .collection('followers')
+            .doc(currentUid);
+        
+        // Check if the relationship exists before trying to delete
+        final myFollowingSnap = await myFollowingDoc.get();
+        final theirFollowerSnap = await theirFollowerDoc.get();
+        
+        if (myFollowingSnap.exists) {
+          batch.delete(myFollowingDoc);
+        }
+        if (theirFollowerSnap.exists) {
+          batch.delete(theirFollowerDoc);
+        }
+
+        // Also clean up any existing follow requests in both directions
+        final pendingA = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUid)
+            .where('toUid', isEqualTo: widget.uid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        final pendingB = await followRequestsRef
+            .where('fromUid', isEqualTo: widget.uid)
+            .where('toUid', isEqualTo: currentUid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        for (var d in pendingA.docs) {
+          batch.delete(d.reference);
+        }
+        for (var d in pendingB.docs) {
+          batch.delete(d.reference);
+        }
+
+        await batch.commit();
         return;
       }
 
@@ -1691,6 +2124,24 @@ class _SuggestedCardState extends State<SuggestedCard> {
 
       // When accepting an incoming request
       if (isPendingReceived) {
+        // Check if follow relationships already exist to prevent duplicates
+        final myFollowerExists = await currentUserRef
+            .collection('followers')
+            .doc(widget.uid)
+            .get();
+        final myFollowingExists = await currentUserRef
+            .collection('following')
+            .doc(widget.uid)
+            .get();
+        final theirFollowerExists = await targetUserRef
+            .collection('followers')
+            .doc(currentUid)
+            .get();
+        final theirFollowingExists = await targetUserRef
+            .collection('following')
+            .doc(currentUid)
+            .get();
+
         final batch = FirebaseFirestore.instance.batch();
         final myFollowerDoc = currentUserRef
             .collection('followers')
@@ -1705,11 +2156,64 @@ class _SuggestedCardState extends State<SuggestedCard> {
             .collection('following')
             .doc(currentUid);
 
-        batch.set(myFollowerDoc, <String, dynamic>{});
-        batch.set(myFollowingDoc, <String, dynamic>{});
-        batch.set(theirFollowerDoc, <String, dynamic>{});
-        batch.set(theirFollowingDoc, <String, dynamic>{});
+        // Only create relationships that don't already exist
+        if (!myFollowerExists.exists) {
+          batch.set(myFollowerDoc, <String, dynamic>{});
+        }
+        if (!myFollowingExists.exists) {
+          batch.set(myFollowingDoc, <String, dynamic>{});
+        }
+        if (!theirFollowerExists.exists) {
+          batch.set(theirFollowerDoc, <String, dynamic>{});
+        }
+        if (!theirFollowingExists.exists) {
+          batch.set(theirFollowingDoc, <String, dynamic>{});
+        }
+        
         await batch.commit();
+        
+        // Navigate to matched page when mutual follow happens
+        if (mounted && !_hasNavigatedToMatched) {
+          _hasNavigatedToMatched = true;
+          // Get current user data
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            // Get current user data from Firestore
+            FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .get()
+                .then((currentUserDoc) {
+              if (currentUserDoc.exists) {
+                final currentUserData = currentUserDoc.data()!;
+                // Get target user data
+                FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(widget.uid)
+                    .get()
+                    .then((targetUserDoc) {
+                  if (targetUserDoc.exists) {
+                    final targetUserData = targetUserDoc.data()!;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MatchedPage(
+                          currentUserAvatar: currentUserData['avatarPath'] ?? currentUserData['avatar'],
+                          currentUserDepartment: currentUserData['department'],
+                          currentUserName: currentUserData['displayName'],
+                          partnerAvatar: targetUserData['avatarPath'] ?? targetUserData['avatar'],
+                          partnerDepartment: targetUserData['department'],
+                          partnerName: targetUserData['displayName'],
+                          onGoToChat: widget.onGoToChat,
+                        ),
+                      ),
+                    );
+                  }
+                });
+              }
+            });
+          }
+        }
         return;
       }
 
@@ -1718,7 +2222,46 @@ class _SuggestedCardState extends State<SuggestedCard> {
           .collection('following')
           .doc(currentUid)
           .get();
-      if (otherFollowsMeSnap.exists || isFollowingMe) {
+      
+      // Check if the other person is already following you
+      final otherFollowsMe = otherFollowsMeSnap.exists || isFollowingMe;
+      
+      // If they're already following you, create mutual follow relationship
+      if (otherFollowsMe) {
+        // Clean up any existing follow requests first
+        final cleanupBatch = FirebaseFirestore.instance.batch();
+        
+        final pendingA = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUid)
+            .where('toUid', isEqualTo: widget.uid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        final pendingB = await followRequestsRef
+            .where('fromUid', isEqualTo: widget.uid)
+            .where('toUid', isEqualTo: currentUid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        for (var d in pendingA.docs) {
+          cleanupBatch.delete(d.reference);
+        }
+        for (var d in pendingB.docs) {
+          cleanupBatch.delete(d.reference);
+        }
+        
+        await cleanupBatch.commit();
+
+        // Check if follow relationships already exist to prevent duplicates
+        final myFollowingExists = await currentUserRef
+            .collection('following')
+            .doc(widget.uid)
+            .get();
+        final theirFollowerExists = await targetUserRef
+            .collection('followers')
+            .doc(currentUid)
+            .get();
+
         final batch = FirebaseFirestore.instance.batch();
         final myFollowingDoc = currentUserRef
             .collection('following')
@@ -1727,19 +2270,85 @@ class _SuggestedCardState extends State<SuggestedCard> {
             .collection('followers')
             .doc(currentUid);
 
-        batch.set(myFollowingDoc, <String, dynamic>{});
-        batch.set(theirFollowerDoc, <String, dynamic>{});
+        // Only create relationships that don't already exist
+        if (!myFollowingExists.exists) {
+          batch.set(myFollowingDoc, <String, dynamic>{});
+        }
+        if (!theirFollowerExists.exists) {
+          batch.set(theirFollowerDoc, <String, dynamic>{});
+        }
+        
         await batch.commit();
+        
+        // Navigate to matched page when mutual follow happens
+        if (mounted && !_hasNavigatedToMatched) {
+          _hasNavigatedToMatched = true;
+          // Get current user data
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            // Get current user data from Firestore
+            FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .get()
+                .then((currentUserDoc) {
+              if (currentUserDoc.exists) {
+                final currentUserData = currentUserDoc.data()!;
+                // Get target user data
+                FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(widget.uid)
+                    .get()
+                    .then((targetUserDoc) {
+                  if (targetUserDoc.exists) {
+                    final targetUserData = targetUserDoc.data()!;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MatchedPage(
+                          currentUserAvatar: currentUserData['avatarPath'] ?? currentUserData['avatar'],
+                          currentUserDepartment: currentUserData['department'],
+                          currentUserName: currentUserData['displayName'],
+                          partnerAvatar: targetUserData['avatarPath'] ?? targetUserData['avatar'],
+                          partnerDepartment: targetUserData['department'],
+                          partnerName: targetUserData['displayName'],
+                          onGoToChat: widget.onGoToChat,
+                        ),
+                      ),
+                    );
+                  }
+                });
+              }
+            });
+          }
+        }
+        return;
+      } else {
+        // If they're not following you, create a follow request
+        // First check if we're already following them
+        final alreadyFollowing = await currentUserRef
+            .collection('following')
+            .doc(widget.uid)
+            .get();
+        
+        if (!alreadyFollowing.exists) {
+          final existingRequest = await followRequestsRef
+              .where('fromUid', isEqualTo: currentUid)
+              .where('toUid', isEqualTo: widget.uid)
+              .where('status', isEqualTo: 'pending')
+              .get();
+          
+          if (existingRequest.docs.isEmpty) {
+            await followRequestsRef.add({
+              'fromUid': currentUid,
+              'toUid': widget.uid,
+              'status': 'pending',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
         return;
       }
-
-      // Otherwise, create a follow request
-      await followRequestsRef.add({
-        'fromUid': currentUid,
-        'toUid': widget.uid,
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
     } catch (e) {
       debugPrint('Error in _toggleFollow: $e');
       if (mounted) {
@@ -1776,6 +2385,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
     bool isFollowing,
     bool isPendingSent,
     bool isPendingReceived,
+    bool isFollowingMe,
     double textScale,
   ) {
     return ElevatedButton(
@@ -1798,7 +2408,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
               isFollowing: isFollowing,
               isPendingSent: isPendingSent,
               isPendingReceived: isPendingReceived,
-              isFollowingMe: false,
+              isFollowingMe: isFollowingMe,
             ),
       child: Text(
         buttonLabel,
@@ -1887,21 +2497,40 @@ class _SuggestedCardState extends State<SuggestedCard> {
                         receivedSnap.data != null &&
                         receivedSnap.data!.docs.isNotEmpty;
 
-                    final buttonLabel = getButtonLabel(
-                      isFollowing: isFollowing,
-                      isPendingSent: isPendingSent,
-                      isPendingReceived: isPendingReceived,
-                    );
+                    return StreamBuilder<DocumentSnapshot>(
+                      stream: otherUserFollowingStream(),
+                      builder: (context, otherUserFollowingSnap) {
+                        // Check if the other user is still following you
+                        final otherUserStillFollowing = otherUserFollowingSnap.hasData &&
+                            otherUserFollowingSnap.data != null &&
+                            otherUserFollowingSnap.data!.exists;
 
-                    return _buildCardContent(
-                      context,
-                      screenWidth,
-                      textScale,
-                      isFollowing,
-                      isPendingSent,
-                      isPendingReceived,
-                      isFollowingMe,
-                      buttonLabel,
+                        // Use real-time detection instead of cached values
+                        final actualIsFollowingMe = otherUserStillFollowing;
+
+                        // Update button label based on actual follow status
+                        String buttonLabel;
+                        if (isFollowing) {
+                          buttonLabel = "Following";
+                        } else if (isPendingSent) {
+                          buttonLabel = "Pending";
+                        } else if (isPendingReceived) {
+                          buttonLabel = "Accept";
+                        } else {
+                          buttonLabel = "Follow";
+                        }
+
+                        return _buildCardContent(
+                          context,
+                          screenWidth,
+                          textScale,
+                          isFollowing,
+                          isPendingSent,
+                          isPendingReceived,
+                          actualIsFollowingMe,
+                          buttonLabel,
+                        );
+                      },
                     );
                   },
                 );
@@ -2137,6 +2766,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
                             isFollowing,
                             isPendingSent,
                             isPendingReceived,
+                            isFollowingMe,
                             textScale,
                           ),
                         ],

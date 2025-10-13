@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:unimind/views/match/matched.dart';
 import 'dart:convert';
 
 class DiscoverPage extends StatefulWidget {
@@ -193,6 +194,43 @@ class _DiscoverPageState extends State<DiscoverPage> {
         _isFollowing = !_isFollowing;
         _isLoading = false;
       });
+
+      // Navigate to matched page when follow happens (discover page creates mutual follow)
+      if (!_isFollowing && mounted) {
+        // Get current user data
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null && _scannedUserData != null) {
+          // Get current user data from Firestore
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get()
+              .then((currentUserDoc) {
+            if (currentUserDoc.exists) {
+              final currentUserData = currentUserDoc.data()!;
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => MatchedPage(
+                    currentUserAvatar: currentUserData['avatarPath'] ?? currentUserData['avatar'],
+                    currentUserDepartment: currentUserData['department'],
+                    currentUserName: currentUserData['displayName'],
+                    partnerAvatar: _scannedUserData!['avatarPath'] ?? _scannedUserData!['avatar'],
+                    partnerDepartment: _scannedUserData!['department'],
+                    partnerName: _scannedUserData!['displayName'],
+                    onGoToChat: () {
+                      // Navigate to chat tab
+                      Navigator.pop(context);
+                      // Navigate to home with chat tab
+                      Navigator.pushReplacementNamed(context, '/home', arguments: {'initialIndex': 3});
+                    },
+                  ),
+                ),
+              );
+            }
+          });
+        }
+      }
 
     } catch (e) {
       print("Error toggling follow: $e");
