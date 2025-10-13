@@ -334,93 +334,174 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // ADDED: Function to set a password for a Google-only user
   Future<void> _setPassword() async {
+    // NOTE: Hardcoded colors used throughout the function (copied from _changePassword).
+    const Color primaryRed = Color(0xFFB41214);
+    const Color textPrimary = Color(0xFF1A1D1F);
+    const Color textSecondary = Color(0xFF6F767E);
+    const Color backgroundColor = Color(0xFFF8F9FA);
+
     if (_isSettingPassword || currentUser == null) return;
-    final TextEditingController passwordController = TextEditingController();
+
+    final TextEditingController newPasswordController = TextEditingController();
     final TextEditingController confirmPasswordController =
         TextEditingController();
 
-    bool? result = await showDialog<bool>(
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+    bool? result = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Set Password',
-          style: GoogleFonts.montserrat(
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFFB41214),
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Set a password to enable email/password login for your account.',
-              style: GoogleFonts.montserrat(),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final viewInsets = MediaQuery.of(context).viewInsets.bottom;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: viewInsets),
+          child: Container(
+            constraints: BoxConstraints(
+              // Allow it to take up a maximum of 90% of the screen height
+              maxHeight: MediaQuery.of(context).size.height * 0.9,
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'New Password',
-                border: OutlineInputBorder(),
+            decoration: const BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(25),
+                topRight: Radius.circular(25),
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Confirm Password',
-                border: OutlineInputBorder(),
+            child: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle Bar (The small gray indicator at the top)
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 15),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+
+                    // Title
+                    Text(
+                      'Set Your Password',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: primaryRed,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Subtitle
+                    Text(
+                      'Set a password to enable email/password login for your account. This will secure your Google-linked account.',
+                      style: GoogleFonts.montserrat(
+                        fontSize: 14,
+                        color: textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 25),
+
+                    // 1. New Password Field (using the new widget)
+                    _PasswordTextFieldWithToggle(
+                      controller: newPasswordController,
+                      labelText: 'New Password',
+                      validator: (value) {
+                        if (value == null || value.length < 6) {
+                          return 'Password must be at least 6 characters.';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    // 2. Confirm New Password Field (using the new widget)
+                    _PasswordTextFieldWithToggle(
+                      controller: confirmPasswordController,
+                      labelText: 'Confirm Password',
+                      validator: (value) {
+                        if (value != newPasswordController.text) {
+                          return 'Passwords do not match.';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 10),
+
+                    // Action Buttons
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextButton(
+                            onPressed: () => Navigator.pop(context, false),
+                            style: TextButton.styleFrom(
+                              foregroundColor: textSecondary,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              'Cancel',
+                              style: GoogleFonts.montserrat(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (formKey.currentState!.validate()) {
+                                // If validation passes, pop true to proceed with update
+                                Navigator.pop(context, true);
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryRed,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              'Set Password',
+                              style: GoogleFonts.montserrat(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              if (passwordController.text.isEmpty ||
-                  confirmPasswordController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please fill in all fields')),
-                );
-                return;
-              }
-              if (passwordController.text != confirmPasswordController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passwords do not match')),
-                );
-                return;
-              }
-              if (passwordController.text.length < 6) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Password must be at least 6 characters'),
-                  ),
-                );
-                return;
-              }
-              Navigator.pop(context, true);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFB41214),
-            ),
-            child: const Text('Set Password'),
-          ),
-        ],
-      ),
+        );
+      },
     );
+
+    // ... (The Firebase logic below this point remains the same as your original _setPassword)
 
     if (result == true) {
       setState(() => _isSettingPassword = true);
       try {
         final AuthCredential credential = EmailAuthProvider.credential(
           email: currentUser!.email!,
-          password: passwordController.text,
+          password: newPasswordController.text, // Use newPasswordController
         );
         await currentUser!.linkWithCredential(credential);
 
@@ -442,7 +523,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+            SnackBar(content: Text(errorMessage), backgroundColor: primaryRed),
           );
         }
       } catch (e) {
@@ -451,11 +532,14 @@ class _ProfilePageState extends State<ProfilePage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Failed to set password. Please try again.'),
-              backgroundColor: Colors.red,
+              backgroundColor: primaryRed,
             ),
           );
         }
       } finally {
+        // Dispose controllers and reset state
+        newPasswordController.dispose();
+        confirmPasswordController.dispose();
         if (mounted) {
           setState(() => _isSettingPassword = false);
         }
