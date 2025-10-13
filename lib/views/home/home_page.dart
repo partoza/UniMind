@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,6 +10,7 @@ import 'package:unimind/views/profile/profile_page.dart';
 import 'package:unimind/views/discover/discover_page.dart';
 import 'package:unimind/views/profile/qr_scanner_page.dart';
 import 'package:unimind/views/home/filter_page.dart';
+import 'package:unimind/views/match/matched.dart';
 import 'package:unimind/widgets/loading_widget.dart';
 
 class HomePage extends StatefulWidget {
@@ -25,6 +27,10 @@ class _HomePageState extends State<HomePage> {
   int _targetIndex = 0;
   bool _isInitialLoading = true;
 
+  // Track shown matched pages to prevent duplicates
+  Set<String> _shownMatchedPages = {};
+  bool _isShowingMatchedPage = false;
+
   // Add filter state here
   Map<String, dynamic> _currentFilters = {
     'gender': null,
@@ -36,6 +42,18 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
 
+    // Reset initial loading state on hot restart
+    _isInitialLoading = true;
+
+    // Force rebuild to show skeleton loading immediately
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _isInitialLoading = true;
+        });
+      }
+    });
+
     // Add initial loading delay
     Future.delayed(const Duration(milliseconds: 1200), () {
       if (mounted) {
@@ -44,6 +62,271 @@ class _HomePageState extends State<HomePage> {
         });
       }
     });
+
+    // Initialize matched page tracking with existing mutual follows
+    _initializeMatchedPageTracking();
+
+    // Check for mutual follows periodically
+    _startMutualFollowCheck();
+
+    // Listen for changes in followers to detect unfollows
+    _startUnfollowDetection();
+  }
+
+  Future<void> _initializeMatchedPageTracking() async {
+    try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) return;
+
+      debugPrint(
+        'Initializing matched page tracking for existing relationships',
+      );
+
+      // Get all users we're following
+      final followingSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid)
+          .collection('following')
+          .get();
+
+      // Mark existing mutual follows as already shown
+      for (var doc in followingSnap.docs) {
+        final targetUid = doc.id;
+
+        // Check if they're also following us
+        final mutualFollowSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(targetUid)
+            .collection('following')
+            .doc(currentUid)
+            .get();
+
+        if (mutualFollowSnap.exists) {
+          // This is an existing mutual follow - mark as already shown
+          final matchedKey = '${currentUid}_$targetUid';
+          _shownMatchedPages.add(matchedKey);
+          debugPrint(
+            'Marked existing mutual follow as already shown: $matchedKey',
+          );
+        }
+      }
+
+      debugPrint(
+        'Initialized matched page tracking with ${_shownMatchedPages.length} existing relationships',
+      );
+    } catch (e) {
+      debugPrint('Error initializing matched page tracking: $e');
+    }
+  }
+
+  void _startMutualFollowCheck() {
+    // Check every 3 seconds for new mutual follows
+    Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      // Only check for mutual follows if we're not already showing a matched page
+      if (!_isShowingMatchedPage) {
+        _checkForNewMutualFollows();
+      }
+    });
+  }
+
+  void _startUnfollowDetection() {
+    // Listen for changes in followers to detect when someone unfollows you
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid == null) return;
+
+    debugPrint('Starting unfollow detection listeners');
+
+    // Listen to your followers collection
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUid)
+        .collection('followers')
+        .snapshots()
+        .listen((snapshot) {
+          if (mounted) {
+            debugPrint('Followers collection changed, refreshing UI');
+            // Force refresh the UI when followers change
+            setState(() {});
+          }
+        });
+
+    // Also listen to your following collection to detect when you unfollow someone
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUid)
+        .collection('following')
+        .snapshots()
+        .listen((snapshot) {
+          if (mounted) {
+            debugPrint('Following collection changed, refreshing UI');
+            // Force refresh the UI when following changes
+            setState(() {});
+          }
+        });
+  }
+
+  Future<void> _checkForNewMutualFollows() async {
+    try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) return;
+
+      // Get all users we're following
+      final followingSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid)
+          .collection('following')
+          .get();
+
+      // Track current mutual follows
+      Set<String> currentMutualFollows = {};
+
+      for (var doc in followingSnap.docs) {
+        final targetUid = doc.id;
+
+        // Check if they're also following us
+        final mutualFollowSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(targetUid)
+            .collection('following')
+            .doc(currentUid)
+            .get();
+
+        if (mutualFollowSnap.exists) {
+          currentMutualFollows.add(targetUid);
+
+          // This is a mutual follow - show matched page only if not shown before
+          final matchedKey = '${currentUid}_$targetUid';
+          if (!_shownMatchedPages.contains(matchedKey)) {
+            // Check if this mutual follow was initiated by the OTHER user
+            // by comparing timestamps - if their follow timestamp is more recent than ours,
+            // it means they followed us after we followed them (they initiated the mutual follow)
+            final myFollowTimestamp = doc.data()['timestamp'] as Timestamp?;
+            final theirFollowTimestamp =
+                mutualFollowSnap.data()?['timestamp'] as Timestamp?;
+
+            bool shouldShowMatchedPage = false;
+
+            if (myFollowTimestamp != null && theirFollowTimestamp != null) {
+              // If they followed us more recently (within last 30 seconds), show matched page
+              final now = Timestamp.now();
+              final timeSinceTheirFollow =
+                  now.seconds - theirFollowTimestamp.seconds;
+              final timeSinceMyFollow = now.seconds - myFollowTimestamp.seconds;
+
+              if (timeSinceTheirFollow < 30 &&
+                  theirFollowTimestamp.seconds > myFollowTimestamp.seconds) {
+                shouldShowMatchedPage = true;
+                debugPrint(
+                  'Showing matched page for mutual follow initiated by $targetUid (they followed ${timeSinceTheirFollow}s ago)',
+                );
+              } else {
+                debugPrint(
+                  'Skipping matched page - mutual follow was initiated by current user or too old',
+                );
+              }
+            } else {
+              // If timestamps are missing, show matched page (fallback)
+              shouldShowMatchedPage = true;
+              debugPrint(
+                'Showing matched page for mutual follow with $targetUid (no timestamp data)',
+              );
+            }
+
+            if (shouldShowMatchedPage) {
+              _shownMatchedPages.add(matchedKey);
+              debugPrint(
+                'Showing matched page for new mutual follow with $targetUid (automatic detection)',
+              );
+              _showMatchedPage(targetUid);
+              break; // Only show one matched page at a time
+            } else {
+              // Mark as shown to prevent future automatic detection
+              _shownMatchedPages.add(matchedKey);
+            }
+          } else {
+            debugPrint(
+              'Matched page already shown for $targetUid, skipping automatic detection',
+            );
+          }
+        }
+      }
+
+      // Clean up tracking for users we're no longer following or who are no longer following us
+      _shownMatchedPages.removeWhere((key) {
+        final targetUid = key.split('_')[1];
+        return !currentMutualFollows.contains(targetUid);
+      });
+    } catch (e) {
+      debugPrint('Error checking for mutual follows: $e');
+    }
+  }
+
+  Future<void> _showMatchedPage(String targetUid) async {
+    try {
+      _isShowingMatchedPage = true;
+      debugPrint('Setting _isShowingMatchedPage to true');
+
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      // Get current user data
+      final currentUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      // Get target user data
+      final targetUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(targetUid)
+          .get();
+
+      if (currentUserDoc.exists && targetUserDoc.exists) {
+        final currentUserData = currentUserDoc.data()!;
+        final targetUserData = targetUserDoc.data()!;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => MatchedPage(
+              currentUserAvatar:
+                  currentUserData['avatarPath'] ?? currentUserData['avatar'],
+              currentUserDepartment: currentUserData['department'],
+              currentUserName: currentUserData['displayName'],
+              partnerAvatar:
+                  targetUserData['avatarPath'] ?? targetUserData['avatar'],
+              partnerDepartment: targetUserData['department'],
+              partnerName: targetUserData['displayName'],
+              onGoToChat: () {
+                // Navigate to chat tab
+                _handleTabNavigation(3);
+              },
+            ),
+          ),
+        ).then((_) {
+          // Reset the flag when the matched page is closed
+          _isShowingMatchedPage = false;
+          debugPrint(
+            'Matched page closed, setting _isShowingMatchedPage to false',
+          );
+
+          // Mark this relationship as permanently shown to prevent re-showing
+          final currentUid = FirebaseAuth.instance.currentUser?.uid;
+          if (currentUid != null) {
+            final matchedKey = '${currentUid}_$targetUid';
+            _shownMatchedPages.add(matchedKey);
+            debugPrint('Marked matched page as permanently shown: $matchedKey');
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Error showing matched page: $e');
+      _isShowingMatchedPage = false;
+    }
   }
 
   void _handleTabNavigation(int index) {
@@ -183,6 +466,15 @@ class _HomePageState extends State<HomePage> {
         return _HomeContent(
           filters: _currentFilters,
           onClearFilters: _clearFilters, // Pass the clear function
+          onGoToChat: () => _handleTabNavigation(3), // Pass navigation callback
+          shownMatchedPages: _shownMatchedPages,
+          isShowingMatchedPage: _isShowingMatchedPage,
+          onMatchedPageShown: (matchedKey) {
+            _shownMatchedPages.add(matchedKey);
+          },
+          onMatchedPageFlagChanged: (value) {
+            _isShowingMatchedPage = value;
+          },
         );
       case 1:
         return const FollowPage();
@@ -1134,24 +1426,13 @@ class _HomePageState extends State<HomePage> {
         return IconButton(
           icon: const Icon(Icons.qr_code, color: Colors.black, size: 30),
           onPressed: () {
-            final currentUser = FirebaseAuth.instance.currentUser;
-            if (currentUser != null) {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => QrScannerPage(
-                    source: currentUser.uid,
-                  ), // Pass actual user ID
-                ),
-              );
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Please log in to view QR code'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
+            // This should navigate to the DiscoverPage (scanner), not QrScannerPage (QR display)
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const DiscoverPage(), // Change to DiscoverPage
+              ),
+            );
           },
         );
       case 4: // Profile - QR icon (source: profile)
@@ -1195,14 +1476,64 @@ class _HomePageState extends State<HomePage> {
 class _HomeContent extends StatefulWidget {
   final Map<String, dynamic> filters;
   final VoidCallback onClearFilters;
+  final VoidCallback onGoToChat;
+  final Set<String>? shownMatchedPages;
+  final bool? isShowingMatchedPage;
+  final Function(String)? onMatchedPageShown;
+  final Function(bool)? onMatchedPageFlagChanged;
 
-  const _HomeContent({required this.filters, required this.onClearFilters});
+  const _HomeContent({
+    required this.filters,
+    required this.onClearFilters,
+    required this.onGoToChat,
+    this.shownMatchedPages,
+    this.isShowingMatchedPage,
+    this.onMatchedPageShown,
+    this.onMatchedPageFlagChanged,
+  });
 
   @override
   State<_HomeContent> createState() => _HomeContentState();
 }
 
 class _HomeContentState extends State<_HomeContent> {
+  // Add a key to force rebuild when following collection changes
+  Key _filterKey = UniqueKey();
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for changes in the current user's following collection
+    _startFollowingChangeListener();
+  }
+
+  void _startFollowingChangeListener() {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUid != null) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid)
+          .collection('following')
+          .snapshots()
+          .listen((snapshot) {
+            // Force rebuild when following collection changes
+            if (mounted) {
+              debugPrint(
+                'Following collection changed, refreshing suggested users',
+              );
+              // Add a small delay to ensure database changes are propagated
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted) {
+                  setState(() {
+                    _filterKey = UniqueKey();
+                  });
+                }
+              });
+            }
+          });
+    }
+  }
+
   /// Helper function to get ordinal suffix (1st, 2nd, 3rd, 4th)
   String _getOrdinalSuffix(int number) {
     if (number >= 11 && number <= 13) {
@@ -1221,22 +1552,53 @@ class _HomeContentState extends State<_HomeContent> {
   }
 
   /// Filter users based on current filter settings
-  List<QueryDocumentSnapshot> _filterUsers(
+  Future<List<QueryDocumentSnapshot>> _filterUsers(
     List<QueryDocumentSnapshot> docs,
     String currentUid,
-  ) {
-    return docs.where((doc) {
+  ) async {
+    final filteredDocs = <QueryDocumentSnapshot>[];
+    debugPrint('Filtering ${docs.length} users for currentUid: $currentUid');
+
+    for (final doc in docs) {
       final data = doc.data() as Map<String, dynamic>? ?? {};
       final docUid = data['uid'] as String? ?? doc.id;
 
       // Exclude current user
-      if (docUid == currentUid) return false;
+      if (docUid == currentUid) continue;
+
+      // Check if users are already following each other (mutual follow)
+      final currentUserRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid);
+      final targetUserRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(docUid);
+
+      // Check if current user is following target user
+      final currentUserFollowing = await currentUserRef
+          .collection('following')
+          .doc(docUid)
+          .get();
+
+      // Check if target user is following current user
+      final targetUserFollowing = await targetUserRef
+          .collection('following')
+          .doc(currentUid)
+          .get();
+
+      // If either is following the other, exclude from suggestions
+      if (currentUserFollowing.exists || targetUserFollowing.exists) {
+        debugPrint('Excluding user $docUid - following relationship exists');
+        continue;
+      }
+
+      debugPrint('Including user $docUid in suggestions');
 
       // Apply gender filter
       if (widget.filters['gender'] != null) {
         final userGender = data['gender'] as String? ?? '';
         if (userGender != widget.filters['gender']) {
-          return false;
+          continue;
         }
       }
 
@@ -1289,7 +1651,7 @@ class _HomeContentState extends State<_HomeContent> {
         }
 
         if (userDepartmentDisplay != filterDepartment) {
-          return false;
+          continue;
         }
       }
 
@@ -1317,11 +1679,15 @@ class _HomeContentState extends State<_HomeContent> {
       }
 
       if (yearLevel < yearRange.start || yearLevel > yearRange.end) {
-        return false;
+        continue;
       }
 
-      return true;
-    }).toList();
+      // If all filters pass, add to filtered list
+      filteredDocs.add(doc);
+    }
+
+    debugPrint('Filtered users: ${filteredDocs.length} out of ${docs.length}');
+    return filteredDocs;
   }
 
   @override
@@ -1340,188 +1706,216 @@ class _HomeContentState extends State<_HomeContent> {
         }
 
         final docs = snapshot.data?.docs ?? [];
-        final filteredDocs = _filterUsers(docs, currentUid!);
 
-        // Show active filters
-        final hasActiveFilters =
-            widget.filters['gender'] != null ||
-            widget.filters['department'] != null ||
-            (widget.filters['yearRange'] as RangeValues).start > 1 ||
-            (widget.filters['yearRange'] as RangeValues).end < 4;
+        return FutureBuilder<List<QueryDocumentSnapshot>>(
+          key: _filterKey,
+          future: _filterUsers(docs, currentUid!),
+          builder: (context, filterSnapshot) {
+            if (filterSnapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox.shrink();
+            }
 
-        if (filteredDocs.isEmpty) {
-          return Column(
-            children: [
-              if (hasActiveFilters)
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      // Added padding for better spacing from edges
-                      padding: const EdgeInsets.all(15.0),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Replaced Icon with an Image
-                          Image.asset(
-                            'assets/illustrations/crying_boy.png', // <-- Make sure you have this image in your assets
-                            width: 200, // Adjust size as needed
-                            height: 200,
-                            fit: BoxFit.contain,
-                          ), // Increased spacing for better visual separation
-                          Text(
-                            hasActiveFilters
-                                ? "Oops!\nNo results found for your filters."
-                                : "No users found yet.", // Slightly softer message
-                            textAlign: TextAlign.center, // Center-align text
-                            style: GoogleFonts.montserrat(
-                              fontSize: 16, // Slightly larger font size
-                              fontWeight: FontWeight.w600, // Slightly bolder
-                              color: Colors
-                                  .grey
-                                  .shade700, // Darker grey for better readability
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 2,
-                          ), // Added a small space for a sub-message
-                          Text(
-                            hasActiveFilters
-                                ? "Try adjusting your filters or clearing them to see more."
-                                : "It looks like there are no users to display.", // Helper text
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 24,
-                          ), // Increased spacing before the button
-
-                          if (hasActiveFilters)
-                            ElevatedButton.icon(
-                              // Changed to ElevatedButton.icon for a modern look
-                              icon: const Icon(
-                                Icons.refresh,
-                                color: Colors.white,
-                                size: 20,
-                              ), // Added a relevant icon
-                              label: Text(
-                                "Clear Filters",
-                                style: GoogleFonts.montserrat(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              onPressed: widget.onClearFilters,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(
-                                  0xFFB41214,
-                                ), // Original background color
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    12,
-                                  ), // Slightly rounded corners for the button
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 28, // Increased padding
-                                  vertical: 14, // Increased padding
-                                ),
-                                elevation: 4, // Added a subtle shadow for depth
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          itemCount: filteredDocs.length + 1,
-          itemBuilder: (context, i) {
-            // First item is the header
-            if (i == 0) {
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      "Suggested for you",
-                      style: GoogleFonts.montserrat(
-                        fontSize: 18 * textScale,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    if (hasActiveFilters)
-                      Text(
-                        "${filteredDocs.length} results",
-                        style: GoogleFonts.montserrat(
-                          fontSize: 12 * textScale,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                  ],
-                ),
+            if (filterSnapshot.hasError) {
+              return Center(
+                child: Text('Error filtering users: ${filterSnapshot.error}'),
               );
             }
 
-            // Subtract 1 from index since first item is header
-            final docIndex = i - 1;
-            final data =
-                filteredDocs[docIndex].data() as Map<String, dynamic>? ?? {};
-            final docUid = data['uid'] as String? ?? filteredDocs[docIndex].id;
-            final displayName = data['displayName'] as String? ?? "Unknown";
-            final yearLevel = data['yearLevel'];
-            final program = data['program'] as String? ?? "";
-            final department = data['department'] as String? ?? "";
-            final abbreviatedProgram = data['programAcronym'] as String? ?? "";
-            // Format year level properly
-            String formattedYearLevel = "";
-            if (yearLevel != null) {
-              if (yearLevel is int) {
-                formattedYearLevel =
-                    "${yearLevel}${_getOrdinalSuffix(yearLevel)} Year";
-              } else if (yearLevel is String) {
-                // If it's already a string, use it as is
-                formattedYearLevel = yearLevel;
-              }
+            final filteredDocs = filterSnapshot.data ?? [];
+
+            // Show active filters
+            final hasActiveFilters =
+                widget.filters['gender'] != null ||
+                widget.filters['department'] != null ||
+                (widget.filters['yearRange'] as RangeValues).start > 1 ||
+                (widget.filters['yearRange'] as RangeValues).end < 4;
+
+            if (filteredDocs.isEmpty) {
+              return Column(
+                children: [
+                  if (hasActiveFilters)
+                    Expanded(
+                      child: Center(
+                        child: Padding(
+                          // Added padding for better spacing from edges
+                          padding: const EdgeInsets.all(15.0),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              // Replaced Icon with an Image
+                              Image.asset(
+                                'assets/illustrations/crying_boy.png', // <-- Make sure you have this image in your assets
+                                width: 200, // Adjust size as needed
+                                height: 200,
+                                fit: BoxFit.contain,
+                              ), // Increased spacing for better visual separation
+                              Text(
+                                hasActiveFilters
+                                    ? "Oops! No results found for your filters."
+                                    : "No users found yet.", // Slightly softer message
+                                textAlign:
+                                    TextAlign.center, // Center-align text
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 18, // Slightly larger font size
+                                  fontWeight:
+                                      FontWeight.w600, // Slightly bolder
+                                  color: Colors
+                                      .grey
+                                      .shade700, // Darker grey for better readability
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 8,
+                              ), // Added a small space for a sub-message
+                              Text(
+                                hasActiveFilters
+                                    ? "Try adjusting your filters or clearing them to see more."
+                                    : "It looks like there are no users to display.", // Helper text
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.montserrat(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.grey.shade500,
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 24,
+                              ), // Increased spacing before the button
+
+                              if (hasActiveFilters)
+                                ElevatedButton.icon(
+                                  // Changed to ElevatedButton.icon for a modern look
+                                  icon: const Icon(
+                                    Icons.refresh,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ), // Added a relevant icon
+                                  label: Text(
+                                    "Clear Filters",
+                                    style: GoogleFonts.montserrat(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  onPressed: widget.onClearFilters,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(
+                                      0xFFB41214,
+                                    ), // Original background color
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        12,
+                                      ), // Slightly rounded corners for the button
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 28, // Increased padding
+                                      vertical: 14, // Increased padding
+                                    ),
+                                    elevation:
+                                        4, // Added a subtle shadow for depth
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
             }
 
-            final nameAndCourse =
-                "$formattedYearLevel${abbreviatedProgram.isNotEmpty ? ', $abbreviatedProgram' : ''}";
-            final avatarPath =
-                (data['avatarPath'] ?? data['avatar'] ?? '') as String;
-            final strengths = (data['strengths'] is List)
-                ? List<String>.from(
-                    (data['strengths'] as List).map((e) => e.toString()),
-                  )
-                : <String>[];
-            final weaknesses = (data['weaknesses'] is List)
-                ? List<String>.from(
-                    (data['weaknesses'] as List).map((e) => e.toString()),
-                  )
-                : <String>[];
-            final bio = data['bio'] as String? ?? "";
-            final location = data['place'] as String? ?? "Campus";
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: filteredDocs.length + 1,
+              itemBuilder: (context, i) {
+                // First item is the header
+                if (i == 0) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Suggested for you",
+                          style: GoogleFonts.montserrat(
+                            fontSize: 18 * textScale,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        if (hasActiveFilters)
+                          Text(
+                            "${filteredDocs.length} results",
+                            style: GoogleFonts.montserrat(
+                              fontSize: 12 * textScale,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                }
 
-            return SuggestedCard(
-              uid: docUid,
-              name: displayName,
-              yearCourse: nameAndCourse,
-              imagePath: avatarPath,
-              department: department,
-              goodIn: strengths,
-              needImprovements: weaknesses,
-              bio: bio,
-              location: location,
+                // Subtract 1 from index since first item is header
+                final docIndex = i - 1;
+                final data =
+                    filteredDocs[docIndex].data() as Map<String, dynamic>? ??
+                    {};
+                final docUid =
+                    data['uid'] as String? ?? filteredDocs[docIndex].id;
+                final displayName = data['displayName'] as String? ?? "Unknown";
+                final yearLevel = data['yearLevel'];
+                final program = data['program'] as String? ?? "";
+                final department = data['department'] as String? ?? "";
+                final abbreviatedProgram =
+                    data['programAcronym'] as String? ?? "";
+                // Format year level properly
+                String formattedYearLevel = "";
+                if (yearLevel != null) {
+                  if (yearLevel is int) {
+                    formattedYearLevel =
+                        "${yearLevel}${_getOrdinalSuffix(yearLevel)} Year";
+                  } else if (yearLevel is String) {
+                    // If it's already a string, use it as is
+                    formattedYearLevel = yearLevel;
+                  }
+                }
+
+                final nameAndCourse =
+                    "$formattedYearLevel${abbreviatedProgram.isNotEmpty ? ', $abbreviatedProgram' : ''}";
+                final avatarPath =
+                    (data['avatarPath'] ?? data['avatar'] ?? '') as String;
+                final strengths = (data['strengths'] is List)
+                    ? List<String>.from(
+                        (data['strengths'] as List).map((e) => e.toString()),
+                      )
+                    : <String>[];
+                final weaknesses = (data['weaknesses'] is List)
+                    ? List<String>.from(
+                        (data['weaknesses'] as List).map((e) => e.toString()),
+                      )
+                    : <String>[];
+                final bio = data['bio'] as String? ?? "";
+                final location = data['place'] as String? ?? "Campus";
+
+                return SuggestedCard(
+                  uid: docUid,
+                  name: displayName,
+                  yearCourse: nameAndCourse,
+                  imagePath: avatarPath,
+                  department: department,
+                  goodIn: strengths,
+                  needImprovements: weaknesses,
+                  bio: bio,
+                  location: location,
+                  onGoToChat: widget.onGoToChat,
+                  shownMatchedPages: widget.shownMatchedPages,
+                  isShowingMatchedPage: widget.isShowingMatchedPage,
+                  onMatchedPageShown: widget.onMatchedPageShown,
+                  onMatchedPageFlagChanged: widget.onMatchedPageFlagChanged,
+                );
+              },
             );
           },
         );
@@ -1545,6 +1939,11 @@ class SuggestedCard extends StatefulWidget {
   final List<String> needImprovements;
   final String bio;
   final String location;
+  final VoidCallback? onGoToChat;
+  final Set<String>? shownMatchedPages;
+  final bool? isShowingMatchedPage;
+  final Function(String)? onMatchedPageShown;
+  final Function(bool)? onMatchedPageFlagChanged;
 
   const SuggestedCard({
     super.key,
@@ -1557,6 +1956,11 @@ class SuggestedCard extends StatefulWidget {
     required this.needImprovements,
     required this.bio,
     required this.location,
+    this.onGoToChat,
+    this.shownMatchedPages,
+    this.isShowingMatchedPage,
+    this.onMatchedPageShown,
+    this.onMatchedPageFlagChanged,
   });
 
   @override
@@ -1565,12 +1969,109 @@ class SuggestedCard extends StatefulWidget {
 
 class _SuggestedCardState extends State<SuggestedCard> {
   bool _isLoading = false;
+  bool _hasNavigatedToMatched = false;
   late final String currentUid;
 
   @override
   void initState() {
     super.initState();
     currentUid = FirebaseAuth.instance.currentUser!.uid;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Force refresh when dependencies change (e.g., when returning from follow request page)
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void didUpdateWidget(SuggestedCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Force refresh when widget updates (e.g., when returning from other screens)
+    if (mounted) {
+      setState(() {});
+    }
+    // Check for new mutual follows when widget updates
+    _checkForNewMutualFollow();
+  }
+
+  Future<void> _checkForNewMutualFollow() async {
+    try {
+      final currentUid = FirebaseAuth.instance.currentUser?.uid;
+      if (currentUid == null) return;
+
+      // Check if we're following this user
+      final followingSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUid)
+          .collection('following')
+          .doc(widget.uid)
+          .get();
+
+      // Check if they're following us
+      final followerSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.uid)
+          .collection('following')
+          .doc(currentUid)
+          .get();
+
+      // If both are following each other and we haven't shown matched page yet
+      if (followingSnap.exists &&
+          followerSnap.exists &&
+          !_hasNavigatedToMatched) {
+        _hasNavigatedToMatched = true;
+
+        // Get current user data
+        final currentUser = FirebaseAuth.instance.currentUser;
+        if (currentUser != null) {
+          // Get current user data from Firestore
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid)
+              .get()
+              .then((currentUserDoc) {
+                if (currentUserDoc.exists) {
+                  final currentUserData = currentUserDoc.data()!;
+                  // Get target user data
+                  FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(widget.uid)
+                      .get()
+                      .then((targetUserDoc) {
+                        if (targetUserDoc.exists) {
+                          final targetUserData = targetUserDoc.data()!;
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MatchedPage(
+                                currentUserAvatar:
+                                    currentUserData['avatarPath'] ??
+                                    currentUserData['avatar'],
+                                currentUserDepartment:
+                                    currentUserData['department'],
+                                currentUserName: currentUserData['displayName'],
+                                partnerAvatar:
+                                    targetUserData['avatarPath'] ??
+                                    targetUserData['avatar'],
+                                partnerDepartment: targetUserData['department'],
+                                partnerName: targetUserData['displayName'],
+                                onGoToChat: widget.onGoToChat,
+                              ),
+                            ),
+                          );
+                        }
+                      });
+                }
+              });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking for mutual follow: $e');
+    }
   }
 
   Stream<DocumentSnapshot> followingStream() {
@@ -1609,178 +2110,525 @@ class _SuggestedCardState extends State<SuggestedCard> {
         .snapshots();
   }
 
- Future<void> _toggleFollow({
-  required bool isFollowing,
-  required bool isPendingSent,
-  required bool isPendingReceived,
-  required bool isFollowingMe,
-}) async {
-  if (_isLoading) return; // Prevent multiple taps
+  // Stream to listen to the other user's following collection to detect when they unfollow you
+  Stream<DocumentSnapshot> otherUserFollowingStream() {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.uid)
+        .collection('following')
+        .doc(currentUid)
+        .snapshots();
+  }
 
-  setState(() => _isLoading = true);
+  Future<void> _toggleFollow({
+    required bool isFollowing,
+    required bool isPendingSent,
+    required bool isPendingReceived,
+    required bool isFollowingMe,
+  }) async {
+    if (_isLoading) return; // Prevent multiple taps
 
-  final currentUserRef = FirebaseFirestore.instance
-      .collection('users')
-      .doc(currentUid);
-  final targetUserRef = FirebaseFirestore.instance
-      .collection('users')
-      .doc(widget.uid);
-  final followRequestsRef = FirebaseFirestore.instance.collection(
-    'followRequests',
-  );
+    setState(() => _isLoading = true);
 
-  try {
-    // UNFOLLOW
-    if (isFollowing) {
-      final batch = FirebaseFirestore.instance.batch();
-      final myFollowingDoc = currentUserRef
-          .collection('following')
-          .doc(widget.uid);
-      final theirFollowerDoc = targetUserRef
-          .collection('followers')
-          .doc(currentUid);
+    // Add a small delay to prevent rapid successive calls
+    await Future.delayed(const Duration(milliseconds: 100));
 
-      batch.delete(myFollowingDoc);
-      batch.delete(theirFollowerDoc);
+    final currentUserRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUid);
+    final targetUserRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.uid);
+    final followRequestsRef = FirebaseFirestore.instance.collection(
+      'followRequests',
+    );
 
-      // Update counts
-      batch.update(currentUserRef, {
-        'followingCount': FieldValue.increment(-1),
-      });
-      batch.update(targetUserRef, {
-        'followerCount': FieldValue.increment(-1),
-      });
+    try {
+      //  UNFOLLOW (when you're following them)
+      if (isFollowing) {
+        final batch = FirebaseFirestore.instance.batch();
 
-      await batch.commit();
+        // Remove your following relationship
+        final myFollowingDoc = currentUserRef
+            .collection('following')
+            .doc(widget.uid);
+        final theirFollowerDoc = targetUserRef
+            .collection('followers')
+            .doc(currentUid);
 
-      // If the other still follows, create a pending request
-      final otherFollowsMe = await targetUserRef
-          .collection('following')
-          .doc(currentUid)
-          .get();
-      if (otherFollowsMe.exists) {
-        await followRequestsRef.add({
-          'fromUid': widget.uid,
-          'toUid': currentUid,
-          'status': 'pending',
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+        batch.delete(myFollowingDoc);
+        batch.delete(theirFollowerDoc);
+
+        // For mutual follow system: if they're also following you, remove that too
+        if (isFollowingMe) {
+          final theirFollowingDoc = targetUserRef
+              .collection('following')
+              .doc(currentUid);
+          final myFollowerDoc = currentUserRef
+              .collection('followers')
+              .doc(widget.uid);
+
+          batch.delete(theirFollowingDoc);
+          batch.delete(myFollowerDoc);
+        }
+
+        // Also clean up any existing follow requests in both directions
+        final pendingA = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUid)
+            .where('toUid', isEqualTo: widget.uid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        final pendingB = await followRequestsRef
+            .where('fromUid', isEqualTo: widget.uid)
+            .where('toUid', isEqualTo: currentUid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        for (var d in pendingA.docs) {
+          batch.delete(d.reference);
+        }
+        for (var d in pendingB.docs) {
+          batch.delete(d.reference);
+        }
+
+        await batch.commit();
+        return;
       }
-      return;
-    }
 
-    // CANCEL SENT REQUEST
-    if (isPendingSent) {
-      final sentQuery = await followRequestsRef
+      // UNFOLLOW (when they're following you - remove them from your followers)
+      if (isFollowingMe &&
+          !isFollowing &&
+          !isPendingSent &&
+          !isPendingReceived) {
+        final batch = FirebaseFirestore.instance.batch();
+
+        // Remove them from your followers
+        final myFollowerDoc = currentUserRef
+            .collection('followers')
+            .doc(widget.uid);
+        final theirFollowingDoc = targetUserRef
+            .collection('following')
+            .doc(currentUid);
+
+        batch.delete(myFollowerDoc);
+        batch.delete(theirFollowingDoc);
+
+        // For mutual follow system: if you're also following them, remove that too
+        // Check if you're following them (this might be a mutual follow)
+        final myFollowingDoc = currentUserRef
+            .collection('following')
+            .doc(widget.uid);
+        final theirFollowerDoc = targetUserRef
+            .collection('followers')
+            .doc(currentUid);
+
+        // Check if the relationship exists before trying to delete
+        final myFollowingSnap = await myFollowingDoc.get();
+        final theirFollowerSnap = await theirFollowerDoc.get();
+
+        if (myFollowingSnap.exists) {
+          batch.delete(myFollowingDoc);
+        }
+        if (theirFollowerSnap.exists) {
+          batch.delete(theirFollowerDoc);
+        }
+
+        // Also clean up any existing follow requests in both directions
+        final pendingA = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUid)
+            .where('toUid', isEqualTo: widget.uid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        final pendingB = await followRequestsRef
+            .where('fromUid', isEqualTo: widget.uid)
+            .where('toUid', isEqualTo: currentUid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        for (var d in pendingA.docs) {
+          batch.delete(d.reference);
+        }
+        for (var d in pendingB.docs) {
+          batch.delete(d.reference);
+        }
+
+        await batch.commit();
+        return;
+      }
+
+      // 2) CANCEL SENT REQUEST
+      if (isPendingSent) {
+        final sentQuery = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUid)
+            .where('toUid', isEqualTo: widget.uid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        final batch = FirebaseFirestore.instance.batch();
+        for (var d in sentQuery.docs) {
+          batch.delete(d.reference);
+        }
+        await batch.commit();
+        return;
+      }
+
+      // 3) FOLLOW OR ACCEPT INCOMING REQUEST
+      debugPrint(
+        'isPendingReceived: $isPendingReceived, isFollowing: $isFollowing, isPendingSent: $isPendingSent',
+      );
+      final batch = FirebaseFirestore.instance.batch();
+
+      // Delete pending requests in both directions
+      final pendingA = await followRequestsRef
           .where('fromUid', isEqualTo: currentUid)
           .where('toUid', isEqualTo: widget.uid)
           .where('status', isEqualTo: 'pending')
           .get();
 
-      final batch = FirebaseFirestore.instance.batch();
-      for (var d in sentQuery.docs) {
+      final pendingB = await followRequestsRef
+          .where('fromUid', isEqualTo: widget.uid)
+          .where('toUid', isEqualTo: currentUid)
+          .where('status', isEqualTo: 'pending')
+          .get();
+
+      debugPrint(
+        'Cleaning up ${pendingA.docs.length} pending requests from current user',
+      );
+      debugPrint(
+        'Cleaning up ${pendingB.docs.length} pending requests from other user',
+      );
+
+      for (var d in pendingA.docs) {
         batch.delete(d.reference);
       }
-      await batch.commit();
-      return;
-    }
+      for (var d in pendingB.docs) {
+        batch.delete(d.reference);
+      }
 
-    // ACCEPT INCOMING REQUEST OR FOLLOW
-    final batch = FirebaseFirestore.instance.batch();
+      // When accepting an incoming request
+      if (isPendingReceived) {
+        debugPrint('Accepting incoming follow request from ${widget.uid}');
 
-    // Delete ALL pending requests between these users in both directions
-    final pendingRequests = await followRequestsRef
-        .where('fromUid', whereIn: [currentUid, widget.uid])
-        .where('toUid', whereIn: [currentUid, widget.uid])
-        .where('status', isEqualTo: 'pending')
-        .get();
+        // Double-check that there's actually a pending request
+        final actualPendingRequest = await followRequestsRef
+            .where('fromUid', isEqualTo: widget.uid)
+            .where('toUid', isEqualTo: currentUid)
+            .where('status', isEqualTo: 'pending')
+            .get();
 
-    for (var d in pendingRequests.docs) {
-      batch.delete(d.reference);
-    }
+        if (actualPendingRequest.docs.isEmpty) {
+          debugPrint('No actual pending request found, skipping accept logic');
+          return;
+        }
 
-    // When accepting an incoming request
-    if (isPendingReceived) {
-      final myFollowerDoc = currentUserRef
-          .collection('followers')
-          .doc(widget.uid);
-      final myFollowingDoc = currentUserRef
+        debugPrint(
+          'Found ${actualPendingRequest.docs.length} actual pending requests to clean up',
+        );
+
+        // Check if follow relationships already exist to prevent duplicates
+        final myFollowerExists = await currentUserRef
+            .collection('followers')
+            .doc(widget.uid)
+            .get();
+        final myFollowingExists = await currentUserRef
+            .collection('following')
+            .doc(widget.uid)
+            .get();
+        final theirFollowerExists = await targetUserRef
+            .collection('followers')
+            .doc(currentUid)
+            .get();
+        final theirFollowingExists = await targetUserRef
+            .collection('following')
+            .doc(currentUid)
+            .get();
+
+        final batch = FirebaseFirestore.instance.batch();
+        final myFollowerDoc = currentUserRef
+            .collection('followers')
+            .doc(widget.uid);
+        final myFollowingDoc = currentUserRef
+            .collection('following')
+            .doc(widget.uid);
+        final theirFollowerDoc = targetUserRef
+            .collection('followers')
+            .doc(currentUid);
+        final theirFollowingDoc = targetUserRef
+            .collection('following')
+            .doc(currentUid);
+
+        // Only create relationships that don't already exist
+        if (!myFollowerExists.exists) {
+          batch.set(myFollowerDoc, <String, dynamic>{});
+        }
+        if (!myFollowingExists.exists) {
+          batch.set(myFollowingDoc, <String, dynamic>{});
+        }
+        if (!theirFollowerExists.exists) {
+          batch.set(theirFollowerDoc, <String, dynamic>{});
+        }
+        if (!theirFollowingExists.exists) {
+          batch.set(theirFollowingDoc, <String, dynamic>{});
+        }
+
+        // Also explicitly delete the specific follow request that was accepted
+        for (var doc in actualPendingRequest.docs) {
+          batch.delete(doc.reference);
+        }
+
+        await batch.commit();
+        debugPrint(
+          'Successfully accepted follow request and created mutual follow relationship',
+        );
+
+        // Navigate to matched page when mutual follow happens
+        if (mounted && !_hasNavigatedToMatched) {
+          _hasNavigatedToMatched = true;
+          debugPrint(
+            'Showing matched page for accepted follow request with ${widget.uid}',
+          );
+
+          // Mark this relationship as shown in the global tracking IMMEDIATELY
+          // This prevents the automatic detection from showing it again
+          final matchedKey = '${currentUid}_${widget.uid}';
+          widget.onMatchedPageShown?.call(matchedKey);
+          debugPrint('Added to shown matched pages: $matchedKey');
+
+          // Set flag to prevent other matched pages
+          widget.onMatchedPageFlagChanged?.call(true);
+          debugPrint('Setting _isShowingMatchedPage to true for accept');
+
+          // Get current user data
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            // Get current user data from Firestore
+            FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get().then((
+              currentUserDoc,
+            ) {
+              if (currentUserDoc.exists) {
+                final currentUserData = currentUserDoc.data()!;
+                // Get target user data
+                FirebaseFirestore.instance.collection('users').doc(widget.uid).get().then((
+                  targetUserDoc,
+                ) {
+                  if (targetUserDoc.exists) {
+                    final targetUserData = targetUserDoc.data()!;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MatchedPage(
+                          currentUserAvatar:
+                              currentUserData['avatarPath'] ??
+                              currentUserData['avatar'],
+                          currentUserDepartment: currentUserData['department'],
+                          currentUserName: currentUserData['displayName'],
+                          partnerAvatar:
+                              targetUserData['avatarPath'] ??
+                              targetUserData['avatar'],
+                          partnerDepartment: targetUserData['department'],
+                          partnerName: targetUserData['displayName'],
+                          onGoToChat: widget.onGoToChat,
+                        ),
+                      ),
+                    ).then((_) {
+                      // Reset the flag when the matched page is closed
+                      widget.onMatchedPageFlagChanged?.call(false);
+                      debugPrint(
+                        'Matched page closed from accept, setting _isShowingMatchedPage to false',
+                      );
+
+                      // Mark this relationship as permanently shown to prevent re-showing
+                      final matchedKey = '${currentUid}_${widget.uid}';
+                      widget.onMatchedPageShown?.call(matchedKey);
+                      debugPrint(
+                        'Marked matched page as permanently shown from accept: $matchedKey',
+                      );
+                    });
+                  }
+                });
+              }
+            });
+          }
+        }
+        return;
+      }
+
+      // Fresh follow - check if mutual follow should happen
+      debugPrint('Going through Fresh follow path - otherFollowsMe check');
+      final otherFollowsMeSnap = await targetUserRef
           .collection('following')
-          .doc(widget.uid);
-      final theirFollowerDoc = targetUserRef
-          .collection('followers')
-          .doc(currentUid);
-      final theirFollowingDoc = targetUserRef
-          .collection('following')
-          .doc(currentUid);
+          .doc(currentUid)
+          .get();
 
-      batch.set(myFollowerDoc, {'timestamp': FieldValue.serverTimestamp()});
-      batch.set(myFollowingDoc, {'timestamp': FieldValue.serverTimestamp()});
-      batch.set(theirFollowerDoc, {'timestamp': FieldValue.serverTimestamp()});
-      batch.set(theirFollowingDoc, {'timestamp': FieldValue.serverTimestamp()});
+      // Check if the other person is already following you
+      final otherFollowsMe = otherFollowsMeSnap.exists || isFollowingMe;
 
-      // Update counts
-      batch.update(currentUserRef, {
-        'followingCount': FieldValue.increment(1),
-        'followerCount': FieldValue.increment(1),
-      });
-      batch.update(targetUserRef, {
-        'followingCount': FieldValue.increment(1),
-        'followerCount': FieldValue.increment(1),
-      });
+      // If they're already following you, create mutual follow relationship
+      debugPrint(
+        'otherFollowsMe: $otherFollowsMe, otherFollowsMeSnap.exists: ${otherFollowsMeSnap.exists}, isFollowingMe: $isFollowingMe',
+      );
+      if (otherFollowsMe) {
+        // Clean up any existing follow requests first
+        final cleanupBatch = FirebaseFirestore.instance.batch();
 
-      await batch.commit();
-      return;
+        final pendingA = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUid)
+            .where('toUid', isEqualTo: widget.uid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        final pendingB = await followRequestsRef
+            .where('fromUid', isEqualTo: widget.uid)
+            .where('toUid', isEqualTo: currentUid)
+            .where('status', isEqualTo: 'pending')
+            .get();
+
+        for (var d in pendingA.docs) {
+          cleanupBatch.delete(d.reference);
+        }
+        for (var d in pendingB.docs) {
+          cleanupBatch.delete(d.reference);
+        }
+
+        await cleanupBatch.commit();
+
+        // Check if follow relationships already exist to prevent duplicates
+        final myFollowingExists = await currentUserRef
+            .collection('following')
+            .doc(widget.uid)
+            .get();
+        final theirFollowerExists = await targetUserRef
+            .collection('followers')
+            .doc(currentUid)
+            .get();
+
+        final batch = FirebaseFirestore.instance.batch();
+        final myFollowingDoc = currentUserRef
+            .collection('following')
+            .doc(widget.uid);
+        final theirFollowerDoc = targetUserRef
+            .collection('followers')
+            .doc(currentUid);
+
+        // Only create relationships that don't already exist
+        if (!myFollowingExists.exists) {
+          batch.set(myFollowingDoc, <String, dynamic>{});
+        }
+        if (!theirFollowerExists.exists) {
+          batch.set(theirFollowerDoc, <String, dynamic>{});
+        }
+
+        await batch.commit();
+
+        // Navigate to matched page when mutual follow happens
+        if (mounted && !_hasNavigatedToMatched) {
+          _hasNavigatedToMatched = true;
+
+          // Mark this relationship as shown in the global tracking IMMEDIATELY
+          // This prevents the automatic detection from showing it again
+          final matchedKey = '${currentUid}_${widget.uid}';
+          widget.onMatchedPageShown?.call(matchedKey);
+          debugPrint(
+            'Added to shown matched pages for fresh follow: $matchedKey',
+          );
+
+          // Set flag to prevent other matched pages
+          widget.onMatchedPageFlagChanged?.call(true);
+          debugPrint('Setting _isShowingMatchedPage to true for fresh follow');
+
+          // Get current user data
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser != null) {
+            // Get current user data from Firestore
+            FirebaseFirestore.instance.collection('users').doc(currentUser.uid).get().then((
+              currentUserDoc,
+            ) {
+              if (currentUserDoc.exists) {
+                final currentUserData = currentUserDoc.data()!;
+                // Get target user data
+                FirebaseFirestore.instance.collection('users').doc(widget.uid).get().then((
+                  targetUserDoc,
+                ) {
+                  if (targetUserDoc.exists) {
+                    final targetUserData = targetUserDoc.data()!;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => MatchedPage(
+                          currentUserAvatar:
+                              currentUserData['avatarPath'] ??
+                              currentUserData['avatar'],
+                          currentUserDepartment: currentUserData['department'],
+                          currentUserName: currentUserData['displayName'],
+                          partnerAvatar:
+                              targetUserData['avatarPath'] ??
+                              targetUserData['avatar'],
+                          partnerDepartment: targetUserData['department'],
+                          partnerName: targetUserData['displayName'],
+                          onGoToChat: widget.onGoToChat,
+                        ),
+                      ),
+                    ).then((_) {
+                      // Reset the flag when the matched page is closed
+                      widget.onMatchedPageFlagChanged?.call(false);
+                      debugPrint(
+                        'Matched page closed from fresh follow, setting _isShowingMatchedPage to false',
+                      );
+
+                      // Mark this relationship as permanently shown to prevent re-showing
+                      final matchedKey = '${currentUid}_${widget.uid}';
+                      widget.onMatchedPageShown?.call(matchedKey);
+                      debugPrint(
+                        'Marked matched page as permanently shown from fresh follow: $matchedKey',
+                      );
+                    });
+                  }
+                });
+              }
+            });
+          }
+        }
+        return;
+      } else {
+        // If they're not following you, create a follow request
+        // First check if we're already following them
+        final alreadyFollowing = await currentUserRef
+            .collection('following')
+            .doc(widget.uid)
+            .get();
+
+        if (!alreadyFollowing.exists) {
+          final existingRequest = await followRequestsRef
+              .where('fromUid', isEqualTo: currentUid)
+              .where('toUid', isEqualTo: widget.uid)
+              .where('status', isEqualTo: 'pending')
+              .get();
+
+          if (existingRequest.docs.isEmpty) {
+            await followRequestsRef.add({
+              'fromUid': currentUid,
+              'toUid': widget.uid,
+              'status': 'pending',
+              'createdAt': FieldValue.serverTimestamp(),
+            });
+          }
+        }
+        return;
+      }
+    } catch (e) {
+      debugPrint('Error in _toggleFollow: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
-
-    // Fresh follow - check if mutual follow should happen
-    final otherFollowsMeSnap = await targetUserRef
-        .collection('following')
-        .doc(currentUid)
-        .get();
-    
-    if (otherFollowsMeSnap.exists || isFollowingMe) {
-      // Mutual follow - create follow relationship directly
-      final myFollowingDoc = currentUserRef
-          .collection('following')
-          .doc(widget.uid);
-      final theirFollowerDoc = targetUserRef
-          .collection('followers')
-          .doc(currentUid);
-
-      batch.set(myFollowingDoc, {'timestamp': FieldValue.serverTimestamp()});
-      batch.set(theirFollowerDoc, {'timestamp': FieldValue.serverTimestamp()});
-
-      // Update counts
-      batch.update(currentUserRef, {
-        'followingCount': FieldValue.increment(1),
-      });
-      batch.update(targetUserRef, {
-        'followerCount': FieldValue.increment(1),
-      });
-
-      await batch.commit();
-      return;
-    }
-
-    // Otherwise, create a follow request
-    await followRequestsRef.add({
-      'fromUid': currentUid,
-      'toUid': widget.uid,
-      'status': 'pending',
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  } catch (e) {
-    debugPrint('Error in _toggleFollow: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Error: ${e.toString()}")));
-    }
-  } finally {
-    if (mounted) setState(() => _isLoading = false);
   }
-}
+
   Widget _buildModernChip(String label, bool isGood, double textScale) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1805,6 +2653,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
     bool isFollowing,
     bool isPendingSent,
     bool isPendingReceived,
+    bool isFollowingMe,
     double textScale,
   ) {
     return ElevatedButton(
@@ -1827,7 +2676,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
               isFollowing: isFollowing,
               isPendingSent: isPendingSent,
               isPendingReceived: isPendingReceived,
-              isFollowingMe: false,
+              isFollowingMe: isFollowingMe,
             ),
       child: Text(
         buttonLabel,
@@ -1916,21 +2765,49 @@ class _SuggestedCardState extends State<SuggestedCard> {
                         receivedSnap.data != null &&
                         receivedSnap.data!.docs.isNotEmpty;
 
-                    final buttonLabel = getButtonLabel(
-                      isFollowing: isFollowing,
-                      isPendingSent: isPendingSent,
-                      isPendingReceived: isPendingReceived,
+                    debugPrint(
+                      'Received request check: hasData=${receivedSnap.hasData}, data=${receivedSnap.data != null}, docs=${receivedSnap.data?.docs.length ?? 0}, isPendingReceived=$isPendingReceived',
                     );
 
-                    return _buildCardContent(
-                      context,
-                      screenWidth,
-                      textScale,
-                      isFollowing,
-                      isPendingSent,
-                      isPendingReceived,
-                      isFollowingMe,
-                      buttonLabel,
+                    return StreamBuilder<DocumentSnapshot>(
+                      stream: otherUserFollowingStream(),
+                      builder: (context, otherUserFollowingSnap) {
+                        // Check if the other user is still following you
+                        final otherUserStillFollowing =
+                            otherUserFollowingSnap.hasData &&
+                            otherUserFollowingSnap.data != null &&
+                            otherUserFollowingSnap.data!.exists;
+
+                        // Use real-time detection instead of cached values
+                        final actualIsFollowingMe = otherUserStillFollowing;
+
+                        // Update button label based on actual follow status
+                        String buttonLabel;
+                        if (isFollowing) {
+                          buttonLabel = "Following";
+                        } else if (isPendingSent) {
+                          buttonLabel = "Pending";
+                        } else if (isPendingReceived) {
+                          buttonLabel = "Accept";
+                        } else {
+                          buttonLabel = "Follow";
+                        }
+
+                        debugPrint(
+                          'Button label for ${widget.uid}: $buttonLabel (isFollowing: $isFollowing, isPendingSent: $isPendingSent, isPendingReceived: $isPendingReceived)',
+                        );
+
+                        return _buildCardContent(
+                          context,
+                          screenWidth,
+                          textScale,
+                          isFollowing,
+                          isPendingSent,
+                          isPendingReceived,
+                          actualIsFollowingMe,
+                          buttonLabel,
+                        );
+                      },
                     );
                   },
                 );
@@ -2166,6 +3043,7 @@ class _SuggestedCardState extends State<SuggestedCard> {
                             isFollowing,
                             isPendingSent,
                             isPendingReceived,
+                            isFollowingMe,
                             textScale,
                           ),
                         ],

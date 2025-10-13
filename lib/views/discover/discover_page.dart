@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/match/matched.dart';
 import 'dart:convert';
+import 'dart:async';
 
 class DiscoverPage extends StatefulWidget {
   const DiscoverPage({super.key});
@@ -22,7 +23,10 @@ class _DiscoverPageState extends State<DiscoverPage> {
   bool _showingProfile = false;
   Map<String, dynamic>? _scannedUserData;
   bool _isFollowing = false;
+  bool _isPending = false;
   bool _isLoading = false;
+  StreamSubscription<DocumentSnapshot>? _unfollowListener;
+  StreamSubscription<QuerySnapshot>? _followRequestListener;
 
   void _onQRDetected(BarcodeCapture capture) {
     final List<Barcode> barcodes = capture.barcodes;
@@ -78,20 +82,37 @@ class _DiscoverPageState extends State<DiscoverPage> {
     }
 
     final currentUserId = _auth.currentUser!.uid;
+    
+    // Check if we're following them
     final followDoc = await _firestore
         .collection('users')
         .doc(currentUserId)
         .collection('following')
         .doc(scannedUserId)
         .get();
+    
+    // Check if there's a pending follow request
+    final pendingRequest = await _firestore
+        .collection('followRequests')
+        .where('fromUid', isEqualTo: currentUserId)
+        .where('toUid', isEqualTo: scannedUserId)
+        .where('status', isEqualTo: 'pending')
+        .get();
 
     setState(() {
       _scannedUserData = userDoc.data()!;
       _scannedUserData!['id'] = scannedUserId;
       _isFollowing = followDoc.exists;
+      _isPending = pendingRequest.docs.isNotEmpty;
       _showingProfile = true;
       _isLoading = false;
     });
+
+    // Start listening for unfollow detection
+    _startUnfollowDetection(scannedUserId);
+    
+    // Start listening for follow request acceptance
+    _startFollowRequestListener(scannedUserId);
 
     print("Successfully loaded user profile");
 
@@ -154,82 +175,122 @@ class _DiscoverPageState extends State<DiscoverPage> {
     
     try {
       if (_isFollowing) {
-        await _firestore
-            .collection('users')
-            .doc(currentUserId)
-            .collection('following')
-            .doc(scannedUserId)
-            .delete();
-            
-        await _firestore
-            .collection('users')
-            .doc(scannedUserId)
-            .collection('followers')
-            .doc(currentUserId)
-            .delete();
-      } else {
-        await _firestore
-            .collection('users')
-            .doc(currentUserId)
-            .collection('following')
-            .doc(scannedUserId)
-            .set({
-          'followedAt': FieldValue.serverTimestamp(),
-          'displayName': _scannedUserData!['displayName'],
-          'avatarPath': _scannedUserData!['avatarPath'],
-        });
+        // Unfollow: Implement mutual unfollow system like home page
+        print('Unfollowing user $scannedUserId from discover page');
         
-        await _firestore
+        // Check if they're also following you (mutual follow)
+        final theirFollowingDoc = await _firestore
+            .collection('users')
+            .doc(scannedUserId)
+            .collection('following')
+            .doc(currentUserId)
+            .get();
+            
+        final batch = _firestore.batch();
+        
+        // Remove your following relationship
+        final myFollowingDoc = _firestore
+            .collection('users')
+            .doc(currentUserId)
+            .collection('following')
+            .doc(scannedUserId);
+        final theirFollowerDoc = _firestore
             .collection('users')
             .doc(scannedUserId)
             .collection('followers')
-            .doc(currentUserId)
-            .set({
-          'followedAt': FieldValue.serverTimestamp(),
-          'displayName': _auth.currentUser!.displayName ?? 'User',
-        });
-      }
-
-      setState(() {
-        _isFollowing = !_isFollowing;
-        _isLoading = false;
-      });
-
-      // Navigate to matched page when follow happens (discover page creates mutual follow)
-      if (!_isFollowing && mounted) {
-        // Get current user data
-        final currentUser = FirebaseAuth.instance.currentUser;
-        if (currentUser != null && _scannedUserData != null) {
-          // Get current user data from Firestore
-          FirebaseFirestore.instance
+            .doc(currentUserId);
+            
+        batch.delete(myFollowingDoc);
+        batch.delete(theirFollowerDoc);
+        
+        // If they're also following you, remove that too (mutual unfollow)
+        if (theirFollowingDoc.exists) {
+          final theirFollowingRef = _firestore
               .collection('users')
-              .doc(currentUser.uid)
-              .get()
-              .then((currentUserDoc) {
-            if (currentUserDoc.exists) {
-              final currentUserData = currentUserDoc.data()!;
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => MatchedPage(
-                    currentUserAvatar: currentUserData['avatarPath'] ?? currentUserData['avatar'],
-                    currentUserDepartment: currentUserData['department'],
-                    currentUserName: currentUserData['displayName'],
-                    partnerAvatar: _scannedUserData!['avatarPath'] ?? _scannedUserData!['avatar'],
-                    partnerDepartment: _scannedUserData!['department'],
-                    partnerName: _scannedUserData!['displayName'],
-                    onGoToChat: () {
-                      // Navigate to chat tab
-                      Navigator.pop(context);
-                      // Navigate to home with chat tab
-                      Navigator.pushReplacementNamed(context, '/home', arguments: {'initialIndex': 3});
-                    },
-                  ),
-                ),
-              );
-            }
+              .doc(scannedUserId)
+              .collection('following')
+              .doc(currentUserId);
+          final myFollowerRef = _firestore
+              .collection('users')
+              .doc(currentUserId)
+              .collection('followers')
+              .doc(scannedUserId);
+              
+          batch.delete(theirFollowingRef);
+          batch.delete(myFollowerRef);
+          print('Mutual unfollow: removed their following relationship too');
+        }
+        
+        // Also clean up any pending follow requests in both directions
+        final followRequestsRef = _firestore.collection('followRequests');
+        final pendingA = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUserId)
+            .where('toUid', isEqualTo: scannedUserId)
+            .where('status', isEqualTo: 'pending')
+            .get();
+            
+        final pendingB = await followRequestsRef
+            .where('fromUid', isEqualTo: scannedUserId)
+            .where('toUid', isEqualTo: currentUserId)
+            .where('status', isEqualTo: 'pending')
+            .get();
+            
+        for (var doc in pendingA.docs) {
+          batch.delete(doc.reference);
+        }
+        for (var doc in pendingB.docs) {
+          batch.delete(doc.reference);
+        }
+        
+        await batch.commit();
+        
+        print('Successfully unfollowed user $scannedUserId (mutual unfollow)');
+        setState(() {
+          _isFollowing = false;
+          _isPending = false;
+          _isLoading = false;
+        });
+      } else if (_isPending) {
+        // Cancel pending request
+        final followRequestsRef = _firestore.collection('followRequests');
+        final pendingRequests = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUserId)
+            .where('toUid', isEqualTo: scannedUserId)
+            .where('status', isEqualTo: 'pending')
+            .get();
+            
+        for (var doc in pendingRequests.docs) {
+          await doc.reference.delete();
+        }
+        
+        setState(() {
+          _isPending = false;
+          _isLoading = false;
+        });
+      } else {
+        // Follow: Create a follow request
+        final followRequestsRef = _firestore.collection('followRequests');
+        
+        // Check if request already exists
+        final existingRequest = await followRequestsRef
+            .where('fromUid', isEqualTo: currentUserId)
+            .where('toUid', isEqualTo: scannedUserId)
+            .where('status', isEqualTo: 'pending')
+            .get();
+            
+        if (existingRequest.docs.isEmpty) {
+          await followRequestsRef.add({
+            'fromUid': currentUserId,
+            'toUid': scannedUserId,
+            'status': 'pending',
+            'createdAt': FieldValue.serverTimestamp(),
           });
         }
+        
+        setState(() {
+          _isPending = true;
+          _isLoading = false;
+        });
       }
 
     } catch (e) {
@@ -241,11 +302,78 @@ class _DiscoverPageState extends State<DiscoverPage> {
     }
   }
 
+  void _startUnfollowDetection(String scannedUserId) {
+    // Listen for changes in the scanned user's following collection to detect when they unfollow you
+    final currentUserId = _auth.currentUser!.uid;
+    
+    _unfollowListener = _firestore
+        .collection('users')
+        .doc(scannedUserId)
+        .collection('following')
+        .doc(currentUserId)
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        // If they're no longer following you, update the UI
+        if (!snapshot.exists && _isFollowing) {
+          setState(() {
+            _isFollowing = false;
+            _isPending = false;
+          });
+        }
+        // If they're now following you (request was accepted), update to following
+        else if (snapshot.exists && _isPending) {
+          setState(() {
+            _isFollowing = true;
+            _isPending = false;
+          });
+        }
+      }
+    });
+  }
+
+  void _startFollowRequestListener(String scannedUserId) {
+    // Listen for changes in follow requests to detect when request is accepted
+    final currentUserId = _auth.currentUser!.uid;
+    
+    _followRequestListener = _firestore
+        .collection('followRequests')
+        .where('fromUid', isEqualTo: currentUserId)
+        .where('toUid', isEqualTo: scannedUserId)
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .listen((snapshot) {
+      if (mounted) {
+        // If no pending requests exist and we were pending, it means request was accepted
+        if (snapshot.docs.isEmpty && _isPending) {
+          setState(() {
+            _isFollowing = true;
+            _isPending = false;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _unfollowListener?.cancel();
+    _followRequestListener?.cancel();
+    super.dispose();
+  }
+
   void _closeProfile() {
+    // Cancel both listeners
+    _unfollowListener?.cancel();
+    _followRequestListener?.cancel();
+    _unfollowListener = null;
+    _followRequestListener = null;
+    
     setState(() {
       _showingProfile = false;
       _scannedUserData = null;
       _isFollowing = false;
+      _isPending = false;
     });
   }
 
@@ -735,7 +863,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                   child: ElevatedButton(
                     onPressed: _isLoading ? null : _toggleFollow,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: _isFollowing 
+                      backgroundColor: (_isFollowing || _isPending)
                           ? Colors.grey[500]
                           : const Color(0xFFB41214),
                       foregroundColor: Colors.white,
@@ -758,12 +886,20 @@ class _DiscoverPageState extends State<DiscoverPage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                _isFollowing ? Icons.check_circle : Icons.person_add_alt_1,
+                                _isFollowing 
+                                    ? Icons.check_circle 
+                                    : _isPending 
+                                        ? Icons.hourglass_empty 
+                                        : Icons.person_add_alt_1,
                                 size: 22,
                               ),
                               const SizedBox(width: 10),
                               Text(
-                                _isFollowing ? 'FOLLOWING' : 'FOLLOW USER',
+                                _isFollowing 
+                                    ? 'FOLLOWING' 
+                                    : _isPending 
+                                        ? 'PENDING' 
+                                        : 'FOLLOW USER',
                                 style: GoogleFonts.montserrat(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,

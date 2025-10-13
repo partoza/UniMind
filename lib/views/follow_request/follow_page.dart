@@ -3,14 +3,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/profile/profile_page.dart';
+import 'package:unimind/views/match/matched.dart';
+
 
 String getYearLevelString(dynamic yearLevel) {
   if (yearLevel == null) return '';
 
   // Handle both String and int types that might come from Firestore
-  final int level = (yearLevel is String)
-      ? int.tryParse(yearLevel) ?? 0
-      : (yearLevel is int ? yearLevel : 0);
+  final int level = (yearLevel is String) ? int.tryParse(yearLevel) ?? 0 : (yearLevel is int ? yearLevel : 0);
 
   switch (level) {
     case 1:
@@ -25,6 +25,7 @@ String getYearLevelString(dynamic yearLevel) {
       return 'Year Level Unknown';
   }
 }
+
 
 class FollowPage extends StatelessWidget {
   const FollowPage({super.key});
@@ -100,7 +101,7 @@ class FollowPage extends StatelessWidget {
                 );
               },
             ),
-
+            
             Expanded(
               child: StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
@@ -109,12 +110,9 @@ class FollowPage extends StatelessWidget {
                     .where("status", isEqualTo: "pending")
                     .snapshots(),
                 builder: (context, snapshot) {
-                  if (snapshot.hasError)
-                    return Center(child: Text('Error: ${snapshot.error}'));
+                  if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(color: primaryRed),
-                    );
+                    return const Center(child: CircularProgressIndicator(color: primaryRed));
                   }
 
                   final requests = snapshot.data!.docs;
@@ -126,7 +124,7 @@ class FollowPage extends StatelessWidget {
                           // Illustrative Image for no requests
                           Image.asset(
                             'assets/illustrations/follow_request.png', // Replace with your image path
-                            width: 200,
+                            width: 200, 
                             height: 200,
                             fit: BoxFit.contain,
                           ),
@@ -136,16 +134,16 @@ class FollowPage extends StatelessWidget {
                               text: "All caught up!\n", // Line Break added here
                               style: GoogleFonts.montserrat(
                                 fontSize: 16,
-                                fontWeight: FontWeight.w600, // Slightly bolder
-                                color: Colors.grey.shade700,
+                                fontWeight: FontWeight.w600,
+                                color: textColorPrimary,
                               ),
                               children: [
                                 TextSpan(
                                   text: "No new follow requests.",
                                   style: GoogleFonts.montserrat(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w400,
-                                    color: Colors.grey.shade500,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: textColorSecondary,
                                   ),
                                 ),
                               ],
@@ -161,47 +159,34 @@ class FollowPage extends StatelessWidget {
                     itemCount: requests.length,
                     itemBuilder: (context, index) {
                       final request = requests[index];
-                      final requestData =
-                          request.data() as Map<String, dynamic>? ?? {};
+                      final requestData = request.data() as Map<String, dynamic>? ?? {};
                       final fromUid = requestData['fromUid'] as String? ?? '';
                       if (fromUid.isEmpty) return const SizedBox.shrink();
 
                       // Fetch sender details
                       return StreamBuilder<DocumentSnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection("users")
-                            .doc(fromUid)
-                            .snapshots(),
+                        stream: FirebaseFirestore.instance.collection("users").doc(fromUid).snapshots(),
                         builder: (context, userSnap) {
-                          if (!userSnap.hasData || !userSnap.data!.exists)
-                            return const SizedBox.shrink();
-                          final userData =
-                              userSnap.data!.data() as Map<String, dynamic>? ??
-                                  {};
+                          if (!userSnap.hasData || !userSnap.data!.exists) return const SizedBox.shrink();
+                          final userData = userSnap.data!.data() as Map<String, dynamic>? ?? {};
 
                           // *** APPLY THE YEAR LEVEL CONVERSION HERE ***
-                          final String displayYearLevel = getYearLevelString(
-                            userData['yearLevel'],
-                          );
-                          final String programAcronym =
-                              userData['programAcronym'] ?? '';
+                          final String displayYearLevel = getYearLevelString(userData['yearLevel']);
+                          final String programAcronym = userData['programAcronym'] ?? '';
+                          
+                          final String displayYearCourse = displayYearLevel.isNotEmpty && programAcronym.isNotEmpty
+                            ? "$displayYearLevel, $programAcronym"
+                            : displayYearLevel.isNotEmpty
+                                ? displayYearLevel
+                                : programAcronym;
 
-                          final String displayYearCourse =
-                              displayYearLevel.isNotEmpty &&
-                                      programAcronym.isNotEmpty
-                                  ? "$displayYearLevel, $programAcronym"
-                                  : displayYearLevel.isNotEmpty
-                                      ? displayYearLevel
-                                      : programAcronym;
 
                           return FollowRequestCard(
                             uid: userData['uid'] ?? '',
                             name: userData['displayName'] ?? 'Unknown User',
-                            yearCourse:
-                                displayYearCourse, // Use the converted string
+                            yearCourse: displayYearCourse, // Use the converted string
                             imagePath: userData['avatarPath'] ?? '',
                             requestDocId: request.id,
-                            fromUid: fromUid,
                           );
                         },
                       );
@@ -217,13 +202,13 @@ class FollowPage extends StatelessWidget {
   }
 }
 
+
 class FollowRequestCard extends StatefulWidget {
   final String uid;
   final String name;
   final String yearCourse;
   final String imagePath;
   final String requestDocId;
-  final String fromUid;
 
   const FollowRequestCard({
     super.key,
@@ -232,7 +217,6 @@ class FollowRequestCard extends StatefulWidget {
     required this.yearCourse,
     required this.imagePath,
     required this.requestDocId,
-    required this.fromUid,
   });
 
   @override
@@ -249,47 +233,16 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
   static const Color textColorPrimary = Color(0xFF1F2937);
   static const Color textColorSecondary = Color(0xFF6B7280);
 
-  // Check if the request is still valid by verifying no follow relationship exists
-  Future<bool> _isRequestStillValid() async {
-    try {
-      final currentUid = FirebaseAuth.instance.currentUser!.uid;
-      
-      // Check if we're already following each other
-      final followingSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUid)
-          .collection('following')
-          .doc(widget.fromUid)
-          .get();
-
-      final followersSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.fromUid)
-          .collection('followers')
-          .doc(currentUid)
-          .get();
-
-      // If either follow relationship exists, the request is no longer valid
-      return !followingSnapshot.exists && !followersSnapshot.exists;
-    } catch (e) {
-      print("Error checking request validity: $e");
-      return true; // Assume valid if we can't check
-    }
-  }
-
   Widget _buildAvatar(String path, double size) {
     final defaultAvatar = Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        color: textColorSecondary.withOpacity(0.2),
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: textColorSecondary.withOpacity(0.2), shape: BoxShape.circle),
       child: Icon(Icons.person, color: textColorSecondary, size: size * 0.6),
     );
 
     if (path.isEmpty) return defaultAvatar;
-
+    
     if (path.startsWith('http')) {
       return Image.network(
         path,
@@ -299,7 +252,7 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
         errorBuilder: (c, e, s) => defaultAvatar,
       );
     }
-
+    
     return Image.asset(
       path,
       width: size,
@@ -312,7 +265,9 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
   void _navigateToProfile() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => ProfilePage(userId: widget.uid)),
+      MaterialPageRoute(
+        builder: (context) => ProfilePage(userId: widget.uid),
+      ),
     );
   }
 
@@ -322,28 +277,11 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
     setState(() => _isProcessing = true);
     try {
       final currentUid = FirebaseAuth.instance.currentUser!.uid;
-      final fromUid = widget.fromUid;
+      final fromUid = widget.uid;
       final batch = FirebaseFirestore.instance.batch();
 
-      // First check if the request is still valid
-      final isValid = await _isRequestStillValid();
-      if (!isValid) {
-        // If not valid, just clean up the request and return
-        await _cleanUpRequest();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text("Follow relationship already exists with ${widget.name}!"),
-              backgroundColor: Colors.orange,
-            ),
-          );
-        }
-        return;
-      }
-
       // 1. Delete all pending requests between users
-      final pendingRequests = await FirebaseFirestore.instance
-          .collection('followRequests')
+      final pendingRequests = await FirebaseFirestore.instance.collection('followRequests')
           .where('fromUid', whereIn: [currentUid, fromUid])
           .where('toUid', whereIn: [currentUid, fromUid])
           .where('status', isEqualTo: 'pending')
@@ -353,71 +291,33 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
       }
 
       // 2. Establish mutual follow relationship
-      final currentUserRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(currentUid);
-      final fromUserRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(fromUid);
+      final currentUserRef = FirebaseFirestore.instance.collection('users').doc(currentUid);
+      final fromUserRef = FirebaseFirestore.instance.collection('users').doc(fromUid);
 
-      batch.set(
-        currentUserRef.collection('following').doc(fromUid),
-        <String, dynamic>{'timestamp': FieldValue.serverTimestamp()},
-      );
-      batch.set(
-        currentUserRef.collection('followers').doc(fromUid),
-        <String, dynamic>{'timestamp': FieldValue.serverTimestamp()},
-      );
-      batch.set(
-        fromUserRef.collection('following').doc(currentUid),
-        <String, dynamic>{'timestamp': FieldValue.serverTimestamp()},
-      );
-      batch.set(
-        fromUserRef.collection('followers').doc(currentUid),
-        <String, dynamic>{'timestamp': FieldValue.serverTimestamp()},
-      );
-
-      // 3. Update follower/following counts
-      batch.update(currentUserRef, {
-        'followingCount': FieldValue.increment(1),
-      });
-      batch.update(fromUserRef, {
-        'followerCount': FieldValue.increment(1),
-      });
+      // You're following them
+      batch.set(currentUserRef.collection('following').doc(fromUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
+      // They're in your followers
+      batch.set(currentUserRef.collection('followers').doc(fromUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
+      
+      // They're following you
+      batch.set(fromUserRef.collection('following').doc(currentUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
+      // You're in their followers
+      batch.set(fromUserRef.collection('followers').doc(currentUid), <String, dynamic>{'timestamp': FieldValue.serverTimestamp()});
 
       await batch.commit();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("You are now following ${widget.name}!"),
-            backgroundColor: Colors.green,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("You are now following ${widget.name}!"), backgroundColor: Colors.green));
+        
+        // Show matched page after accepting follow request
+        _showMatchedPage(fromUid);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error accepting request: ${e.toString()}"),
-            backgroundColor: primaryRed,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error accepting request: ${e.toString()}"), backgroundColor: primaryRed));
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
-    }
-  }
-
-  // Clean up request if follow relationship already exists
-  Future<void> _cleanUpRequest() async {
-    try {
-      await FirebaseFirestore.instance
-          .collection('followRequests')
-          .doc(widget.requestDocId)
-          .delete();
-    } catch (e) {
-      print("Error cleaning up request: $e");
     }
   }
 
@@ -426,30 +326,64 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
     if (_isProcessing) return;
     setState(() => _isProcessing = true);
     try {
-      await FirebaseFirestore.instance
-          .collection('followRequests')
-          .doc(widget.requestDocId)
-          .delete();
+      await FirebaseFirestore.instance.collection('followRequests').doc(widget.requestDocId).delete();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Rejected follow request from ${widget.name}."),
-            backgroundColor: textColorSecondary,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Rejected follow request from ${widget.name}."), backgroundColor: textColorSecondary));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error rejecting request: ${e.toString()}"),
-            backgroundColor: primaryRed,
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error rejecting request: ${e.toString()}"), backgroundColor: primaryRed));
       }
     } finally {
       if (mounted) setState(() => _isProcessing = false);
+    }
+  }
+
+  Future<void> _showMatchedPage(String targetUid) async {
+    try {
+      // Get current user data
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser == null) return;
+
+      final currentUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+      
+      final targetUserDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(targetUid)
+          .get();
+
+      if (currentUserDoc.exists && targetUserDoc.exists) {
+        final currentUserData = currentUserDoc.data()!;
+        final targetUserData = targetUserDoc.data()!;
+
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MatchedPage(
+                currentUserAvatar: currentUserData['avatarPath'] ?? currentUserData['avatar'],
+                currentUserDepartment: currentUserData['department'],
+                currentUserName: currentUserData['displayName'],
+                partnerAvatar: targetUserData['avatarPath'] ?? targetUserData['avatar'],
+                partnerDepartment: targetUserData['department'],
+                partnerName: targetUserData['displayName'],
+                onGoToChat: () {
+                  // Navigate to chat tab
+                  Navigator.pop(context);
+                  // Navigate to home with chat tab
+                  Navigator.pushReplacementNamed(context, '/home', arguments: {'initialIndex': 3});
+                },
+              ),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error showing matched page: $e');
     }
   }
 
@@ -458,168 +392,132 @@ class _FollowRequestCardState extends State<FollowRequestCard> {
     final textScale = MediaQuery.of(context).textScaleFactor;
     final double avatarSize = 60.0;
 
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users')
-          .doc(FirebaseAuth.instance.currentUser!.uid)
-          .collection('following')
-          .doc(widget.fromUid)
-          .snapshots(),
-      builder: (context, followSnapshot) {
-        // If follow relationship exists, don't show this request card
-        if (followSnapshot.hasData && followSnapshot.data!.exists) {
-          return const SizedBox.shrink();
-        }
-
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: cardBackground,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: cardBackground, 
+        borderRadius: BorderRadius.circular(16), 
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left: Avatar
-              GestureDetector(
-                onTap: _navigateToProfile,
-                child: Container(
-                  width: avatarSize,
-                  height: avatarSize,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: primaryRed.withOpacity(0.5),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: ClipOval(
-                    child: _buildAvatar(widget.imagePath, avatarSize),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Left: Avatar
+          GestureDetector(
+            onTap: _navigateToProfile,
+            child: Container(
+              width: avatarSize,
+              height: avatarSize,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: primaryRed.withOpacity(0.5), width: 1.5),
+              ),
+              child: ClipOval(
+                child: _buildAvatar(widget.imagePath, avatarSize),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          
+          // Right: Info (Name/Course) and Buttons (Vertical Layout)
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Info Section
+                GestureDetector(
+                  onTap: _navigateToProfile,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.name,
+                        style: GoogleFonts.montserrat(
+                          fontSize: 16 * textScale,
+                          fontWeight: FontWeight.w700,
+                          color: textColorPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.yearCourse.trim().isNotEmpty ? widget.yearCourse : 'Details unavailable',
+                        style: GoogleFonts.montserrat(
+                          fontSize: 12 * textScale,
+                          color: textColorSecondary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(width: 16),
+                const SizedBox(height: 12),
 
-              // Right: Info (Name/Course) and Buttons (Vertical Layout)
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // Buttons Section
+                Row(
                   children: [
-                    // Info Section
-                    GestureDetector(
-                      onTap: _navigateToProfile,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.name,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 16 * textScale,
-                              fontWeight: FontWeight.w700,
-                              color: textColorPrimary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
+                    // Accept Button
+                    Expanded(
+                      child: SizedBox(
+                        height: 36,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryRed,
+                            foregroundColor: Colors.white,
+                            elevation: 2,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            widget.yearCourse.trim().isNotEmpty
-                                ? widget.yearCourse
-                                : 'Details unavailable',
-                            style: GoogleFonts.montserrat(
-                              fontSize: 12 * textScale,
-                              color: textColorSecondary,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+                          onPressed: _isProcessing ? null : _acceptRequest,
+                          child: _isProcessing
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                )
+                              : Text(
+                                  "Accept",
+                                  style: GoogleFonts.montserrat(fontSize: 12 * textScale, fontWeight: FontWeight.w600),
+                                ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(width: 8),
 
-                    // Buttons Section
-                    Row(
-                      children: [
-                        // Accept Button
-                        Expanded(
-                          child: SizedBox(
-                            height: 36,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryRed,
-                                foregroundColor: Colors.white,
-                                elevation: 2,
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              onPressed: _isProcessing ? null : _acceptRequest,
-                              child: _isProcessing
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        color: Colors.white,
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                  : Text(
-                                      "Accept",
-                                      style: GoogleFonts.montserrat(
-                                        fontSize: 12 * textScale,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                            ),
+                    // Remove Button
+                    Expanded(
+                      child: SizedBox(
+                        height: 36,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: primaryRed, width: 1.5),
+                            foregroundColor: primaryRed,
+                            padding: EdgeInsets.zero,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onPressed: _isProcessing ? null : _rejectRequest,
+                          child: Text(
+                            "Remove",
+                            style: GoogleFonts.montserrat(fontSize: 12 * textScale, fontWeight: FontWeight.w600),
                           ),
                         ),
-                        const SizedBox(width: 8),
-
-                        // Remove Button
-                        Expanded(
-                          child: SizedBox(
-                            height: 36,
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(
-                                  color: primaryRed,
-                                  width: 1.5,
-                                ),
-                                foregroundColor: primaryRed,
-                                padding: EdgeInsets.zero,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              onPressed: _isProcessing ? null : _rejectRequest,
-                              child: Text(
-                                "Remove",
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 12 * textScale,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 }
