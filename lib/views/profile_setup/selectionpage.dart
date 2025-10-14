@@ -3,12 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:unimind/views/profile_setup/program_year.dart';
-import 'package:unimind/views/profile_setup/selectavatar.dart'; 
+import 'package:unimind/views/profile_setup/selectavatar.dart';
 import 'package:unimind/views/profile_setup/strengths.dart';
 import 'package:unimind/views/profile_setup/weaknesses.dart';
 import 'package:unimind/views/profile_setup/gender.dart';
 import 'package:unimind/views/profile_setup/collegedep.dart';
 import 'package:unimind/views/home/home_page.dart';
+import 'package:unimind/views/profile_setup/welcomepage.dart'; // <--- NEW IMPORT
 
 class SelectionPage extends StatefulWidget {
   const SelectionPage({super.key});
@@ -20,7 +21,7 @@ class SelectionPage extends StatefulWidget {
 class _SelectionPageState extends State<SelectionPage> {
   int _currentStep = 0;
   String? _selectedGender;
-  String? _selectedCollege; 
+  String? _selectedCollege;
   String? _selectedProgram;
   String? _selectedProgramAcronym;
   int? _selectedYear;
@@ -101,17 +102,30 @@ class _SelectionPageState extends State<SelectionPage> {
           profileData['avatarPath'] = _selectedAvatarPathOrUrl;
         }
 
+        // FIX: Use set() with merge: true instead of update()
+        // This ensures the document is created if it doesn't exist, preventing the 'not-found' error.
         await FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
-            .update(profileData);
+            .set(profileData, SetOptions(merge: true));
 
         debugPrint("Profile data saved successfully!");
 
         if (mounted) {
+          // New: Redirect to WelcomePage instead of HomePage
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const HomePage()),
+            MaterialPageRoute(
+              builder: (context) => WelcomePage(
+                name:
+                    user.displayName ??
+                    'Student', // Assuming user.displayName is available
+                yearLevel: '${_selectedYear}', // Adjust format as needed
+                program: _selectedProgram ?? 'Program',
+                department: _selectedCollege ?? 'Department',
+                avatarUrl: _selectedAvatarPathOrUrl,
+              ),
+            ),
           );
         }
       }
@@ -157,19 +171,17 @@ class _SelectionPageState extends State<SelectionPage> {
         },
       ),
       WeaknessesSelect(
-        disabledWeaknesses: _selectedStrengths, 
+        disabledWeaknesses: _selectedStrengths,
         onSelect: (weaknesses) {
           setState(() => _selectedWeaknesses = weaknesses);
         },
       ),
 
       AvatarSelect(
-        departmentCode:
-            _selectedCollege ?? 'CCE', 
+        departmentCode: _selectedCollege ?? 'CCE',
         onSelect: (pathOrUrl) {
           setState(() {
-            _selectedAvatarPathOrUrl =
-                pathOrUrl;
+            _selectedAvatarPathOrUrl = pathOrUrl;
           });
         },
       ),
@@ -269,7 +281,7 @@ class _SelectionPageState extends State<SelectionPage> {
                   ),
                 ),
 
-                  Expanded(child: steps[_currentStep]),
+                Expanded(child: steps[_currentStep]),
 
                 Padding(
                   padding: EdgeInsets.symmetric(
