@@ -1571,14 +1571,27 @@ class _HomeContentState extends State<_HomeContent> {
           .collection('following')
           .doc(currentUid)
           .get();
+
+      // Check for pending follow requests in either direction
+      final followRequestsRef = FirebaseFirestore.instance.collection('followRequests');
+      final currentUserPendingRequest = await followRequestsRef
+          .where('fromUid', isEqualTo: currentUid)
+          .where('toUid', isEqualTo: docUid)
+          .where('status', isEqualTo: 'pending')
+          .get();
+      final targetUserPendingRequest = await followRequestsRef
+          .where('fromUid', isEqualTo: docUid)
+          .where('toUid', isEqualTo: currentUid)
+          .where('status', isEqualTo: 'pending')
+          .get();
       
-      // If either is following the other, exclude from suggestions
-      if (currentUserFollowing.exists || targetUserFollowing.exists) {
-        debugPrint('Excluding user $docUid - following relationship exists');
+      // If either is following the other or there are pending requests, exclude from suggestions
+      if (currentUserFollowing.exists ||
+          targetUserFollowing.exists ||
+          currentUserPendingRequest.docs.isNotEmpty ||
+          targetUserPendingRequest.docs.isNotEmpty) {
         continue;
       }
-      
-      debugPrint('Including user $docUid in suggestions');
 
       // Apply gender filter
       if (widget.filters['gender'] != null) {

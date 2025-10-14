@@ -719,22 +719,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.white70),
-                              ),
-                              child: Text(
-                                department,
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
+                            _buildFollowButton(),
                           ],
                         ),
                       ),
@@ -854,62 +839,6 @@ class _DiscoverPageState extends State<DiscoverPage> {
                       const SizedBox(height: 15),
                     ],
                   ),
-
-                /// Follow Button
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _toggleFollow,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: (_isFollowing || _isPending)
-                          ? Colors.grey[500]
-                          : const Color(0xFFB41214),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 3,
-                      shadowColor: Colors.black.withOpacity(0.3),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                _isFollowing 
-                                    ? Icons.check_circle 
-                                    : _isPending 
-                                        ? Icons.hourglass_empty 
-                                        : Icons.person_add_alt_1,
-                                size: 22,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                _isFollowing 
-                                    ? 'FOLLOWING' 
-                                    : _isPending 
-                                        ? 'PENDING' 
-                                        : 'FOLLOW USER',
-                                style: GoogleFonts.montserrat(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ],
-                          ),
-                  ),
-                ),
                 const SizedBox(height: 30),
               ],
             ),
@@ -1074,6 +1003,47 @@ Widget _buildSkillsChips(List<String> skills, {bool isImprovement = false}) {
     } catch (e) {
       return 'Student';
     }
+  }
+
+  // Follow button used in the scanned profile header — uses DiscoverPage state
+  Widget _buildFollowButton() {
+    // Use the page's current following/pending/loading state and toggle logic
+    return OutlinedButton(
+      onPressed: _isLoading ? null : _toggleFollow,
+      style: OutlinedButton.styleFrom(
+        side: const BorderSide(color: Colors.white70),
+        backgroundColor: _isFollowing
+            ? Colors.white
+            : _isPending
+                ? Colors.white24
+                : Colors.white,
+        foregroundColor: _isFollowing ? Colors.black : Colors.black,
+        padding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 8,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      child: _isLoading
+          ? const SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Text(
+              _isFollowing
+                  ? "Following"
+                  : _isPending
+                      ? "Pending"
+                      : "Follow",
+              style: GoogleFonts.montserrat(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+    );
   }
 }
 

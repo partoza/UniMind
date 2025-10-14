@@ -146,7 +146,7 @@ class _CollegeDepSelectState extends State<CollegeDepSelect> {
                 ),
                 const SizedBox(height: 10),
                 _buildDepartmentOption(
-                  "College of Hopitality Education",
+                  "College of Hospitality Education",
                   "assets/depLogo/chelogo.png",
                   "CHE",
                 ),

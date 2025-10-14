@@ -70,52 +70,58 @@ class AuthService {
 }
 
   Future<User?> registerWithEmailAndPassword(
-    String email, 
-    String password, 
-    String firstName, 
-    String lastName,
-  ) async {
-    try {
-      // Use _auth instance instead of FirebaseAuth.instance
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+  String email, 
+  String password, 
+  String firstName, 
+  String lastName,
+) async {
+  try {
+    UserCredential result = await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+    
+    User? user = result.user;
+    
+    if (user != null) {
+      String displayName = '$firstName $lastName';
       
-      if (result.user != null) {
-        // Create user document in Firestore
-        await FirebaseFirestore.instance.collection('users').doc(result.user!.uid).set({
-          'uid': result.user!.uid,
-          'email': email,
-          'displayName': '$firstName $lastName',
-          'firstName': firstName,
-          'lastName': lastName,
-          'avatarPath': 'assets/cce_male.jpg',
-          'createdAt': FieldValue.serverTimestamp(),
-          'yearLevel': 1,
-          'department': 'Not set',
-          'program': 'Not set',
-          'gender': 'Not set',
-          'place': 'PS Building',
-          'bio': 'No bio yet. You can add one by editing your profile.',
-          'strengths': [],
-          'weaknesses': [],
-          'followerCount': 0,
-          'followingCount': 0,
-          'profileComplete': false,
-        });
-      }
+      // Update displayName in Firebase Auth
+      await user.updateDisplayName(displayName);
       
-      return result.user;
-    } on FirebaseAuthException catch (e) {
-      print("FirebaseAuthException in registerWithEmailAndPassword: ${e.code} - ${e.message}");
-      rethrow;
-    } catch (e) {
-      print("Unexpected error in registerWithEmailAndPassword: $e");
-      throw FirebaseAuthException(
-        code: 'unknown-error',
-        message: 'An unexpected error occurred during registration',
-      );
+      // Create user document in Firestore
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'email': email,
+        'displayName': displayName,
+        'firstName': firstName,
+        'lastName': lastName,
+        'avatarPath': 'assets/cce_male.jpg',
+        'createdAt': FieldValue.serverTimestamp(),
+        'yearLevel': 1,
+        'department': 'Not set',
+        'program': 'Not set',
+        'gender': 'Not set',
+        'place': 'PS Building',
+        'bio': 'No bio yet. You can add one by editing your profile.',
+        'strengths': [],
+        'weaknesses': [],
+        'followerCount': 0,
+        'followingCount': 0,
+        'profileComplete': false,
+      });
     }
+    
+    return user;
+  } on FirebaseAuthException catch (e) {
+    print("FirebaseAuthException in registerWithEmailAndPassword: ${e.code} - ${e.message}");
+    rethrow;
+  } catch (e) {
+    print("Unexpected error in registerWithEmailAndPassword: $e");
+    throw FirebaseAuthException(
+      code: 'unknown-error',
+      message: 'An unexpected error occurred during registration',
+    );
   }
+}
 }

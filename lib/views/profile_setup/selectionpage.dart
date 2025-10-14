@@ -82,62 +82,69 @@ class _SelectionPageState extends State<SelectionPage> {
   }
 
   Future<void> _saveProfileData() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        Map<String, dynamic> profileData = {
-          'gender': _selectedGender,
-          'department': _selectedCollege,
-          'program': _selectedProgram,
-          'programAcronym': _selectedProgramAcronym,
-          'yearLevel': _selectedYear,
-          'place': _selectedPlace,
-          'strengths': _selectedStrengths,
-          'weaknesses': _selectedWeaknesses,
-          'profileComplete': true,
-          'updatedAt': FieldValue.serverTimestamp(),
-        };
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Fetch the user document to get the displayName from Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-        if (_selectedAvatarPathOrUrl != null) {
-          profileData['avatarPath'] = _selectedAvatarPathOrUrl;
-        }
+      // Get displayName from Firestore, fallback to Auth, then to 'Student'
+      String displayName = userDoc.data()?['displayName'] ?? 
+                          user.displayName ?? 
+                          'Student';
 
-        // FIX: Use set() with merge: true instead of update()
-        // This ensures the document is created if it doesn't exist, preventing the 'not-found' error.
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(user.uid)
-            .set(profileData, SetOptions(merge: true));
+      Map<String, dynamic> profileData = {
+        'gender': _selectedGender,
+        'department': _selectedCollege,
+        'program': _selectedProgram,
+        'displayName': displayName, // Keep the displayName in Firestore
+        'programAcronym': _selectedProgramAcronym,
+        'yearLevel': _selectedYear,
+        'place': _selectedPlace,
+        'strengths': _selectedStrengths,
+        'weaknesses': _selectedWeaknesses,
+        'profileComplete': true,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
 
-        debugPrint("Profile data saved successfully!");
-
-        if (mounted) {
-          // New: Redirect to WelcomePage instead of HomePage
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => WelcomePage(
-                name:
-                    user.displayName ??
-                    'Student', // Assuming user.displayName is available
-                yearLevel: '${_selectedYear}', // Adjust format as needed
-                program: _selectedProgram ?? 'Program',
-                department: _selectedCollege ?? 'Department',
-                avatarUrl: _selectedAvatarPathOrUrl,
-              ),
-            ),
-          );
-        }
+      if (_selectedAvatarPathOrUrl != null) {
+        profileData['avatarPath'] = _selectedAvatarPathOrUrl;
       }
-    } catch (e) {
-      debugPrint("Error saving profile data: $e");
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set(profileData, SetOptions(merge: true));
+
+      debugPrint("Profile data saved successfully!");
+
       if (mounted) {
-        ScaffoldMessenger.of(
+        Navigator.pushReplacement(
           context,
-        ).showSnackBar(SnackBar(content: Text('Error saving profile: $e')));
+          MaterialPageRoute(
+            builder: (context) => WelcomePage(
+              name: displayName, // Use the displayName from Firestore
+              yearLevel: '${_selectedYear}',
+              program: _selectedProgram ?? 'Program',
+              department: _selectedCollege ?? 'Department',
+              avatarUrl: _selectedAvatarPathOrUrl,
+            ),
+          ),
+        );
       }
     }
+  } catch (e) {
+    debugPrint("Error saving profile data: $e");
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error saving profile: $e'))
+      );
+    }
   }
+}
 
   @override
   Widget build(BuildContext context) {

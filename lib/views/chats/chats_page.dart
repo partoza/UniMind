@@ -400,147 +400,159 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildChatTile(String peerUid, Map<String, dynamic> userData) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection("chats")
-          .doc(_getChatId(currentUid, peerUid))
-          .collection("messages")
-          .orderBy("timestamp", descending: true)
-          .limit(1)
-          .snapshots(),
-      builder: (context, msgSnap) {
-        String lastMessage = "Say Hi!";
-        String timeAgo = "";
-        bool hasUnread = false;
+  return StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance
+        .collection("chats")
+        .doc(_getChatId(currentUid, peerUid))
+        .collection("messages")
+        .orderBy("timestamp", descending: true)
+        .limit(1)
+        .snapshots(),
+    builder: (context, msgSnap) {
+      String lastMessage = "Say Hi!";
+      String timeAgo = "";
+      bool hasUnread = false;
+      bool hasMessages = false;
 
-        if (msgSnap.hasData && msgSnap.data!.docs.isNotEmpty) {
-          final msg = msgSnap.data!.docs.first.data() as Map<String, dynamic>;
-          lastMessage = msg['text'] ?? 'Say Hi!';
+      if (msgSnap.hasData && msgSnap.data!.docs.isNotEmpty) {
+        final msgDoc = msgSnap.data!.docs.first;
+        if (msgDoc.exists) {
+          final msg = msgDoc.data() as Map<String, dynamic>;
+          lastMessage = msg['text']?.toString() ?? 'Say Hi!';
+          hasMessages = true;
 
           if (msg['timestamp'] != null) {
             final timestamp = msg['timestamp'] as Timestamp;
             timeAgo = _formatTimeAgo(timestamp.toDate());
           }
 
+          // Check if message is unread - only if it's from the other user
           hasUnread = msg['read'] == false && msg['senderUid'] != currentUid;
         }
+      }
 
-        return Container(
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.white,
+      // Only show "Say Hi!" if there are truly no messages
+      if (!hasMessages) {
+        lastMessage = "Say Hi!";
+        timeAgo = "Now";
+      }
+
+      return Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              _navigateToChat(
+                peerUid, 
+                userData['displayName'] ?? 'Unknown User', 
+                userData['avatarPath'] ?? ''
+              );
+            },
             borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () {
-                _navigateToChat(
-                  peerUid, 
-                  userData['displayName'] ?? 'Unknown User', 
-                  userData['avatarPath'] ?? ''
-                );
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    // Avatar
-                    Container(
-                      width: 50,
-                      height: 50,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFB41214).withOpacity(0.2),
-                          width: 1.5,
-                        ),
-                      ),
-                      child: CircleAvatar(
-                        radius: 23,
-                        backgroundImage: _getAvatarImage(userData['avatarPath']),
-                        backgroundColor: Colors.grey[200],
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: const Color(0xFFB41214).withOpacity(0.2),
+                        width: 1.5,
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    child: CircleAvatar(
+                      radius: 23,
+                      backgroundImage: _getAvatarImage(userData['avatarPath']),
+                      backgroundColor: Colors.grey[200],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
 
-                    // Message Content
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              SizedBox(
-                                width: 150,
-                                child: Text(
-                                  userData['displayName'] ?? 'Unknown User',
-                                  style: GoogleFonts.montserrat(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 12,
-                                    color: const Color(0xFF2D2D2D),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  softWrap: false,
-                                ),
-                              ),
-                              Text(
-                                timeAgo.isEmpty ? 'Now' : timeAgo,
+                  // Message Content
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            SizedBox(
+                              width: 150,
+                              child: Text(
+                                userData['displayName'] ?? 'Unknown User',
                                 style: GoogleFonts.montserrat(
+                                  fontWeight: FontWeight.w600,
                                   fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF9CA3AF),
+                                  color: const Color(0xFF2D2D2D),
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                softWrap: false,
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            lastMessage,
-                            style: GoogleFonts.montserrat(
-                              fontSize: 14,
-                              color: const Color(0xFF6B7280),
-                              fontWeight: hasUnread
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 1,
+                            Text(
+                              timeAgo,
+                              style: GoogleFonts.montserrat(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFF9CA3AF),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          lastMessage,
+                          style: GoogleFonts.montserrat(
+                            fontSize: 14,
+                            color: const Color(0xFF6B7280),
+                            fontWeight: hasUnread
+                                ? FontWeight.w600
+                                : FontWeight.w400,
                           ),
-                        ],
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Unread indicator
+                  if (hasUnread)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(left: 8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFB41214),
+                        shape: BoxShape.circle,
                       ),
                     ),
-
-                    // Unread indicator
-                    if (hasUnread)
-                      Container(
-                        width: 8,
-                        height: 8,
-                        margin: const EdgeInsets.only(left: 8),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFB41214),
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                  ],
-                ),
+                ],
               ),
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   Widget _buildConnectionsLoading() {
     return ListView.builder(
